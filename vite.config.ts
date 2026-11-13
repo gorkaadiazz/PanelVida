@@ -1,11 +1,20 @@
+/// <reference types="vitest/config" />
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
 // https://vite.dev/config/
+// En los tests (Vitest pone VITEST=true) no hace falta el plugin PWA.
+const enTests = process.env.VITEST === 'true'
+
 export default defineConfig({
+  test: {
+    include: ['src/**/*.test.ts'],
+    environment: 'node',
+  },
   plugins: [
     react(),
+    !enTests &&
     VitePWA({
       // La versión nueva no se activa sola: AvisoActualizacion pregunta antes.
       registerType: 'prompt',
