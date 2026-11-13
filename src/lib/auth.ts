@@ -1,7 +1,9 @@
 // Inicio y cierre de sesión con Google (Supabase Auth). Sin React: las
 // pantallas y el AuthProvider usan estas funciones.
 
-import { supabase } from './supabase'
+import type { Session } from '@supabase/supabase-js'
+import { borrarSesionGuardada, leerSesionGuardada } from './sesionGuardada'
+import { CLAVE_SESION, supabase } from './supabase'
 
 const MENSAJE_SIN_ACCESO = 'Este email no tiene acceso a la app. Pide que lo añadan a la lista.'
 const MENSAJE_GENERICO = 'No se ha podido iniciar sesión. Inténtalo de nuevo.'
@@ -28,12 +30,39 @@ export async function entrarConGoogle(): Promise<void> {
 }
 
 /**
- * Cierra la sesión SOLO en este dispositivo. Borrar la copia local
- * (IndexedDB) es cosa de quien la llame.
+ * Cierra la sesión SOLO en este dispositivo. NUNCA lanza y no depende de la
+ * red: en un PC compartido (el de clase) la sesión no puede quedarse abierta
+ * porque falle la wifi.
+ *
+ *  1. signOut({ scope: 'local' }) borra la sesión guardada y avisa a la app
+ *     (SIGNED_OUT) antes de hablar con el servidor; la llamada de red solo
+ *     sirve para anular el token allí. Si falla, no pasa nada.
+ *  2. Respaldo: si aun así la sesión siguiera guardada, se borra a mano y se
+ *     recarga la app para que arranque limpia en la pantalla de entrada.
+ *
+ * Borrar la copia local de datos (IndexedDB) es cosa de sync/sesion.ts
+ * (cerrarSesion), que es lo que deben llamar las pantallas.
  */
 export async function salir(): Promise<void> {
-  const { error } = await supabase.auth.signOut({ scope: 'local' })
-  if (error) throw error
+  try {
+    const { error } = await supabase.auth.signOut({ scope: 'local' })
+    if (error) console.warn('El servidor no ha confirmado el cierre de sesión (en este dispositivo ya está cerrada).')
+  } catch {
+    console.warn('No se ha podido cerrar la sesión por la vía normal; se borra a mano.')
+  }
+  if (sesionGuardada()) {
+    borrarSesionGuardada(CLAVE_SESION)
+    location.replace('/')
+  }
+}
+
+/**
+ * La sesión guardada en este dispositivo, sin pasar por la red. Sirve para
+ * abrir la app sin conexión cuando supabase-js no puede renovar el token
+ * (ver lib/sesionGuardada.ts).
+ */
+export function sesionGuardada(): Session | null {
+  return leerSesionGuardada(CLAVE_SESION)
 }
 
 /**

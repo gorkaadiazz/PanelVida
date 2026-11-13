@@ -1,9 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // El cliente real exige variables de entorno; aquí no hace falta.
-vi.mock('./supabase', () => ({ supabase: { auth: {} } }))
+vi.mock('./supabase', () => ({ supabase: { auth: {} }, CLAVE_SESION: 'sb-prueba-auth-token' }))
 
-import { leerErrorDeVuelta, mensajeDeErrorAuth } from './auth'
+import { leerErrorDeVuelta, mensajeDeErrorAuth, salir, sesionGuardada } from './auth'
+import { supabase } from './supabase'
 
 const SIN_ACCESO = 'Este email no tiene acceso a la app. Pide que lo añadan a la lista.'
 const GENERICO = 'No se ha podido iniciar sesión. Inténtalo de nuevo.'
@@ -111,5 +112,74 @@ describe('leerErrorDeVuelta', () => {
     const msg = leerErrorDeVuelta()
     expect(msg).toBe(SIN_ACCESO)
     expect(msg).not.toContain('evil')
+  })
+})
+
+describe('salir (cerrar sesión en este dispositivo)', () => {
+  const CLAVE = 'sb-prueba-auth-token'
+  const SESION = JSON.stringify({ access_token: 'a', refresh_token: 'r', expires_at: 1, user: { id: 'u1' } })
+  let guardado: Map<string, string>
+  let replace: ReturnType<typeof vi.fn>
+  const auth = supabase.auth as unknown as { signOut?: (opciones: { scope: string }) => Promise<{ error: unknown }> }
+
+  beforeEach(() => {
+    guardado = new Map([[CLAVE, SESION]])
+    replace = vi.fn()
+    vi.stubGlobal('localStorage', {
+      getItem: (k: string) => guardado.get(k) ?? null,
+      removeItem: (k: string) => void guardado.delete(k),
+    })
+    vi.stubGlobal('location', { replace })
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+  })
+
+  afterEach(() => {
+    delete auth.signOut
+    vi.unstubAllGlobals()
+    vi.restoreAllMocks()
+  })
+
+  it('pide a supabase cerrar solo este dispositivo (scope local)', async () => {
+    const signOut = vi.fn(async () => {
+      guardado.delete(CLAVE) // supabase-js borra la sesión guardada
+      return { error: null }
+    })
+    auth.signOut = signOut
+    await salir()
+    expect(signOut).toHaveBeenCalledWith({ scope: 'local' })
+    expect(replace).not.toHaveBeenCalled()
+  })
+
+  it('sin conexión: el error de red no impide cerrar (la sesión local ya está borrada)', async () => {
+    auth.signOut = async () => {
+      guardado.delete(CLAVE)
+      return { error: new TypeError('Failed to fetch') }
+    }
+    await expect(salir()).resolves.toBeUndefined()
+    expect(sesionGuardada()).toBeNull()
+    expect(replace).not.toHaveBeenCalled()
+  })
+
+  it('respaldo: si signOut devuelve error y NO ha borrado la sesión, se borra a mano y se recarga', async () => {
+    guardado.set(`${CLAVE}-code-verifier`, 'x')
+    auth.signOut = async () => ({ error: new TypeError('Failed to fetch') })
+    await expect(salir()).resolves.toBeUndefined()
+    expect([...guardado.keys()]).toEqual([])
+    expect(replace).toHaveBeenCalledWith('/')
+  })
+
+  it('respaldo: también si signOut lanza', async () => {
+    auth.signOut = async () => {
+      throw new Error('roto')
+    }
+    await expect(salir()).resolves.toBeUndefined()
+    expect(sesionGuardada()).toBeNull()
+    expect(replace).toHaveBeenCalledWith('/')
+  })
+
+  it('sesionGuardada lee la sesión del dispositivo sin pasar por la red', () => {
+    expect(sesionGuardada()?.user.id).toBe('u1')
+    guardado.clear()
+    expect(sesionGuardada()).toBeNull()
   })
 })

@@ -2,27 +2,26 @@ import { useState, type CSSProperties } from 'react'
 import { nombreDeUsuario, useSesion } from '../auth/useSesion'
 import { Pagina } from '../components/Pagina'
 import { IconoAviso } from '../components/iconos'
-import { salir } from '../lib/auth'
+import { useEstadoSync } from '../sync/hooks'
+import { cerrarSesion as cerrarSesionYBorrarCopia } from '../sync/sesion'
 
 export function Cuenta() {
   const { usuario } = useSesion()
+  const { pendientes } = useEstadoSync()
   const [saliendo, setSaliendo] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  // Con cambios sin subir, el primer toque solo avisa; hay que confirmar.
+  const [avisado, setAvisado] = useState(false)
+  const hayQueConfirmar = pendientes > 0 && !avisado
 
   async function cerrarSesion() {
-    setError(null)
-    setSaliendo(true)
-    try {
-      await salir()
-      // AuthProvider recibe SIGNED_OUT: borra la copia local y muestra Login.
-    } catch {
-      setError(
-        navigator.onLine
-          ? 'No se ha podido cerrar la sesión. Inténtalo de nuevo.'
-          : 'Necesitas conexión para cerrar sesión. Conéctate e inténtalo de nuevo.',
-      )
-      setSaliendo(false)
+    if (hayQueConfirmar) {
+      setAvisado(true)
+      return
     }
+    setSaliendo(true)
+    // Nunca falla y no necesita conexión: borra la copia local y la sesión de
+    // este dispositivo. AuthProvider recibe SIGNED_OUT y muestra Login.
+    await cerrarSesionYBorrarCopia()
   }
 
   return (
@@ -42,10 +41,18 @@ export function Cuenta() {
           </dl>
         </section>
 
-        {error && (
+        {avisado && pendientes > 0 && (
           <div className="alert alert--danger" role="alert">
             <IconoAviso />
-            <div className="alert__body">{error}</div>
+            <div className="alert__body">
+              <p className="alert__title">
+                {pendientes === 1 ? 'Tienes 1 cambio sin subir' : `Tienes ${pendientes} cambios sin subir`}
+              </p>
+              <p>
+                Si cierras sesión ahora y no hay conexión, se perderán. Conéctate a internet y espera a que se suban, o
+                vuelve a pulsar para cerrar sesión igualmente.
+              </p>
+            </div>
           </div>
         )}
 
@@ -53,9 +60,10 @@ export function Cuenta() {
           type="button"
           className="btn btn--secondary btn--block"
           onClick={() => void cerrarSesion()}
+          disabled={saliendo}
           aria-busy={saliendo || undefined}
         >
-          Cerrar sesión
+          {avisado && pendientes > 0 ? 'Cerrar sesión igualmente' : 'Cerrar sesión'}
         </button>
         <p className="t-small muted">Se borrará la copia de tus datos guardada en este dispositivo. En la nube siguen a salvo.</p>
 
