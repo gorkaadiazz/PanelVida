@@ -3,7 +3,10 @@
 
 import type { FechaDia } from '../lib/fechas'
 import { useConsulta, type Consulta } from '../sync/hooks'
+import { listarClientes, type Cliente } from './clientes'
 import { listarExamenes, type DatosExamenes } from './examenes'
+import { listarMovimientos, type Movimiento } from './movimientos'
+import { obtenerPerfil, type Perfil } from './perfil'
 import { listarHabitos, listarMarcas, type Habito, type Marca } from './habitos'
 import { listarTareas, type Tarea } from './tareas'
 
@@ -28,4 +31,19 @@ export function useTareas(): Consulta<Tarea[]> {
 /** Exámenes y módulos de la web de exámenes (solo lectura). */
 export function useExamenes(): Consulta<DatosExamenes> {
   return useConsulta(['evaluaciones', 'modulos'], listarExamenes)
+}
+
+/** Todos los ingresos y gastos. */
+export function useMovimientos(): Consulta<Movimiento[]> {
+  return useConsulta(['movimientos'], listarMovimientos)
+}
+
+/** Todos los clientes del negocio. */
+export function useClientes(): Consulta<Cliente[]> {
+  return useConsulta(['clientes_web'], listarClientes)
+}
+
+/** El perfil (para la meta de ahorro); null si aún no se ha descargado. */
+export function usePerfil(): Consulta<Perfil | null> {
+  return useConsulta(['perfiles'], obtenerPerfil)
 }

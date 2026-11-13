@@ -31,6 +31,11 @@ export interface DefTabla<N extends string = string> {
    */
   padre?: { tabla: string; columna: string }
   /**
+   * Tabla compartida con la web de exámenes de la que Mi Panel solo usa
+   * algunas columnas: se bajan y se suben solo las de `columnas`.
+   */
+  parcial?: boolean
+  /**
    * Solo se descarga (la escribe el servidor u otra app); nunca se sube y
    * los repositorios no la escriben. De ella solo se bajan `columnas` (más
    * las comunes y sync_at), no la fila entera.
@@ -47,6 +52,11 @@ export const TABLAS = [
     padre: { tabla: 'habitos', columna: 'habito_id' },
   },
   { nombre: 'tareas', columnas: ['texto', 'fecha_limite', 'hecha', 'hecha_en'] },
+  { nombre: 'movimientos', columnas: ['tipo', 'concepto', 'importe_centimos', 'fecha'], indices: ['fecha'] },
+  { nombre: 'clientes_web', columnas: ['nombre', 'precio_centimos', 'notas', 'estado', 'orden'] },
+  // Fila del perfil (la comparte la web de exámenes): Mi Panel solo lee y
+  // cambia la meta de ahorro. La fila la crea inicializar_cuenta.
+  { nombre: 'perfiles', columnas: ['meta_ahorro_centimos'], parcial: true },
   // De la web de exámenes (mismo proyecto de Supabase): Mi Panel solo las LEE
   // para la tarjeta «Próximo examen». Se bajan solo estas columnas (la foto
   // del módulo, por ejemplo, no hace falta aquí).
@@ -73,7 +83,9 @@ export type TablaEscribible = Exclude<NombreTabla, Extract<(typeof TABLAS)[numbe
  * servidor: una fila creada aquí no los tiene hasta que se descarga. De las
  * tablas de solo lectura solo están las columnas que se bajan.
  */
-export type FilaLocal<T extends NombreTabla> = T extends TablaEscribible
+type TablaParcial = Extract<(typeof TABLAS)[number], { parcial: true } | { soloLectura: true }>['nombre']
+
+export type FilaLocal<T extends NombreTabla> = T extends Exclude<TablaEscribible, TablaParcial>
   ? FilaCompleta<T>
   : Pick<TablasPublicas[T]['Row'], Extract<Comunes | ColumnasDe<T>, keyof TablasPublicas[T]['Row']>> & { user_id?: string; sync_at?: string }
 
@@ -115,10 +127,10 @@ export function indicesDe(def: DefTabla): string[] {
 
 /**
  * Columnas que se piden al descargar una tabla: todas ('*') en las que se
- * escriben aquí; en las de solo lectura, solo las declaradas.
+ * escriben aquí enteras; en las de solo lectura y las parciales, solo las declaradas.
  */
 export function columnasDeDescarga(nombre: string, tablas: readonly DefTabla[] = LISTA): string {
   const def = tablas.find((t) => t.nombre === nombre)
-  if (!def?.soloLectura) return '*'
+  if (!def?.soloLectura && !def?.parcial) return '*'
   return [...new Set([...COLUMNAS_COMUNES, ...def.columnas, 'user_id', 'sync_at'])].join(',')
 }

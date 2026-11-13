@@ -63,9 +63,9 @@ export function crearRemotoSupabase(cliente: unknown): Remoto {
 
     async obtener(tabla, ids) {
       if (!ids.length) return []
-      const { data, error } = await api.from(tabla).select('*').in('id', [...ids])
+      const { data, error } = await api.from(tabla).select(columnasDeDescarga(tabla)).in('id', [...ids])
       if (error) throw error
-      return (data ?? []) as FilaRemota[]
+      return (data ?? []) as unknown as FilaRemota[]
     },
 
     async descargar(tabla, desde, desplazamiento, limite) {

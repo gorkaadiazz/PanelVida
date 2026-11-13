@@ -14,7 +14,11 @@ import { ALMACEN_COLA, ALMACEN_META, ErrorOtraCuenta, ErrorSinSesion, abrirBase,
 import { contarPendientes, listarPendientes } from './cola'
 import { MENSAJE_ERROR_SYNC, crearMotor } from './motor'
 import { PAGINA_DESCARGA } from './reglas'
+import { guardarMetaAhorro } from '../repos/perfil'
 import { crearServidorFalso } from './servidorFalso'
+import { TABLAS } from './tablas'
+
+const NOMBRES: string[] = TABLAS.map((t) => t.nombre)
 
 const HABITO_SEMILLA = '11111111-1111-4111-8111-111111111111'
 const PASADO = '2001-01-01T00:00:00.000Z'
@@ -545,7 +549,7 @@ describe('tablas de la web de exámenes (solo lectura)', () => {
     await base.tx(['evaluaciones', 'modulos', ALMACEN_META], 'readwrite', (t) => {
       t.objectStore('evaluaciones').clear()
       t.objectStore('modulos').clear()
-      t.objectStore(ALMACEN_META).put({ clave: 'tablas_descargadas', valor: ['habitos', 'habito_marcas', 'tareas'] })
+      t.objectStore(ALMACEN_META).put({ clave: 'tablas_descargadas', valor: NOMBRES.filter((n) => n !== 'modulos' && n !== 'evaluaciones') })
     })
   }
 
@@ -557,14 +561,14 @@ describe('tablas de la web de exámenes (solo lectura)', () => {
     servidor.desdeOtroDispositivo('evaluaciones', EXAMEN)
     const descargar = vi.spyOn(servidor, 'descargar')
     expect(await motor.sincronizar()).toBe(true)
-    expect(tablasPedidas(descargar.mock.calls)).toEqual(['habitos entera', 'habito_marcas entera', 'tareas entera', 'modulos entera', 'evaluaciones entera'])
+    expect(tablasPedidas(descargar.mock.calls)).toEqual(NOMBRES.map((n) => `${n} entera`))
     expect(servidor.peticiones).not.toContain('descargar borrados')
-    expect(await base.leerMeta('tablas_descargadas')).toEqual(['habitos', 'habito_marcas', 'tareas', 'modulos', 'evaluaciones'])
+    expect(await base.leerMeta('tablas_descargadas')).toEqual(NOMBRES)
     expect(await base.todos('evaluaciones')).toHaveLength(1)
 
     descargar.mockClear()
     await motor.sincronizar()
-    expect(tablasPedidas(descargar.mock.calls)).toEqual(['habitos desde', 'habito_marcas desde', 'tareas desde', 'modulos desde', 'evaluaciones desde'])
+    expect(tablasPedidas(descargar.mock.calls)).toEqual(NOMBRES.map((n) => `${n} desde`))
   })
 
   it('con la versión anterior, solo las tablas nuevas se bajan enteras', async () => {
@@ -575,7 +579,9 @@ describe('tablas de la web de exámenes (solo lectura)', () => {
     await comoVersionAnterior(base)
     const descargar = vi.spyOn(servidor, 'descargar')
     await motor.sincronizar()
-    expect(tablasPedidas(descargar.mock.calls)).toEqual(['habitos desde', 'habito_marcas desde', 'tareas desde', 'modulos entera', 'evaluaciones entera'])
+    expect(tablasPedidas(descargar.mock.calls)).toEqual(
+      NOMBRES.map((n) => `${n} ${['modulos', 'evaluaciones'].includes(n) ? 'entera' : 'desde'}`),
+    )
     expect(await base.todos('evaluaciones')).toHaveLength(1)
   })
 
@@ -618,7 +624,7 @@ describe('tablas de la web de exámenes (solo lectura)', () => {
 
       servidor.fallo = (p) => (p === peticion ? { message: 'Failed to fetch' } : null)
       expect(await motor.sincronizar()).toBe(false)
-      expect(await base.leerMeta('tablas_descargadas')).toEqual(['habitos', 'habito_marcas', 'tareas'])
+      expect(await base.leerMeta('tablas_descargadas')).toEqual(NOMBRES.filter((n) => n !== 'modulos' && n !== 'evaluaciones'))
       expect(await base.leerMeta('ultima_descarga')).toBe(cursor)
 
       servidor.fallo = null
@@ -736,6 +742,23 @@ describe('una tabla que falla no bloquea a las demás', () => {
     expect(await motor.sincronizar()).toBe(false)
     expect(estadoSync().fase).toBe('sin-conexion')
     expect(await base.leerMeta('tablas_descargadas')).toContain('tareas')
+  })
+})
+
+describe('perfil compartido con la web de exámenes', () => {
+  it('al guardar la meta de ahorro solo se envían la meta y los sellos: lo demás del perfil no se toca', async () => {
+    const { motor, servidor } = await montar()
+    servidor.desdeOtroDispositivo('perfiles', { id: 'usuario-1', nombre: 'Gorka', tema: 'oscuro', preferencias: { a: 1 }, meta_ahorro_centimos: null })
+    await motor.sincronizar()
+    const guardar = vi.spyOn(servidor, 'guardar')
+
+    await guardarMetaAhorro('2.000')
+    await motor.sincronizar()
+
+    const enviadas = guardar.mock.calls.filter((c) => c[0] === 'perfiles').flatMap((c) => c[1])
+    expect(enviadas).toHaveLength(1)
+    expect(Object.keys(enviadas[0]).sort()).toEqual(['created_at', 'id', 'meta_ahorro_centimos', 'updated_at'])
+    expect(servidor.fila('perfiles', 'usuario-1')).toMatchObject({ meta_ahorro_centimos: 200000, nombre: 'Gorka', tema: 'oscuro', preferencias: { a: 1 } })
   })
 })
 
