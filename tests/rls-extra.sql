@@ -160,6 +160,21 @@ select pg_temp.comprobar(not exists (
            and p.cmd in ('SELECT', 'INSERT', 'UPDATE', 'DELETE')
            and 'authenticated' = any (p.roles)) < 4), ''));
 
+-- @caso: authenticated y anon no tienen TRUNCATE, REFERENCES ni TRIGGER en public
+reset role;
+select pg_temp.comprobar(not exists (
+  select 1
+  from pg_tables t, unnest(array['authenticated', 'anon']) rol,
+       unnest(array['TRUNCATE', 'REFERENCES', 'TRIGGER']) priv
+  where t.schemaname = 'public'
+    and has_table_privilege(rol, format('public.%I', t.tablename), priv)
+), 'privilegios de sobra: ' || coalesce((
+  select string_agg(rol || ' ' || priv || ' en ' || t.tablename, ', ')
+  from pg_tables t, unnest(array['authenticated', 'anon']) rol,
+       unnest(array['TRUNCATE', 'REFERENCES', 'TRIGGER']) priv
+  where t.schemaname = 'public'
+    and has_table_privilege(rol, format('public.%I', t.tablename), priv)), ''));
+
 -- @caso: las políticas de public no dan nada a anon ni a public
 reset role;
 select pg_temp.comprobar(not exists (

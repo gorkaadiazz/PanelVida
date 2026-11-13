@@ -3,7 +3,7 @@
 Panel de vida personal con los estudios de 2º SMR integrados: hábitos, tareas, dinero, negocio de páginas web, y exámenes, notas por RA, faltas y examen de práctica con IA.
 Se instala como app (PWA) en Android y en el PC, y los datos se sincronizan entre dispositivos con Supabase. Es multiusuario: cada persona ve solo sus datos.
 
-> Estado: **en construcción** (fase 1 de 7). Las convenciones del proyecto están en [CLAUDE.md](CLAUDE.md).
+> Estado: **en construcción** (fase 3 de 7). Las convenciones del proyecto están en [CLAUDE.md](CLAUDE.md).
 
 ## Requisitos
 - Node.js 20 o superior y npm.

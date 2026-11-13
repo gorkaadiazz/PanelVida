@@ -11,6 +11,7 @@ supabase/migrations/20261113000200_mi_panel_rls.sql
 supabase/migrations/20261113000300_perfiles_modulos.sql
 supabase/migrations/20261113000400_inicializar_cuenta.sql
 supabase/migrations/20261113000500_arreglo_borrado_cuenta.sql
+supabase/migrations/20261113000600_menos_privilegios.sql
 ```
 
 Las migraciones antiguas (`20261110000100` … `20261110000500`) **ya están
@@ -44,7 +45,7 @@ Elige **una** de las dos formas: A (sin instalar nada) o B (con la CLI).
    - Si sale un error, **para** y no sigas con el siguiente archivo. Copia el
      mensaje de error y pásalo.
 5. Borra el contenido del editor (o abre otra **New query**) y repite los
-   pasos 3 y 4 con el segundo archivo, luego el tercero, el cuarto y el quinto.
+   pasos 3 y 4 con el segundo archivo, luego el tercero, el cuarto, el quinto y el sexto.
    **Siempre en orden.**
 
 Comprobación final (pega y ejecuta en una query nueva):
@@ -134,6 +135,7 @@ npx supabase migration repair --status applied 20261113000200
 npx supabase migration repair --status applied 20261113000300
 npx supabase migration repair --status applied 20261113000400
 npx supabase migration repair --status applied 20261113000500
+npx supabase migration repair --status applied 20261113000600
 ```
 
 ---
