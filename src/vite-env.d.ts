@@ -1,4 +1,6 @@
 /// <reference types="vite/client" />
+/// <reference types="vite-plugin-pwa/react" />
+/// <reference types="vite-plugin-pwa/client" />
 
 // Variables de entorno públicas (van al navegador). Se leen de .env.local.
 interface ImportMetaEnv {

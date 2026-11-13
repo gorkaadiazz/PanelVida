@@ -1070,6 +1070,56 @@ input.input[type="number"] {
 }
 
 /* =========================================================
+   16b. Pantalla de acceso y avisos flotantes (fase 1)
+   ========================================================= */
+.login {             /* pantalla de acceso: columna centrada, sin barras */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--sp-6);
+  width: 100%;
+  max-width: 26rem;
+  min-height: 100dvh;
+  margin-inline: auto;
+  padding: calc(var(--safe-top) + var(--sp-8)) calc(var(--gutter) + var(--safe-right)) calc(var(--safe-bottom) + var(--sp-8)) calc(var(--gutter) + var(--safe-left));
+}
+
+.login__marca {
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+}
+
+.avisos {            /* avisos de conexión y actualización: flotan sobre el contenido */
+  position: fixed;
+  inset-inline: calc(var(--gutter) + var(--safe-left)) calc(var(--gutter) + var(--safe-right));
+  bottom: calc(var(--safe-bottom) + var(--sp-4));
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  max-width: var(--reading-max);
+  margin-inline: auto;
+  pointer-events: none;
+}
+
+.avisos > * {
+  pointer-events: auto;
+  box-shadow: var(--shadow-float);
+}
+
+.app ~ .avisos {     /* encima de la barra inferior */
+  bottom: calc(var(--nav-bottom-h) + var(--safe-bottom) + var(--sp-3));
+}
+
+@media (min-width: 900px) {
+  .app ~ .avisos {
+    bottom: var(--sp-6);
+    left: calc(var(--sidebar-w) + var(--gutter));
+  }
+}
+
+/* =========================================================
    17. Animaciones y movimiento reducido
    ========================================================= */
 @keyframes girar {
