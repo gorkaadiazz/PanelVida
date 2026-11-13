@@ -110,8 +110,17 @@ export function crearMotor({ base, remoto, enLinea, tablas = TABLAS }: OpcionesM
       }
       await avisar({ fase: 'sincronizando', error: null })
       await prepararCuenta()
-      await subir()
+      // Si una tabla no puede subir, igualmente se baja lo nuevo de todas;
+      // el fallo se avisa al final de la vuelta.
+      let falloAlSubir: { error: unknown } | null = null
+      try {
+        await subir()
+      } catch (e) {
+        if (e instanceof Detenido || esErrorDeRed(e) || !enLinea()) throw e
+        falloAlSubir = { error: e }
+      }
       await bajar()
+      if (falloAlSubir) throw falloAlSubir.error
       await avisar({ fase: 'sincronizado', error: null, ultimaSincronizacion: new Date().toISOString(), primeraDescargaHecha: true })
       return true
     } catch (e) {

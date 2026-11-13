@@ -631,6 +631,28 @@ begin
   update public.modulos set limite_faltas = null where id = 'a0000000-0000-4000-8000-0000000000a1';
 end;
 $$;
+-- @caso: perfiles: la meta de ahorro de Mi Panel sube con upsert de solo esa columna
+reset role;
+select pg_temp.como('aaaaaaaa-0000-4000-8000-000000000001');
+update public.perfiles set nombre = 'Nombre de A', tema = 'oscuro', preferencias = '{"x": 1}'::jsonb;
+-- Así sube Mi Panel la meta: id, sellos y la columna, nada más
+insert into public.perfiles (id, updated_at, meta_ahorro_centimos)
+  values ('aaaaaaaa-0000-4000-8000-000000000001', now() + interval '1 minute', 150000)
+  on conflict (id) do update set updated_at = excluded.updated_at, meta_ahorro_centimos = excluded.meta_ahorro_centimos;
+select pg_temp.comprobar((select meta_ahorro_centimos = 150000 and nombre = 'Nombre de A' and tema = 'oscuro'
+  and preferencias = '{"x": 1}'::jsonb from public.perfiles), 'subir la meta ha cambiado otras columnas del perfil');
+-- B no puede pisar con upsert la meta (ni nada) del perfil de A
+reset role;
+select pg_temp.como('bbbbbbbb-0000-4000-8000-000000000002');
+select pg_temp.debe_fallar($q$insert into public.perfiles (id, meta_ahorro_centimos)
+  values ('aaaaaaaa-0000-4000-8000-000000000001', 1)
+  on conflict (id) do update set meta_ahorro_centimos = excluded.meta_ahorro_centimos$q$, array['42501', '23514'], 'B pisa con upsert la meta de A');
+reset role;
+select pg_temp.comprobar((select meta_ahorro_centimos = 150000 from public.perfiles where id = 'aaaaaaaa-0000-4000-8000-000000000001'),
+  'la meta de A ha cambiado');
+update public.perfiles set meta_ahorro_centimos = null, nombre = '', tema = 'auto', preferencias = '{}'::jsonb
+  where id = 'aaaaaaaa-0000-4000-8000-000000000001';
+
 -- Un perfil nuevo sigue al sistema (tema 'auto')
 reset role;
 select pg_temp.comprobar((select column_default from information_schema.columns
