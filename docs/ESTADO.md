@@ -1,6 +1,6 @@
 # Mi Panel: estado del proyecto
 
-Actualizado el 13/11/2026, tras el commit `b75d492`. Trabajo pausado en un punto limpio: no hay nada a medias ni archivos sin confirmar en git.
+Actualizado el 13/11/2026, tras el commit `77d5896`. Fase 3 hecha en código; pendiente de la reauditoría de seguridad y de probarla en navegador con el Supabase real.
 
 ## Resumen
 
@@ -8,13 +8,13 @@ Actualizado el 13/11/2026, tras el commit `b75d492`. Trabajo pausado en un punto
 |---|---|---|
 | 1 | Proyecto base, login con Google, PWA | Cerrada |
 | 2 | Esquema de base de datos y RLS | Cerrada (aprobada por seguridad y tester) |
-| 3 | Inicio, Hábitos, Tareas | **A medias**: hechos los cimientos, faltan las pantallas |
+| 3 | Inicio, Hábitos, Tareas | **Hecha en código** (tester: aprobado; seguridad: reauditando tras los arreglos). Falta probarla en navegador real |
 | 4 | Estudios sin IA | Sin empezar |
 | 5 | Dinero y Negocio web | Sin empezar (las tablas ya existen) |
 | 6 | Examen IA y borrar cuenta | Sin empezar |
 | 7 | Despliegue | Sin empezar |
 
-Comprobaciones ahora mismo: `npm test -- --run` 228/228, `npm run test:sql` 40/40, `npm run lint`, `npm run typecheck` y `npm run build` sin errores.
+Comprobaciones ahora mismo: `npm test -- --run` 273/273, `npm run test:sql` 40/40, `npm run lint`, `npm run typecheck` y `npm run build` sin errores.
 
 **Aviso importante:** todo está probado en simulación (Postgres dentro de Node, IndexedDB falso, servidor falso). Nada de las fases 2 y 3 se ha probado todavía contra el Supabase real ni en un navegador real.
 
@@ -50,14 +50,18 @@ Comprobaciones ahora mismo: `npm test -- --run` 228/228, `npm run test:sql` 40/4
 - `src/repos/`: repositorios de hábitos y tareas, y hooks de React (`useHabitos`, `useMarcas`, `useTareas`, `useEstadoSync`). Es lo único que usarán las pantallas.
 - Cierre de sesión: borra la sesión y la copia local aunque no haya conexión, y avisa si quedaban cambios sin subir. La pantalla Cuenta ya lo usa.
 
+### Fase 3, segunda mitad: pantallas
+- **Hábitos:** resumen de hoy (x/y y %), cuadrícula de los últimos 7 días para marcar y corregir, racha de cada hábito. Botón «Editar» para cambiar el nombre, el orden y archivar; los archivados se recuperan o se borran (con confirmación).
+- **Tareas:** alta con fecha límite opcional, editar, marcar hecha y borrar (con confirmación). Atrasadas en rojo y las de hoy o mañana en ámbar («Vence hoy», «Vence mañana»). «Quitar las hechas» con confirmación.
+- **Inicio:** tarjeta de hábitos de hoy (se marcan desde ahí) y de tareas pendientes. Examen, ahorro y negocio se añaden en sus fases.
+- **Sincronización:** indicador («Todo guardado», «2 cambios por subir», «Sin conexión») en la barra lateral y en Cuenta; aviso con «Reintentar» si falla y aviso si el servidor rechaza algún cambio.
+- **Arreglos de seguridad:** cerrar sesión borra la sesión guardada al instante aunque no haya red; una pestaña no puede escribir en la copia local si en otra ha entrado otra cuenta.
+
 ## Qué falta
 
 ### Para cerrar la fase 3
-1. Pantallas de **Hábitos** (lista editable, cuadrícula de 7 días, rachas), **Tareas** (alta, fecha límite, colores de urgencia, quitar las hechas) e **Inicio** (tarjetas de hábitos de hoy y tareas; las de examen, ahorro y negocio se rellenan en sus fases).
-2. Indicador del estado de sincronización (pendientes, sin conexión, error).
-3. Revisión de diseno-ui de cada pantalla, incluido el aviso nuevo de Cuenta.
-4. Prueba en navegador real con Supabase real: crear sin conexión y ver que sube al volver, dos dispositivos a la vez, y sobre todo arrancar sin conexión con la sesión caducada y cerrar sesión sin red.
-5. Veredictos de seguridad y tester.
+1. Veredicto de seguridad tras los arreglos.
+2. Prueba en navegador real con Supabase real (necesita las migraciones aplicadas): crear sin conexión y ver que sube al volver, dos dispositivos a la vez, arrancar sin conexión con la sesión caducada y cerrar sesión sin red. Revisar a 360 px en claro y oscuro (sobre todo la semana de Hábitos y el campo de fecha en Android).
 
 ### Fases siguientes
 - **Fase 4, Estudios:** módulos con color, exámenes y actividades, notas por RA con pesos y aviso por debajo de 5, faltas con límite por módulo. Hay que portar `js/notas.js` de la app anterior.
@@ -66,6 +70,7 @@ Comprobaciones ahora mismo: `npm test -- --run` 228/228, `npm run test:sql` 40/4
 - **Fase 7, despliegue:** en Netlify con dominio propio, no en GitHub Pages.
 
 ### Pendientes de seguridad ya anotados
+- **Sincronización (menores):** un error permanente que no es de datos (p. ej. una migración sin aplicar) bloquea la cola hasta que se arregla (se reintenta cada minuto y se avisa); los borrados que el servidor rechaza no se cuentan en el aviso de rechazados.
 - **Fase 6, antes de activar «Borrar mi cuenta»:**
   - si falla el borrado del usuario, sus archivos ya se han eliminado y el mensaje debe decirlo;
   - probar el borrado con un usuario de prueba en el Supabase real;
