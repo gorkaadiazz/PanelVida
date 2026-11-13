@@ -32,21 +32,21 @@ const EN_MAS = new Set([MAS.ruta, DINERO.ruta, NEGOCIO.ruta, CUENTA.ruta])
 export function Layout() {
   const { pathname } = useLocation()
   const mainRef = useRef<HTMLElement>(null)
-  const primeraVez = useRef(true)
+  const rutaAnterior = useRef(pathname)
 
   // Al cambiar de pantalla, el foco va al h1 (los lectores de pantalla
-  // anuncian la página nueva). En la carga inicial no se mueve.
+  // anuncian la página nueva). En la carga inicial no se mueve: se compara con
+  // la ruta anterior (y no con un "primera vez") para que StrictMode, que
+  // ejecuta el efecto dos veces en desarrollo, no lo mueva por error.
   useEffect(() => {
-    if (primeraVez.current) {
-      primeraVez.current = false
-      return
-    }
+    if (rutaAnterior.current === pathname) return
+    rutaAnterior.current = pathname
     mainRef.current?.querySelector<HTMLElement>('h1')?.focus()
   }, [pathname])
 
   return (
     <div className="app">
-      <nav className="sidebar" aria-label="Principal">
+      <nav className="sidebar" aria-label="Navegación lateral">
         <div className="sidebar__brand">
           <img src="/icons/icono.svg" alt="" width={28} height={28} />
           <span>Mi Panel</span>
@@ -67,7 +67,7 @@ export function Layout() {
         <Outlet />
       </main>
 
-      <nav className="nav-bottom" aria-label="Principal">
+      <nav className="nav-bottom" aria-label="Navegación inferior">
         {PRINCIPALES.map((d) => (
           <EnlaceInferior key={d.ruta} destino={d} />
         ))}

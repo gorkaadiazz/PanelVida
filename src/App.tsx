@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Route, Routes } from 'react-router-dom'
 import { Login } from './auth/Login'
 import { useSesion } from './auth/useSesion'
@@ -28,6 +29,10 @@ export default function App({ errorInicial }: { errorInicial: string | null }) {
 
 function Contenido({ errorInicial }: { errorInicial: string | null }) {
   const { cargando, sesion } = useSesion()
+  // El error de vuelta de Google solo vale para este intento de login: en
+  // cuanto hay sesión se descarta, para que no reaparezca al cerrar sesión.
+  const [errorPendiente, setErrorPendiente] = useState(errorInicial)
+  if (sesion && errorPendiente) setErrorPendiente(null)
 
   // Mientras se lee la sesión guardada (suele ser instantáneo) no se pinta
   // nada visible: así no parpadea Login antes de entrar.
@@ -39,7 +44,7 @@ function Contenido({ errorInicial }: { errorInicial: string | null }) {
     )
   }
 
-  if (!sesion) return <Login errorInicial={errorInicial} />
+  if (!sesion) return <Login errorInicial={errorPendiente} />
 
   return (
     <Routes>

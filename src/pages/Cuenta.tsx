@@ -3,7 +3,6 @@ import { nombreDeUsuario, useSesion } from '../auth/useSesion'
 import { Pagina } from '../components/Pagina'
 import { IconoAviso } from '../components/iconos'
 import { salir } from '../lib/auth'
-import { limpiarDatosLocales } from '../lib/limpieza'
 
 export function Cuenta() {
   const { usuario } = useSesion()
@@ -15,10 +14,13 @@ export function Cuenta() {
     setSaliendo(true)
     try {
       await salir()
-      await limpiarDatosLocales()
-      // Al cerrar sesión, AuthProvider recibe SIGNED_OUT y se muestra Login.
+      // AuthProvider recibe SIGNED_OUT: borra la copia local y muestra Login.
     } catch {
-      setError('No se ha podido cerrar la sesión. Inténtalo de nuevo.')
+      setError(
+        navigator.onLine
+          ? 'No se ha podido cerrar la sesión. Inténtalo de nuevo.'
+          : 'Necesitas conexión para cerrar sesión. Conéctate e inténtalo de nuevo.',
+      )
       setSaliendo(false)
     }
   }
