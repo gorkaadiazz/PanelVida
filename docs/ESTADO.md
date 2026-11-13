@@ -12,7 +12,7 @@ Actualizado el 13/11/2026, tras el commit `77d5896`. Fase 3 aprobada por segurid
 | 4 | Estudios sin IA | **No se hace**: los estudios están en la web de exámenes. Mi Panel enlaza a ella y lee el próximo examen |
 | 5 | Dinero y Negocio web | **Aprobada** por seguridad y tester (revisada por diseño). Falta probarla en navegador real |
 | 6 | Examen IA y borrar cuenta | **No se hace**: el examen IA está en la web de exámenes; «Borrar mi cuenta» se ha quitado (borraría también los datos de esa web) |
-| 7 | Despliegue | Configuración lista (`netlify.toml`); falta publicarla en Netlify |
+| 7 | Despliegue | Hecho: publicada en Netlify (14/11/2026) |
 
 Comprobaciones ahora mismo: `npm test -- --run` 473/473, `npm run test:sql` 41/41, `npm run lint`, `npm run typecheck` y `npm run build` sin errores.
 
