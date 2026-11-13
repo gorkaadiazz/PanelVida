@@ -9,9 +9,9 @@ Actualizado el 13/11/2026, tras el commit `77d5896`. Fase 3 aprobada por segurid
 | 1 | Proyecto base, login con Google, PWA | Cerrada |
 | 2 | Esquema de base de datos y RLS | Cerrada (aprobada por seguridad y tester) |
 | 3 | Inicio, Hábitos, Tareas | **Aprobada** por seguridad y tester. Falta probarla en navegador real con el Supabase real |
-| 4 | Estudios sin IA | Sin empezar |
+| 4 | Estudios sin IA | **No se hace**: los estudios están en la web de exámenes. Mi Panel enlaza a ella y lee el próximo examen |
 | 5 | Dinero y Negocio web | Sin empezar (las tablas ya existen) |
-| 6 | Examen IA y borrar cuenta | Sin empezar |
+| 6 | Examen IA y borrar cuenta | **No se hace**: el examen IA está en la web de exámenes; «Borrar mi cuenta» se ha quitado (borraría también los datos de esa web) |
 | 7 | Despliegue | Sin empezar |
 
 Comprobaciones ahora mismo: `npm test -- --run` 273/273, `npm run test:sql` 40/40, `npm run lint`, `npm run typecheck` y `npm run build` sin errores.
@@ -63,15 +63,20 @@ Comprobaciones ahora mismo: `npm test -- --run` 273/273, `npm run test:sql` 40/4
 1. ~~Veredictos de seguridad y tester~~: aprobados.
 2. Prueba en navegador real con Supabase real (necesita las migraciones aplicadas): crear sin conexión y ver que sube al volver, dos dispositivos a la vez, arrancar sin conexión con la sesión caducada y cerrar sesión sin red. Revisar a 360 px en claro y oscuro (sobre todo la semana de Hábitos y el campo de fecha en Android).
 
+### Cambio de alcance (13/11/2026)
+- Las fases 4 y 6 no se hacen: ya existen en tu web de exámenes (https://gorkaadiazz.github.io/SPEC_Examenes/), que usa el mismo proyecto de Supabase y la misma cuenta.
+- «Estudios» en la navegación abre esa web en otra pestaña.
+- Inicio tiene la tarjeta **Próximo examen**: lee en solo lectura las tablas `modulos` y `evaluaciones` de la web de exámenes (solo las columnas que hacen falta). Mi Panel nunca escribe en ellas.
+- Se ha quitado «Borrar mi cuenta» de Cuenta: como la cuenta es la misma, borraría también todo lo de la web de exámenes.
+- La sincronización guarda ahora qué tablas ha bajado enteras: una tabla nueva (estas, y las de la fase 5) se baja completa aunque el dispositivo ya estuviera al día.
+
 ### Fases siguientes
-- **Fase 4, Estudios:** módulos con color, exámenes y actividades, notas por RA con pesos y aviso por debajo de 5, faltas con límite por módulo. Hay que portar `js/notas.js` de la app anterior.
-- **Fase 5, Dinero y Negocio:** ingresos y gastos en céntimos, ahorro del mes, gráfica de 6 meses, meta de ahorro; clientes por estado, facturado y en curso.
-- **Fase 6, Examen IA y cuenta:** subida de PDF a Storage, Edge Function `examen-ia` con Gemini, corrección e historial; activar «Borrar mi cuenta».
+- **Fase 5, Dinero y Negocio:** ingresos y gastos en céntimos, ahorro del mes, gráfica de 6 meses, meta de ahorro; clientes por estado, facturado y en curso. Las tarjetas de ahorro y negocio de Inicio.
 - **Fase 7, despliegue:** en Netlify con dominio propio, no en GitHub Pages.
 
 ### Pendientes de seguridad ya anotados
 - **Sincronización (menores, resolver el primero antes de añadir tablas en la fase 4):** un error permanente que no es de datos (p. ej. una migración sin aplicar) bloquea la cola hasta que se arregla (se reintenta cada minuto y se avisa); los borrados que el servidor rechaza no se cuentan en el aviso de rechazados.
-- **Fase 6, antes de activar «Borrar mi cuenta»:**
+- ~~Fase 6, antes de activar «Borrar mi cuenta»~~ (ya no aplica: se ha quitado):
   - si falla el borrado del usuario, sus archivos ya se han eliminado y el mensaje debe decirlo;
   - probar el borrado con un usuario de prueba en el Supabase real;
   - valorar exigir un inicio de sesión reciente.

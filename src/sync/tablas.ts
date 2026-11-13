@@ -30,7 +30,11 @@ export interface DefTabla<N extends string = string> {
    * (`on delete cascade`) y la copia local hace lo mismo.
    */
   padre?: { tabla: string; columna: string }
-  /** Solo se descarga (la escribe el servidor); nunca se sube. */
+  /**
+   * Solo se descarga (la escribe el servidor u otra app); nunca se sube y
+   * los repositorios no la escriben. De ella solo se bajan `columnas` (más
+   * las comunes y sync_at), no la fila entera.
+   */
   soloLectura?: boolean
 }
 
@@ -43,16 +47,37 @@ export const TABLAS = [
     padre: { tabla: 'habitos', columna: 'habito_id' },
   },
   { nombre: 'tareas', columnas: ['texto', 'fecha_limite', 'hecha', 'hecha_en'] },
+  // De la web de exámenes (mismo proyecto de Supabase): Mi Panel solo las LEE
+  // para la tarjeta «Próximo examen». Se bajan solo estas columnas (la foto
+  // del módulo, por ejemplo, no hace falta aquí).
+  { nombre: 'modulos', columnas: ['nombre', 'abreviatura', 'color', 'orden'], soloLectura: true },
+  {
+    nombre: 'evaluaciones',
+    columnas: ['modulo_id', 'titulo', 'tipo', 'fecha', 'estado'],
+    padre: { tabla: 'modulos', columna: 'modulo_id' },
+    soloLectura: true,
+  },
 ] as const satisfies readonly DefTabla<keyof TablasPublicas>[]
 
 /** Nombre de una tabla sincronizable. */
 export type NombreTabla = (typeof TABLAS)[number]['nombre']
 
+type ColumnasDe<T extends NombreTabla> = Extract<(typeof TABLAS)[number], { nombre: T }>['columnas'][number]
+type Comunes = (typeof COLUMNAS_COMUNES)[number]
+
+/** Tablas que se escriben desde Mi Panel (las de solo lectura no). */
+export type TablaEscribible = Exclude<NombreTabla, Extract<(typeof TABLAS)[number], { soloLectura: true }>['nombre']>
+
 /**
  * Fila tal como está en la copia local. `user_id` y `sync_at` los pone el
- * servidor: una fila creada aquí no los tiene hasta que se descarga.
+ * servidor: una fila creada aquí no los tiene hasta que se descarga. De las
+ * tablas de solo lectura solo están las columnas que se bajan.
  */
-export type FilaLocal<T extends NombreTabla> = Omit<TablasPublicas[T]['Row'], 'user_id' | 'sync_at'> & {
+export type FilaLocal<T extends NombreTabla> = T extends TablaEscribible
+  ? FilaCompleta<T>
+  : Pick<TablasPublicas[T]['Row'], Extract<Comunes | ColumnasDe<T>, keyof TablasPublicas[T]['Row']>> & { user_id?: string; sync_at?: string }
+
+type FilaCompleta<T extends NombreTabla> = Omit<TablasPublicas[T]['Row'], 'user_id' | 'sync_at'> & {
   user_id?: string
   sync_at?: string
 }
@@ -86,4 +111,14 @@ export function hijasDe(nombre: string, tablas: readonly DefTabla[] = LISTA): { 
 /** Índices locales de una tabla: los declarados más la columna que apunta a su madre. */
 export function indicesDe(def: DefTabla): string[] {
   return [...new Set([...(def.indices ?? []), ...(def.padre ? [def.padre.columna] : [])])]
+}
+
+/**
+ * Columnas que se piden al descargar una tabla: todas ('*') en las que se
+ * escriben aquí; en las de solo lectura, solo las declaradas.
+ */
+export function columnasDeDescarga(nombre: string, tablas: readonly DefTabla[] = LISTA): string {
+  const def = tablas.find((t) => t.nombre === nombre)
+  if (!def?.soloLectura) return '*'
+  return [...new Set([...COLUMNAS_COMUNES, ...def.columnas, 'user_id', 'sync_at'])].join(',')
 }

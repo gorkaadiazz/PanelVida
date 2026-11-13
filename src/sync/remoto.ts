@@ -3,7 +3,7 @@
 // tests se cambia por un servidor de mentira en memoria.
 
 import type { SupabaseClient } from '@supabase/supabase-js'
-import type { Fila } from './tablas'
+import { columnasDeDescarga, type Fila } from './tablas'
 
 export interface FilaRemota extends Fila {
   sync_at: string
@@ -69,14 +69,14 @@ export function crearRemotoSupabase(cliente: unknown): Remoto {
     },
 
     async descargar(tabla, desde, desplazamiento, limite) {
-      let consulta = api.from(tabla).select('*')
+      let consulta = api.from(tabla).select(columnasDeDescarga(tabla))
       if (desde) consulta = consulta.gt('sync_at', desde)
       const { data, error } = await consulta
         .order('sync_at')
         .order('id')
         .range(desplazamiento, desplazamiento + limite - 1)
       if (error) throw error
-      return (data ?? []) as FilaRemota[]
+      return (data ?? []) as unknown as FilaRemota[]
     },
 
     async descargarBorrados(desde, desplazamiento, limite) {

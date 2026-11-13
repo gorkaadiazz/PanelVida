@@ -6,14 +6,16 @@ import { EtiquetaFecha } from '../components/EtiquetaFecha'
 import { Pagina } from '../components/Pagina'
 import { prepararFoco } from '../components/foco'
 import { Racha } from '../components/Racha'
-import { IconoFlecha, IconoHabitos, IconoTareas } from '../components/iconos'
+import { IconoEstudios, IconoExterno, IconoFlecha, IconoHabitos, IconoTareas } from '../components/iconos'
 import { useAccion } from '../components/useAccion'
 import { useHoy } from '../components/useHoy'
 import type { FechaDia } from '../lib/fechas'
+import { URL_EXAMENES } from '../lib/enlaces'
+import { proximoExamen, textoCuentaAtras } from '../lib/examenes'
 import { cuadricula } from '../lib/habitos'
 import { recuentoTareas } from '../lib/tareas'
 import { alternarDia } from '../repos/habitos'
-import { useHabitos, useMarcas, useTareas } from '../repos/hooks'
+import { useExamenes, useHabitos, useMarcas, useTareas } from '../repos/hooks'
 import { marcarTarea } from '../repos/tareas'
 import { useEstadoSync } from '../sync/hooks'
 
@@ -48,6 +50,7 @@ export function Inicio() {
         <div className="grid-cards">
           <TarjetaHabitos hoy={dia} ejecutar={ejecutar} />
           <TarjetaTareas hoy={dia} ejecutar={ejecutar} />
+          <TarjetaExamen hoy={dia} />
         </div>
       </div>
     </Pagina>
@@ -190,6 +193,73 @@ function TarjetaTareas({ hoy, ejecutar }: { hoy: FechaDia; ejecutar: Ejecutar })
           {resto > 0 ? `Ver las ${pendientes.length}` : pendientes.length === 0 && !cargando ? 'Añadir una tarea' : 'Ver todas'}
           <IconoFlecha />
         </Link>
+      </div>
+    </section>
+  )
+}
+
+function TarjetaExamen({ hoy }: { hoy: FechaDia }) {
+  const examenes = useExamenes()
+  const { primeraDescargaHecha } = useEstadoSync()
+  const examen = examenes.datos ? proximoExamen(examenes.datos.evaluaciones, examenes.datos.modulos, hoy) : null
+  const cargando = examenes.cargando || (!examen && !primeraDescargaHecha)
+
+  return (
+    <section className={`card${examen?.modulo?.clase ? ` card--mod ${examen.modulo.clase}` : ''}`} aria-labelledby="inicio-examen">
+      <div className="card__head">
+        <h2 id="inicio-examen" className="card__titulo">
+          <IconoEstudios />
+          Próximo examen
+        </h2>
+        {examen && (
+          <span className={`num num--xl${examen.dias <= 1 ? ' text-warn' : ''}`}>
+            {examen.dias <= 1 ? textoCuentaAtras(examen.dias) : (
+              <>
+                {examen.dias}
+                <span className="num--unit">días</span>
+              </>
+            )}
+          </span>
+        )}
+      </div>
+
+      {cargando && !examen ? (
+        <Esqueleto />
+      ) : !examen ? (
+        <p className="muted">No tienes exámenes pendientes apuntados.</p>
+      ) : (
+        <div className="stack" style={{ '--gap': 'var(--sp-2)' } as CSSProperties}>
+          <p className="break" style={{ fontWeight: 'var(--fw-medium)' }}>
+            {examen.titulo}
+          </p>
+          <p className="row">
+            {examen.modulo && (
+              <span className={examen.modulo.clase ? `tag tag--mod ${examen.modulo.clase}` : 'tag'} title={examen.modulo.nombre}>
+                {examen.modulo.abreviatura}
+                <span className="visually-hidden"> ({examen.modulo.nombre})</span>
+              </span>
+            )}
+            <span className="tag">{examen.tipo}</span>
+          </p>
+          <p className="muted">
+            <span className="num">{examen.fecha}</span>
+            {examen.hora && (
+              <>
+                {' a las '}
+                <span className="num">{examen.hora}</span>
+              </>
+            )}
+            {examen.dias > 1 && <span className="visually-hidden"> ({textoCuentaAtras(examen.dias)})</span>}
+          </p>
+        </div>
+      )}
+
+      <div className="card__foot">
+        <a href={URL_EXAMENES} target="_blank" rel="noopener noreferrer" className="btn btn--ghost">
+          Abrir la web de exámenes
+          <IconoExterno />
+          <span className="visually-hidden"> (se abre en otra pestaña)</span>
+        </a>
       </div>
     </section>
   )

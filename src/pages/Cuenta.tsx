@@ -77,12 +77,6 @@ export function Cuenta() {
         </button>
         <p className="t-small muted">Se borrará la copia de tus datos guardada en este dispositivo. En la nube siguen a salvo.</p>
 
-        <div className="stack" style={{ '--gap': 'var(--sp-2)', marginTop: 'var(--sp-6)' } as CSSProperties}>
-          <button type="button" className="btn btn--danger btn--block" disabled aria-describedby="cuenta-borrar-pronto">
-            Borrar mi cuenta y todos mis datos
-          </button>
-          <p id="cuenta-borrar-pronto" className="t-small muted">Disponible pronto.</p>
-        </div>
       </div>
     </Pagina>
   )

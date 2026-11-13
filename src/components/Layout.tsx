@@ -1,5 +1,6 @@
 import { useEffect, useRef, type ReactNode } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
+import { URL_EXAMENES } from '../lib/enlaces'
 import { EstadoSincronizacion } from './EstadoSincronizacion'
 import {
   IconoCuenta,
@@ -16,12 +17,15 @@ interface Destino {
   ruta: string
   texto: string
   icono: ReactNode
+  /** Enlace a otra web: se abre en otra pestaña. */
+  externo?: boolean
 }
 
 const INICIO: Destino = { ruta: '/', texto: 'Inicio', icono: <IconoInicio /> }
 const HABITOS: Destino = { ruta: '/habitos', texto: 'Hábitos', icono: <IconoHabitos /> }
 const TAREAS: Destino = { ruta: '/tareas', texto: 'Tareas', icono: <IconoTareas /> }
-const ESTUDIOS: Destino = { ruta: '/estudios', texto: 'Estudios', icono: <IconoEstudios /> }
+// Los estudios se llevan en la web de exámenes (misma cuenta): es un enlace a ella
+const ESTUDIOS: Destino = { ruta: URL_EXAMENES, texto: 'Estudios', icono: <IconoEstudios />, externo: true }
 const DINERO: Destino = { ruta: '/dinero', texto: 'Dinero', icono: <IconoDinero /> }
 const NEGOCIO: Destino = { ruta: '/negocio', texto: 'Negocio', icono: <IconoNegocio /> }
 const CUENTA: Destino = { ruta: '/cuenta', texto: 'Cuenta', icono: <IconoCuenta /> }
@@ -82,7 +86,18 @@ export function Layout() {
   )
 }
 
+function EnlaceExterno({ destino, className }: { destino: Destino; className: string }) {
+  return (
+    <a href={destino.ruta} target="_blank" rel="noopener noreferrer" className={className}>
+      {className === 'nav-bottom__item' ? <span className="nav-bottom__icon">{destino.icono}</span> : destino.icono}
+      <span className="truncate">{destino.texto}</span>
+      <span className="visually-hidden"> (se abre en otra pestaña)</span>
+    </a>
+  )
+}
+
 function EnlaceLateral({ destino }: { destino: Destino }) {
+  if (destino.externo) return <EnlaceExterno destino={destino} className="sidebar__item" />
   return (
     <NavLink to={destino.ruta} end className="sidebar__item">
       {destino.icono}
@@ -92,6 +107,7 @@ function EnlaceLateral({ destino }: { destino: Destino }) {
 }
 
 function EnlaceInferior({ destino, activo }: { destino: Destino; activo?: boolean }) {
+  if (destino.externo) return <EnlaceExterno destino={destino} className="nav-bottom__item" />
   const contenido = (
     <>
       <span className="nav-bottom__icon">{destino.icono}</span>

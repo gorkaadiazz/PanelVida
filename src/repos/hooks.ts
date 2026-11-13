@@ -3,6 +3,7 @@
 
 import type { FechaDia } from '../lib/fechas'
 import { useConsulta, type Consulta } from '../sync/hooks'
+import { listarExamenes, type DatosExamenes } from './examenes'
 import { listarHabitos, listarMarcas, type Habito, type Marca } from './habitos'
 import { listarTareas, type Tarea } from './tareas'
 
@@ -22,4 +23,9 @@ export function useMarcas(desde?: FechaDia): Consulta<Marca[]> {
 /** Todas las tareas, ya ordenadas (pendientes por fecha límite y después las hechas). */
 export function useTareas(): Consulta<Tarea[]> {
   return useConsulta(['tareas'], listarTareas)
+}
+
+/** Exámenes y módulos de la web de exámenes (solo lectura). */
+export function useExamenes(): Consulta<DatosExamenes> {
+  return useConsulta(['evaluaciones', 'modulos'], listarExamenes)
 }

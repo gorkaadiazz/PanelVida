@@ -9,7 +9,7 @@ import { uuid } from '../lib/uuid'
 import { avisarCambio } from '../sync/avisos'
 import { ALMACEN_COLA, baseActual, pedir } from '../sync/bd'
 import { borrarLocal, encolar } from '../sync/cola'
-import { TABLAS, type FilaLocal, type NombreTabla } from '../sync/tablas'
+import { TABLAS, type FilaLocal, type NombreTabla, type TablaEscribible } from '../sync/tablas'
 
 /** La fila que se quiere tocar ya no existe (p. ej. se borró en otro dispositivo). */
 export class ErrorNoEncontrado extends Error {
@@ -22,18 +22,18 @@ export class ErrorNoEncontrado extends Error {
 type Sellos = 'id' | 'created_at' | 'updated_at' | 'user_id' | 'sync_at'
 
 /** Columnas propias de una tabla (sin id ni marcas de tiempo). */
-export type Datos<T extends NombreTabla> = Omit<FilaLocal<T>, Sellos>
+export type Datos<T extends TablaEscribible> = Omit<FilaLocal<T>, Sellos>
 
 /** Operaciones disponibles dentro de `transaccion`. Todas van en la misma transacción. */
 export interface Escritor {
   obtener<T extends NombreTabla>(tabla: T, id: string): Promise<FilaLocal<T> | undefined>
   todos<T extends NombreTabla>(tabla: T): Promise<FilaLocal<T>[]>
   /** Crea una fila con id nuevo (o el `id` indicado) y la apunta en la cola. */
-  crear<T extends NombreTabla>(tabla: T, datos: Datos<T>, id?: string): FilaLocal<T>
+  crear<T extends TablaEscribible>(tabla: T, datos: Datos<T>, id?: string): FilaLocal<T>
   /** Guarda una fila existente con los cambios y la apunta en la cola. */
-  actualizar<T extends NombreTabla>(tabla: T, anterior: FilaLocal<T>, cambios: Partial<Datos<T>>): FilaLocal<T>
+  actualizar<T extends TablaEscribible>(tabla: T, anterior: FilaLocal<T>, cambios: Partial<Datos<T>>): FilaLocal<T>
   /** Borra una fila (y sus hijas, como hará el servidor) y apunta el borrado en la cola. */
-  borrar(tabla: NombreTabla, id: string): Promise<void>
+  borrar(tabla: TablaEscribible, id: string): Promise<void>
 }
 
 /**
@@ -62,7 +62,7 @@ export async function transaccion<R>(fn: (e: Escritor) => R | Promise<R>): Promi
       obtener: <T extends NombreTabla>(tabla: T, id: string) =>
         pedir(t.objectStore(tabla).get(id) as IDBRequest<FilaLocal<T> | undefined>),
       todos: <T extends NombreTabla>(tabla: T) => pedir(t.objectStore(tabla).getAll() as IDBRequest<FilaLocal<T>[]>),
-      crear<T extends NombreTabla>(tabla: T, datos: Datos<T>, id: string = uuid()) {
+      crear<T extends TablaEscribible>(tabla: T, datos: Datos<T>, id: string = uuid()) {
         const ahora = sellar()
         const fila = { ...datos, id, created_at: ahora, updated_at: ahora } as unknown as FilaLocal<T>
         t.objectStore(tabla).put(fila)
@@ -70,7 +70,7 @@ export async function transaccion<R>(fn: (e: Escritor) => R | Promise<R>): Promi
         tocadas.add(tabla)
         return fila
       },
-      actualizar<T extends NombreTabla>(tabla: T, anterior: FilaLocal<T>, cambios: Partial<Datos<T>>) {
+      actualizar<T extends TablaEscribible>(tabla: T, anterior: FilaLocal<T>, cambios: Partial<Datos<T>>) {
         const fila = { ...anterior, ...cambios, id: anterior.id, created_at: anterior.created_at, updated_at: sellar(anterior.updated_at) }
         t.objectStore(tabla).put(fila)
         encolar(t, tabla, 'upsert', anterior.id)

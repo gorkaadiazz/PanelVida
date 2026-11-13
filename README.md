@@ -1,6 +1,6 @@
 # Mi Panel
 
-Panel de vida personal con los estudios de 2º SMR integrados: hábitos, tareas, dinero, negocio de páginas web, y exámenes, notas por RA, faltas y examen de práctica con IA.
+Panel de vida personal: hábitos, tareas, dinero y negocio de páginas web. Los estudios de 2º SMR se llevan en la web de exámenes, que usa la misma cuenta; Mi Panel enlaza a ella y enseña el próximo examen en Inicio.
 Se instala como app (PWA) en Android y en el PC, y los datos se sincronizan entre dispositivos con Supabase. Es multiusuario: cada persona ve solo sus datos.
 
 > Estado: **en construcción** (fase 3 de 7). Las convenciones del proyecto están en [CLAUDE.md](CLAUDE.md).
@@ -29,7 +29,7 @@ Para que el login con Google funcione en local, sigue [docs/SUPABASE.md](docs/SU
 
 ## Seguridad
 - En el frontend solo van la URL y la clave **pública** (anon/publishable) de Supabase. La seguridad la ponen las políticas **RLS** de `supabase/migrations/`.
-- La service role y la clave de Gemini solo existen como **secretos de Supabase**. Nunca van en este repositorio ni en `.env.local`.
+- La service role solo existe como **secretos de Supabase**. Nunca van en este repositorio ni en `.env.local`.
 - `.env.local` está en `.gitignore`.
 
 ## Estructura

@@ -251,9 +251,15 @@ export function crearMotor({ base, remoto, enLinea, tablas = TABLAS }: OpcionesM
     let maxima = ultima
     const cambiadas = new Set<string>()
 
+    // Una tabla que este dispositivo nunca ha bajado entera (p. ej. recién
+    // añadida a tablas.ts) se baja desde el principio, aunque el resto ya
+    // vaya al día: si no, sus filas antiguas no llegarían nunca.
+    const completas = new Set((await base.leerMeta<string[]>('tablas_descargadas')) ?? [])
+
     for (const def of tablas) {
+      const desdeTabla = completas.has(def.nombre) ? desde : null
       for (let pos = 0; ; pos += PAGINA_DESCARGA) {
-        const filas = await remoto.descargar(def.nombre, desde, pos, PAGINA_DESCARGA)
+        const filas = await remoto.descargar(def.nombre, desdeTabla, pos, PAGINA_DESCARGA)
         comprobar()
         if (await aplicarRemotas(def.nombre, filas)) cambiadas.add(def.nombre)
         for (const f of filas) maxima = masReciente(maxima, f.sync_at)
@@ -276,6 +282,7 @@ export function crearMotor({ base, remoto, enLinea, tablas = TABLAS }: OpcionesM
     await base.tx([ALMACEN_META], 'readwrite', (t) => {
       const meta = t.objectStore(ALMACEN_META)
       if (maxima && maxima !== ultima) meta.put({ clave: 'ultima_descarga', valor: maxima })
+      meta.put({ clave: 'tablas_descargadas', valor: tablas.map((d) => d.nombre) })
       meta.put({ clave: 'primera_descarga', valor: true })
     })
     avisarCambio([...cambiadas], 'remoto')

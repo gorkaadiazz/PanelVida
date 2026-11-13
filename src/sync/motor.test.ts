@@ -10,7 +10,7 @@ import { idMarca } from '../lib/uuid'
 import { borrarHabito, crearHabito, editarHabito, listarHabitos, listarMarcas, marcarDia, reordenarHabitos } from '../repos/habitos'
 import { borrarTarea, crearTarea, editarTarea, listarTareas, marcarTarea, quitarHechas } from '../repos/tareas'
 import { alCambioLocal, estadoSync, reiniciarEstado, versionDe } from './avisos'
-import { ALMACEN_COLA, ErrorOtraCuenta, ErrorSinSesion, abrirBase, baseActual, usarBase, type BaseLocal } from './bd'
+import { ALMACEN_COLA, ALMACEN_META, ErrorOtraCuenta, ErrorSinSesion, abrirBase, baseActual, usarBase, type BaseLocal } from './bd'
 import { contarPendientes, listarPendientes } from './cola'
 import { MENSAJE_ERROR_SYNC, crearMotor } from './motor'
 import { crearServidorFalso } from './servidorFalso'
@@ -483,6 +483,60 @@ describe('vueltas simultáneas y parada', () => {
     expect(await motor.sincronizar()).toBe(false)
     expect(await base.todos('habitos')).toEqual([])
     expect(estadoSync().fase).toBe('sincronizando') // el estado ya no es cosa de este motor: lo reinicia quien lo paró
+  })
+})
+
+describe('tablas de la web de exámenes (solo lectura)', () => {
+  const MODULO = { id: '00000000-0000-4000-8000-0000000000a1', nombre: 'Sistemas Operativos en Red', abreviatura: 'SOR', color: '#5284b7', orden: 0 }
+  const EXAMEN = {
+    id: '00000000-0000-4000-8000-0000000000b1',
+    modulo_id: MODULO.id,
+    titulo: 'RA1 Instalación',
+    tipo: 'examen_teorico',
+    fecha: '2026-11-20T08:30:00Z',
+    estado: 'pendiente',
+  }
+
+  it('se bajan, pero nunca se suben', async () => {
+    const { motor, servidor, base } = await montar()
+    servidor.desdeOtroDispositivo('modulos', MODULO)
+    servidor.desdeOtroDispositivo('evaluaciones', EXAMEN)
+    await motor.sincronizar()
+    expect(await base.todos('evaluaciones')).toHaveLength(1)
+    expect(await base.todos('modulos')).toHaveLength(1)
+    expect(servidor.peticiones.filter((p) => /modulos|evaluaciones/.test(p) && p.startsWith('guardar'))).toEqual([])
+  })
+
+  it('un dispositivo que ya iba al día baja ENTERA una tabla recién añadida (sus filas antiguas también)', async () => {
+    const { motor, servidor, base } = await montar()
+    // El examen ya existía en el servidor antes de que Mi Panel conociera la tabla
+    servidor.desdeOtroDispositivo('modulos', MODULO)
+    servidor.desdeOtroDispositivo('evaluaciones', EXAMEN)
+    await motor.sincronizar()
+    // Simula la versión anterior de la app: ya había bajado todo, pero sin estas tablas
+    await base.tx(['evaluaciones', 'modulos', ALMACEN_META], 'readwrite', (t) => {
+      t.objectStore('evaluaciones').clear()
+      t.objectStore('modulos').clear()
+      t.objectStore(ALMACEN_META).put({ clave: 'tablas_descargadas', valor: ['habitos', 'habito_marcas', 'tareas'] })
+      // Y su cursor de descarga ya iba muy por delante de cuando se creó el examen
+      t.objectStore(ALMACEN_META).put({ clave: 'ultima_descarga', valor: '2026-11-20T00:00:00.000Z' })
+    })
+    await motor.sincronizar()
+
+    expect((await base.todos('evaluaciones')).map((e) => (e as { titulo: string }).titulo)).toEqual(['RA1 Instalación'])
+    expect(await base.todos('modulos')).toHaveLength(1)
+    expect(await base.leerMeta('tablas_descargadas')).toContain('evaluaciones')
+  })
+
+  it('si el módulo se borra en la web de exámenes, sus exámenes desaparecen de la copia local', async () => {
+    const { motor, servidor, base } = await montar()
+    servidor.desdeOtroDispositivo('modulos', MODULO)
+    servidor.desdeOtroDispositivo('evaluaciones', EXAMEN)
+    await motor.sincronizar()
+    servidor.borrarDesdeOtroDispositivo('modulos', MODULO.id)
+    await motor.sincronizar()
+    expect(await base.todos('modulos')).toEqual([])
+    expect(await base.todos('evaluaciones')).toEqual([])
   })
 })
 

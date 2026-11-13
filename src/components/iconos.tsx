@@ -224,3 +224,13 @@ export function IconoRacha(props: PropsIcono) {
     </Icono>
   )
 }
+
+export function IconoExterno(props: PropsIcono) {
+  return (
+    <Icono {...props}>
+      <path d="M14 4.5h5.5V10" />
+      <path d="m19.5 4.5-8 8" />
+      <path d="M17 13.5v4.5a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 5 18V9a1.5 1.5 0 0 1 1.5-1.5H11" />
+    </Icono>
+  )
+}
