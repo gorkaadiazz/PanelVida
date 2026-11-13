@@ -1,0 +1,23 @@
+# Dependencias y compilación
+node_modules/
+dist/
+dev-dist/
+*.tsbuildinfo
+
+# Claves y entornos locales: NUNCA al repositorio
+.env
+.env.*
+!.env.example
+supabase/.env
+supabase/.temp/
+supabase/.branches/
+
+# Editor y sistema
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.log
+
+# Caché local de la skill impeccable
+.impeccable/
