@@ -112,7 +112,7 @@ function TarjetaHabitos({ hoy, ejecutar }: { hoy: FechaDia; ejecutar: Ejecutar }
       )}
 
       <div className="card__foot">
-        <Link to="/habitos" className="btn btn--ghost btn--sm">
+        <Link to="/habitos" className="btn btn--ghost">
           {filas.length === 0 && !cargando ? 'Añadir hábitos' : 'Ver la semana'}
           <IconoFlecha />
         </Link>
@@ -181,7 +181,7 @@ function TarjetaTareas({ hoy, ejecutar }: { hoy: FechaDia; ejecutar: Ejecutar })
       )}
 
       <div className="card__foot">
-        <Link to="/tareas" className="btn btn--ghost btn--sm">
+        <Link to="/tareas" className="btn btn--ghost">
           {resto > 0 ? `Ver las ${pendientes.length}` : pendientes.length === 0 && !cargando ? 'Añadir una tarea' : 'Ver todas'}
           <IconoFlecha />
         </Link>
@@ -192,7 +192,8 @@ function TarjetaTareas({ hoy, ejecutar }: { hoy: FechaDia; ejecutar: Ejecutar })
 
 function Esqueleto() {
   return (
-    <div className="stack" aria-busy="true" aria-label="Cargando" style={{ '--gap': 'var(--sp-2)' } as CSSProperties}>
+    <div className="stack" role="status" aria-busy="true" style={{ '--gap': 'var(--sp-2)' } as CSSProperties}>
+      <span className="visually-hidden">Cargando…</span>
       <span className="skeleton" style={{ '--h': '2.5rem' } as CSSProperties} />
       <span className="skeleton" style={{ '--h': '2.5rem' } as CSSProperties} />
     </div>

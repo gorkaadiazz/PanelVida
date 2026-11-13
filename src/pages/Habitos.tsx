@@ -47,7 +47,7 @@ export function Habitos() {
         lista.length > 0 && (
           <button
             type="button"
-            className="btn btn--secondary btn--sm"
+            className="btn btn--secondary"
             onClick={() => setEditando((e) => !e)}
           >
             {editando ? 'Hecho' : 'Editar'}
@@ -68,9 +68,15 @@ export function Habitos() {
           </Vacio>
         ) : (
           <>
-            <ResumenDeHoy hechos={datos.resumen.hechos} total={datos.resumen.total} porcentaje={datos.resumen.porcentaje} />
+            {datos.filas.length > 0 && (
+              <ResumenDeHoy hechos={datos.resumen.hechos} total={datos.resumen.total} porcentaje={datos.resumen.porcentaje} />
+            )}
             {editando ? (
-              <ListaEdicion habitos={habitosActivos(lista)} ejecutar={ejecutar} />
+              habitosActivos(lista).length > 0 ? (
+                <ListaEdicion habitos={habitosActivos(lista)} ejecutar={ejecutar} />
+              ) : (
+                <p className="muted">No tienes hábitos activos. Recupera uno de los archivados o añade uno nuevo.</p>
+              )
             ) : (
               <Semana dias={datos.dias} filas={datos.filas} hoy={dia} ejecutar={ejecutar} />
             )}
@@ -232,12 +238,12 @@ function FilaEdicion({
             onChange={(e) => setNombre(e.target.value)}
             autoFocus
           />
-          <button type="submit" className="btn btn--primary btn--sm">
+          <button type="submit" className="btn btn--primary">
             Guardar
           </button>
           <button
             type="button"
-            className="btn btn--ghost btn--sm"
+            className="btn btn--ghost"
             onClick={() => {
               setNombre(habito.nombre)
               setRenombrando(false)
@@ -293,12 +299,13 @@ function Archivados({ habitos, ejecutar }: { habitos: Habito[]; ejecutar: Ejecut
                 <span className="break">¿Borrar «{h.nombre}» y todas sus marcas?</span>
                 <button
                   type="button"
-                  className="btn btn--danger btn--sm"
+                  className="btn btn--danger"
                   onClick={() => void ejecutar(() => borrarHabito(h.id)).then(() => setPorBorrar(null))}
                 >
                   Borrar
                 </button>
-                <button type="button" className="btn btn--ghost btn--sm" onClick={() => setPorBorrar(null)}>
+                {/* El foco va a la opción segura: el botón de la papelera ya no existe */}
+                <button type="button" className="btn btn--ghost" onClick={() => setPorBorrar(null)} autoFocus>
                   Cancelar
                 </button>
               </div>
@@ -363,7 +370,8 @@ function AltaHabito({ ejecutar }: { ejecutar: Ejecutar }) {
 
 function Esqueleto() {
   return (
-    <div className="stack" aria-busy="true" aria-label="Cargando tus hábitos">
+    <div className="stack" role="status" aria-busy="true">
+      <span className="visually-hidden">Cargando tus hábitos…</span>
       <span className="skeleton" style={{ '--h': '6rem' } as CSSProperties} />
       <span className="skeleton" style={{ '--h': '5rem' } as CSSProperties} />
       <span className="skeleton" style={{ '--h': '5rem' } as CSSProperties} />

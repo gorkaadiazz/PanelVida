@@ -48,20 +48,23 @@ export function Cuenta() {
           </dl>
         </section>
 
-        {avisado && pendientes > 0 && (
-          <div className="alert alert--danger" role="alert">
-            <IconoAviso />
-            <div className="alert__body">
-              <p className="alert__title">
-                {pendientes === 1 ? 'Tienes 1 cambio sin subir' : `Tienes ${pendientes} cambios sin subir`}
-              </p>
-              <p>
-                Si cierras sesión ahora y no hay conexión, se perderán. Conéctate a internet y espera a que se suban, o
-                vuelve a pulsar para cerrar sesión igualmente.
-              </p>
+        {/* Región siempre montada: así el aviso se anuncia al aparecer */}
+        <div role="alert">
+          {avisado && pendientes > 0 && (
+            <div className="alert alert--danger">
+              <IconoAviso />
+              <div className="alert__body">
+                <p className="alert__title">
+                  {pendientes === 1 ? 'Tienes 1 cambio sin subir' : `Tienes ${pendientes} cambios sin subir`}
+                </p>
+                <p>
+                  Si cierras sesión ahora y no hay conexión, se perderán. Conéctate a internet y espera a que se suban,
+                  o vuelve a pulsar para cerrar sesión igualmente.
+                </p>
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
         <button
           type="button"

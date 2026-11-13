@@ -593,6 +593,10 @@ button.card:active {
   color: var(--danger-ink);
 }
 
+.btn--ghost.btn--danger-text:active {
+  background: var(--danger-soft);
+}
+
 .btn--sm {           /* solo en PC o junto a otro objetivo de 44 px */
   min-height: 36px;
   padding: 0 var(--sp-3);
@@ -1116,10 +1120,12 @@ a.list__item:focus-visible {
   min-width: 0;
   font-weight: var(--fw-medium);
 }
-.racha {             /* "5 días" con su llama */
+.racha {             /* "5 días" con su llama; no se parte ni cede ancho al nombre */
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--sp-1);
+  flex-shrink: 0;
+  white-space: nowrap;
   color: var(--text-2);
   font-size: var(--fs-sm);
 }
@@ -1142,8 +1148,28 @@ a.list__item:focus-visible {
 .icon-btn:disabled {
   opacity: 0.35;
 }
+.icon-btn:active:disabled {   /* deshabilitado no responde al toque */
+  background: transparent;
+  transform: none;
+}
 .icon-btn--peligro {
   color: var(--danger-ink);
+}
+
+/* Regiones vivas siempre montadas (role="alert"/"status") vacías dentro de
+   una .stack: no deben dejar un hueco doble. Siguen en el DOM para anunciarse. */
+.stack > [role="alert"]:empty,
+.stack > [role="status"]:empty {
+  margin-block-start: calc(-1 * var(--gap, var(--sp-4)));
+}
+
+/* Botón dentro de un aviso en línea: 44 px aunque lleve .btn--sm
+   (en móvil no tiene otro objetivo grande al lado), sin agrandar el aviso. */
+.alert > .btn {
+  flex-shrink: 0;
+  align-self: center;
+  min-height: var(--tap);
+  margin-block: calc(-1 * var(--sp-2));
 }
 
 /* Tareas */
@@ -1196,6 +1222,7 @@ a.list__item:focus-visible {
 }
 .sync::before {
   content: "";
+  flex-shrink: 0;
   width: 8px;
   height: 8px;
   border-radius: 50%;
@@ -1220,7 +1247,9 @@ a.list__item:focus-visible {
   .btn--secondary:hover { background: var(--surface-sunken); }
   .btn--danger:hover { background: color-mix(in srgb, var(--danger) 88%, var(--text)); }
   .btn--ghost:hover { background: var(--accent-soft); }
+  .btn--ghost.btn--danger-text:hover { background: var(--danger-soft); }
   .icon-btn:hover:not(:disabled) { background: var(--surface-sunken); color: var(--text); }
+  .icon-btn--peligro:hover:not(:disabled) { background: var(--danger-soft); color: var(--danger-ink); }
   .sidebar__item:hover:not([aria-current="page"]) {
     background: color-mix(in srgb, var(--surface-sunken) 50%, var(--border));
     color: var(--text);

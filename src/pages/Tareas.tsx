@@ -46,7 +46,8 @@ export function Tareas() {
         <AltaTarea ejecutar={ejecutar} />
 
         {cargando && lista.length === 0 ? (
-          <div className="stack" aria-busy="true" aria-label="Cargando tus tareas" style={{ '--gap': 'var(--sp-2)' } as CSSProperties}>
+          <div className="stack" role="status" aria-busy="true" style={{ '--gap': 'var(--sp-2)' } as CSSProperties}>
+            <span className="visually-hidden">Cargando tus tareas…</span>
             <span className="skeleton" style={{ '--h': '3rem' } as CSSProperties} />
             <span className="skeleton" style={{ '--h': '3rem' } as CSSProperties} />
           </div>
@@ -75,7 +76,7 @@ export function Tareas() {
                   <h2 id="tareas-hechas" className="t-section">
                     Hechas <span className="num muted">{hechas.length}</span>
                   </h2>
-                  <button type="button" className="btn btn--secondary btn--sm" onClick={() => void quitar()}>
+                  <button type="button" className="btn btn--ghost btn--danger-text" onClick={() => void quitar()}>
                     Quitar las hechas
                   </button>
                 </div>
