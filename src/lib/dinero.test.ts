@@ -154,3 +154,165 @@ describe('meta de ahorro', () => {
     expect(() => parsearMeta('mil')).toThrow(ErrorDeValidacion)
   })
 })
+
+// ---------------------------------------------------------------------------
+// Casos límite añadidos por el tester (fase 5)
+// ---------------------------------------------------------------------------
+
+describe('parsearImporte: entradas raras', () => {
+  it.each([
+    ['1.5', 150], // punto decimal con una cifra
+    ['1.50', 150],
+    ['00,50', 50],
+    ['007', 700],
+    ['12,5 €', 1250],
+    ['12,5€', 1250],
+    ['€ 12', 1200],
+    ['12,50 €', 1250], // espacio duro (el que pone Intl antes del €)
+    ['1 234,56', 123456],
+    ['1 234,56', 123456], // espacio duro estrecho (miles en algunos teclados/Intl)
+    ['\t12,50\n', 1250],
+    ['1.234.567', 123456700],
+    ['1.234.567,8', 123456780],
+    ['12.345,6', 1234560],
+    ['0999999999,99', 99_999_999_999],
+  ])('"%s" → %i', (texto, centimos) => {
+    expect(parsearImporte(texto)).toBe(centimos)
+  })
+
+  it.each([
+    '.5', // sin cifra delante: se pide escribirlo bien («0,5»)
+    ',5',
+    '5.',
+    '5,',
+    '1,234', // tres decimales: ambiguo, mejor rechazarlo que adivinar
+    '1.2345',
+    '1.234.5',
+    '1,5.000',
+    '+5',
+    '- 5',
+    '１２', // cifras de ancho completo
+    '12 EUR',
+    '0,001',
+    'NaN',
+    'Infinity',
+  ])('rechaza "%s"', (texto) => {
+    expect(() => parsearImporte(texto)).toThrow(ErrorDeValidacion)
+  })
+
+  it('cerca del tope: el último céntimo vale y el siguiente no', () => {
+    expect(parsearImporte('999.999.999,99')).toBe(99_999_999_999)
+    expect(() => parsearImporte('1.000.000.000')).toThrow('demasiado grande')
+    expect(() => parsearImporte('1000000000,00')).toThrow('demasiado grande')
+  })
+
+  it('un número enorme dice que es demasiado grande (no que tiene que ser mayor que 0)', () => {
+    // 20 cifras: ya no es un entero seguro en JavaScript
+    expect(() => parsearImporte('99999999999999999999')).toThrow('demasiado grande')
+    expect(() => parsearImporte('9'.repeat(400))).toThrow('demasiado grande') // Number() daría Infinity
+  })
+
+  it('ida y vuelta: centimosATexto → parsearImporte devuelve los mismos céntimos', () => {
+    for (const c of [1, 9, 10, 99, 100, 101, 1999, 435, 123456, 99_999_999_999]) {
+      expect(parsearImporte(centimosATexto(c))).toBe(c)
+    }
+  })
+})
+
+describe('formato cerca del tope', () => {
+  it('el importe máximo se escribe sin errores de redondeo', () => {
+    expect(euros(99_999_999_999)).toBe('999.999.999,99 €')
+    expect(euros(-99_999_999_999)).toBe('-999.999.999,99 €')
+    expect(centimosATexto(99_999_999_999)).toBe('999999999,99')
+  })
+})
+
+describe('sumarMeses con muchos meses', () => {
+  it.each([
+    ['2026-11', 0, '2026-11'],
+    ['2026-11', 12, '2027-11'],
+    ['2026-11', -12, '2025-11'],
+    ['2026-11', 1200, '2126-11'],
+    ['2026-01', -1200, '1926-01'],
+    ['2026-12', 12_001, '3027-01'],
+    ['2026-01', -13, '2024-12'],
+    ['2026-11', 1.9, '2026-12'], // se trunca
+    ['2026-11', -1.9, '2026-10'],
+  ])('%s %+d → %s', (mes, n, esperado) => {
+    expect(sumarMeses(mes, n)).toBe(esperado)
+  })
+
+  it('sumar y restar lo mismo vuelve al mes de partida', () => {
+    for (let k = -500; k <= 500; k += 7) {
+      expect(sumarMeses(sumarMeses('2026-11', k), -k)).toBe('2026-11')
+    }
+  })
+})
+
+describe('ultimosMeses en enero (cruza el año)', () => {
+  const MOVS = [
+    mov('ingreso', 1000, '2026-08-01'),
+    mov('gasto', 300, '2026-12-31'),
+    mov('ingreso', 700, '2027-01-01'),
+    mov('ingreso', 999, '2026-07-31'), // fuera de la ventana
+    mov('ingreso', 999, '2027-02-01'), // futuro: fuera
+  ]
+
+  it('de agosto a enero, con el último día de diciembre y el primero de enero en su mes', () => {
+    const barras = ultimosMeses(MOVS, '2027-01')
+    expect(barras.map((b) => b.mes)).toEqual(['2026-08', '2026-09', '2026-10', '2026-11', '2026-12', '2027-01'])
+    expect(barras.map((b) => b.ahorro)).toEqual([1000, 0, 0, 0, -300, 700])
+    expect(barras[5].nombre).toBe('enero de 2027')
+    expect(barras[4].nombre).toBe('diciembre de 2026')
+  })
+
+  it('n = 1 y n = 0', () => {
+    expect(ultimosMeses(MOVS, '2027-01', 1).map((b) => b.mes)).toEqual(['2027-01'])
+    expect(ultimosMeses(MOVS, '2027-01', 0)).toEqual([])
+  })
+})
+
+describe('progresoMeta: casos límite', () => {
+  // (ahorro / meta) * 100 en coma flotante: 0.29 * 100 = 28.999999999999996
+  it.each([
+    [2900, 10000, 29],
+    [5700, 10000, 57],
+    [5800, 10000, 58],
+    [1, 3, 33],
+    [2, 3, 66],
+    [99_999_999_998, 99_999_999_999, 99],
+  ])('ahorro %i de %i → %i por ciento', (ahorro, meta, porcentaje) => {
+    expect(progresoMeta(ahorro, meta)?.porcentaje).toBe(porcentaje)
+  })
+
+  it('ahorro negativo: 0 % y falta la meta más lo que se debe', () => {
+    expect(progresoMeta(-1, 100000)).toEqual({ porcentaje: 0, conseguida: false, faltan: 100001 })
+    expect(progresoMeta(-99_999_999_999, 99_999_999_999)).toEqual({ porcentaje: 0, conseguida: false, faltan: 199_999_999_998 })
+  })
+
+  it('ahorro 0 y ahorro justo igual a la meta', () => {
+    expect(progresoMeta(0, 5000)).toEqual({ porcentaje: 0, conseguida: false, faltan: 5000 })
+    expect(progresoMeta(5000, 5000)).toEqual({ porcentaje: 100, conseguida: true, faltan: 0 })
+    expect(progresoMeta(4999, 5000)).toEqual({ porcentaje: 99, conseguida: false, faltan: 1 })
+  })
+
+  it('meta no válida (negativa o sin definir) = sin meta', () => {
+    expect(progresoMeta(100, -5)).toBeNull()
+    expect(progresoMeta(100, undefined)).toBeNull()
+  })
+
+  it('el porcentaje siempre es entero', () => {
+    for (let ahorro = 0; ahorro <= 10000; ahorro += 37) {
+      const p = progresoMeta(ahorro, 10000)!.porcentaje
+      expect(Number.isInteger(p)).toBe(true)
+      expect(p).toBe(Math.floor((ahorro * 100) / 10000))
+    }
+  })
+})
+
+describe('resúmenes: importes con céntimos sueltos', () => {
+  it('sumar muchos 0,10 da un número exacto de céntimos', () => {
+    const muchos = Array.from({ length: 1000 }, () => mov('gasto', 10, '2026-11-13'))
+    expect(resumir(muchos)).toEqual({ ingresos: 0, gastos: 10000, ahorro: -10000 })
+  })
+})

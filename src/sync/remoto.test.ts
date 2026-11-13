@@ -36,6 +36,13 @@ describe('columnas que se descargan', () => {
     expect(evaluaciones).not.toContain('nota')
   })
 
+  it('del perfil compartido, solo la meta de ahorro y los sellos (nunca nombre, tema ni preferencias)', () => {
+    const perfiles = columnasDeDescarga('perfiles').split(',')
+    expect(perfiles.sort()).toEqual(['created_at', 'id', 'meta_ahorro_centimos', 'sync_at', 'updated_at', 'user_id'])
+    expect(columnasDeDescarga('movimientos')).toBe('*')
+    expect(columnasDeDescarga('clientes_web')).toBe('*')
+  })
+
   it('el remoto real pide esas columnas a Supabase', async () => {
     const { cliente, pedidas } = clienteQueApunta()
     const remoto = crearRemotoSupabase(cliente)

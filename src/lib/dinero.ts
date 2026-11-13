@@ -69,8 +69,9 @@ export function parsearImporte(texto: string): number {
   const m = /^(\d+)(?:\.(\d{1,2}))?$/.exec(limpio)
   if (!m) throw new ErrorDeValidacion('El importe no es válido. Escríbelo así: 12,50')
   const centimos = Number(m[1]) * 100 + Number((m[2] ?? '').padEnd(2, '0'))
-  if (!Number.isSafeInteger(centimos) || centimos <= 0) throw new ErrorDeValidacion('El importe tiene que ser mayor que 0.')
-  if (centimos > IMPORTE_MAX_CENTIMOS) throw new ErrorDeValidacion('El importe es demasiado grande.')
+  // Un número enorme deja de ser un entero seguro (o es Infinity): es «demasiado grande», no «0»
+  if (!Number.isSafeInteger(centimos) || centimos > IMPORTE_MAX_CENTIMOS) throw new ErrorDeValidacion('El importe es demasiado grande.')
+  if (centimos <= 0) throw new ErrorDeValidacion('El importe tiene que ser mayor que 0.')
   return centimos
 }
 
@@ -161,7 +162,8 @@ export interface ProgresoMeta {
 /** Progreso del ahorro total hacia la meta (null si no hay meta). */
 export function progresoMeta(ahorroTotal: number, meta: number | null | undefined): ProgresoMeta | null {
   if (!meta || meta <= 0) return null
-  const porcentaje = Math.max(0, Math.min(100, Math.floor((ahorroTotal / meta) * 100)))
+  // Primero ×100 y después ÷: (2900 / 10000) * 100 da 28,999… en coma flotante y saldría 28 %
+  const porcentaje = Math.max(0, Math.min(100, Math.floor((ahorroTotal * 100) / meta)))
   return { porcentaje, conseguida: ahorroTotal >= meta, faltan: Math.max(0, meta - ahorroTotal) }
 }
 

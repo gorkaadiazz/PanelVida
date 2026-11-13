@@ -83,3 +83,89 @@ describe('validación', () => {
     expect(() => validarNotas('x'.repeat(2001))).toThrow(ErrorDeValidacion)
   })
 })
+
+// ---------------------------------------------------------------------------
+// Casos límite añadidos por el tester (fase 5)
+// ---------------------------------------------------------------------------
+
+describe('estados: casos límite', () => {
+  it('el camino completo hacia delante y hacia atrás recorre los 4 estados sin saltarse ninguno', () => {
+    const adelante: string[] = ['contacto']
+    let e: ReturnType<typeof estadoVecino> = 'contacto'
+    while ((e = estadoVecino(e, 1))) adelante.push(e)
+    expect(adelante).toEqual(['contacto', 'propuesta', 'en_curso', 'entregado'])
+
+    const atras: string[] = ['entregado']
+    e = 'entregado'
+    while ((e = estadoVecino(e, -1))) atras.push(e)
+    expect(atras).toEqual([...adelante].reverse())
+  })
+
+  it.each(['', 'Contacto', 'EN_CURSO', 'en curso', ' entregado', 'toString', '__proto__'])('rechaza el estado "%s"', (estado) => {
+    expect(() => validarEstado(estado)).toThrow(ErrorDeValidacion)
+  })
+})
+
+describe('resumenNegocio: casos límite', () => {
+  it('importes con céntimos sueltos suman exactos (sin coma flotante)', () => {
+    const r = resumenNegocio([cliente('entregado', 10), cliente('entregado', 20), cliente('en_curso', 1), cliente('en_curso', 2)])
+    expect(r.facturado).toBe(30)
+    expect(r.enCurso).toBe(3)
+  })
+
+  it('contacto y propuesta cuentan pero no suman dinero', () => {
+    const r = resumenNegocio([cliente('contacto', 99_999_999_999), cliente('propuesta', 50000)])
+    expect(r).toEqual({ porEstado: { contacto: 1, propuesta: 1, en_curso: 0, entregado: 0 }, facturado: 0, enCurso: 0 })
+  })
+
+  it('muchos entregados al precio máximo siguen siendo un entero exacto', () => {
+    const lista = Array.from({ length: 50 }, () => cliente('entregado', 99_999_999_999))
+    const r = resumenNegocio(lista)
+    expect(r.facturado).toBe(50 * 99_999_999_999)
+    expect(Number.isSafeInteger(r.facturado)).toBe(true)
+  })
+
+  it('un estado desconocido (p. ej. de una versión futura) no se cuenta ni suma', () => {
+    const r = resumenNegocio([cliente('cobrado', 1000), cliente('ENTREGADO', 1000)])
+    expect(r.facturado).toBe(0)
+    expect(Object.values(r.porEstado).reduce((a, b) => a + b, 0)).toBe(0)
+  })
+})
+
+describe('orden dentro de un estado: casos límite', () => {
+  it('estado vacío → 0; con órdenes negativos o con huecos, siempre detrás del mayor', () => {
+    expect(ordenAlFinal([], 'contacto')).toBe(0)
+    expect(ordenAlFinal([cliente('contacto', 0, { orden: -5 })], 'contacto')).toBe(0)
+    expect(ordenAlFinal([cliente('contacto', 0, { orden: 2 }), cliente('contacto', 0, { orden: 40 })], 'contacto')).toBe(41)
+  })
+
+  it('a igual orden y misma fecha de alta, desempata el id (orden estable entre dispositivos)', () => {
+    const fecha = '2026-11-13T10:00:00Z'
+    const b = cliente('contacto', 0, { id: 'b', created_at: fecha })
+    const a = cliente('contacto', 0, { id: 'a', created_at: fecha })
+    expect(clientesDe([b, a], 'contacto').map((x) => x.id)).toEqual(['a', 'b'])
+    expect(clientesDe([a, b], 'contacto').map((x) => x.id)).toEqual(['a', 'b'])
+  })
+
+  it('clientesDe no modifica la lista original', () => {
+    const lista = [cliente('contacto', 0, { orden: 2 }), cliente('contacto', 0, { orden: 1 })]
+    const ids = lista.map((c) => c.id)
+    clientesDe(lista, 'contacto')
+    expect(lista.map((c) => c.id)).toEqual(ids)
+  })
+})
+
+describe('validación: límites exactos', () => {
+  it('nombre de 120 y notas de 2000 caracteres valen; uno más, no', () => {
+    expect(validarNombreCliente('x'.repeat(120))).toHaveLength(120)
+    expect(validarNotas('x'.repeat(2000))).toHaveLength(2000)
+    // Los espacios de los extremos no cuentan
+    expect(validarNotas(` ${'x'.repeat(2000)} `)).toHaveLength(2000)
+  })
+
+  it('las notas conservan los saltos de línea de dentro; el nombre los convierte en un espacio', () => {
+    expect(validarNotas('Línea 1\nLínea 2')).toBe('Línea 1\nLínea 2')
+    expect(validarNombreCliente('Bar\nPepe')).toBe('Bar Pepe')
+    expect(validarNotas('   ')).toBe('')
+  })
+})
