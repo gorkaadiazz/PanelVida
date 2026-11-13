@@ -1,6 +1,6 @@
 # Mi Panel: estado del proyecto
 
-Actualizado el 13/11/2026, tras el commit `77d5896`. Fase 3 hecha en código; pendiente de la reauditoría de seguridad y de probarla en navegador con el Supabase real.
+Actualizado el 13/11/2026, tras el commit `77d5896`. Fase 3 aprobada por seguridad y tester; falta probarla en navegador con el Supabase real.
 
 ## Resumen
 
@@ -8,7 +8,7 @@ Actualizado el 13/11/2026, tras el commit `77d5896`. Fase 3 hecha en código; pe
 |---|---|---|
 | 1 | Proyecto base, login con Google, PWA | Cerrada |
 | 2 | Esquema de base de datos y RLS | Cerrada (aprobada por seguridad y tester) |
-| 3 | Inicio, Hábitos, Tareas | **Hecha en código** (tester: aprobado; seguridad: reauditando tras los arreglos). Falta probarla en navegador real |
+| 3 | Inicio, Hábitos, Tareas | **Aprobada** por seguridad y tester. Falta probarla en navegador real con el Supabase real |
 | 4 | Estudios sin IA | Sin empezar |
 | 5 | Dinero y Negocio web | Sin empezar (las tablas ya existen) |
 | 6 | Examen IA y borrar cuenta | Sin empezar |
@@ -60,7 +60,7 @@ Comprobaciones ahora mismo: `npm test -- --run` 273/273, `npm run test:sql` 40/4
 ## Qué falta
 
 ### Para cerrar la fase 3
-1. Veredicto de seguridad tras los arreglos.
+1. ~~Veredictos de seguridad y tester~~: aprobados.
 2. Prueba en navegador real con Supabase real (necesita las migraciones aplicadas): crear sin conexión y ver que sube al volver, dos dispositivos a la vez, arrancar sin conexión con la sesión caducada y cerrar sesión sin red. Revisar a 360 px en claro y oscuro (sobre todo la semana de Hábitos y el campo de fecha en Android).
 
 ### Fases siguientes
@@ -70,7 +70,7 @@ Comprobaciones ahora mismo: `npm test -- --run` 273/273, `npm run test:sql` 40/4
 - **Fase 7, despliegue:** en Netlify con dominio propio, no en GitHub Pages.
 
 ### Pendientes de seguridad ya anotados
-- **Sincronización (menores):** un error permanente que no es de datos (p. ej. una migración sin aplicar) bloquea la cola hasta que se arregla (se reintenta cada minuto y se avisa); los borrados que el servidor rechaza no se cuentan en el aviso de rechazados.
+- **Sincronización (menores, resolver el primero antes de añadir tablas en la fase 4):** un error permanente que no es de datos (p. ej. una migración sin aplicar) bloquea la cola hasta que se arregla (se reintenta cada minuto y se avisa); los borrados que el servidor rechaza no se cuentan en el aviso de rechazados.
 - **Fase 6, antes de activar «Borrar mi cuenta»:**
   - si falla el borrado del usuario, sus archivos ya se han eliminado y el mensaje debe decirlo;
   - probar el borrado con un usuario de prueba en el Supabase real;
