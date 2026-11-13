@@ -125,7 +125,25 @@ export async function abrirBase(usuarioId: string, tablas: readonly DefTabla[] =
     if (cerrada) throw new Error('La copia local está cerrada')
   }
 
+  /**
+   * Toda escritura comprueba primero, en la MISMA transacción, que la copia
+   * sigue siendo de este usuario. Si en otra pestaña ha entrado otra cuenta
+   * (que vacía la base y la hace suya), esta pestaña ya no puede escribir en
+   * ella: ni sus cambios ni lo que descargue con su sesión acaban en la copia
+   * de la otra cuenta. Solo abrirBase escribe sin comprobarlo (es quien
+   * cambia de dueño).
+   */
   function tx<T>(nombres: readonly string[], modo: IDBTransactionMode, fn: (t: IDBTransaction) => T | Promise<T>): Promise<T> {
+    if (modo !== 'readwrite') return txSinComprobar(nombres, modo, fn)
+    const conMeta = nombres.includes(ALMACEN_META) ? nombres : [...nombres, ALMACEN_META]
+    return txSinComprobar(conMeta, modo, async (t) => {
+      const fila = await pedir(t.objectStore(ALMACEN_META).get('usuario') as IDBRequest<{ valor?: unknown } | undefined>)
+      if (fila?.valor !== usuarioId) throw new ErrorOtraCuenta()
+      return fn(t)
+    })
+  }
+
+  function txSinComprobar<T>(nombres: readonly string[], modo: IDBTransactionMode, fn: (t: IDBTransaction) => T | Promise<T>): Promise<T> {
     return new Promise<T>((ok, ko) => {
       let t: IDBTransaction
       try {
@@ -197,7 +215,7 @@ export async function abrirBase(usuarioId: string, tablas: readonly DefTabla[] =
     const dueno = await base.leerMeta<string>('usuario')
     if (dueno !== usuarioId) {
       // De otra cuenta, o de nadie conocido: fuera todo antes de empezar.
-      await tx(almacenes, 'readwrite', (t) => {
+      await txSinComprobar(almacenes, 'readwrite', (t) => {
         for (const nombre of almacenes) t.objectStore(nombre).clear()
         t.objectStore(ALMACEN_META).put({ clave: 'usuario', valor: usuarioId })
       })
@@ -228,6 +246,14 @@ export function borrarBase(): Promise<void> {
 // ---------------------------------------------------------------------------
 // La copia local de la sesión en curso
 // ---------------------------------------------------------------------------
+
+/** La copia local ha pasado a ser de otra cuenta (se ha entrado con otra en otra pestaña). */
+export class ErrorOtraCuenta extends Error {
+  constructor() {
+    super('La copia local ahora es de otra cuenta')
+    this.name = 'ErrorOtraCuenta'
+  }
+}
 
 /** No hay sesión iniciada (o se acaba de cerrar): no hay copia local que leer. */
 export class ErrorSinSesion extends Error {

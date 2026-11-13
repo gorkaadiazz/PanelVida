@@ -10,7 +10,7 @@ import { idMarca } from '../lib/uuid'
 import { borrarHabito, crearHabito, editarHabito, listarHabitos, listarMarcas, marcarDia, reordenarHabitos } from '../repos/habitos'
 import { borrarTarea, crearTarea, editarTarea, listarTareas, marcarTarea, quitarHechas } from '../repos/tareas'
 import { alCambioLocal, estadoSync, reiniciarEstado, versionDe } from './avisos'
-import { ALMACEN_COLA, ErrorSinSesion, abrirBase, baseActual, usarBase, type BaseLocal } from './bd'
+import { ALMACEN_COLA, ErrorOtraCuenta, ErrorSinSesion, abrirBase, baseActual, usarBase, type BaseLocal } from './bd'
 import { contarPendientes, listarPendientes } from './cola'
 import { MENSAJE_ERROR_SYNC, crearMotor } from './motor'
 import { crearServidorFalso } from './servidorFalso'
@@ -515,6 +515,26 @@ describe('copia local por usuario', () => {
     expect(await otraVez.todos('tareas')).toHaveLength(1)
     expect(await otraVez.contar(ALMACEN_COLA)).toBe(1)
     expect(await otraVez.leerMeta('primera_descarga')).toBe(true)
+  })
+
+  it('dos pestañas: si en la otra entra otra cuenta, esta ya no puede escribir en la copia (ni sus cambios ni lo que descargue)', async () => {
+    const { motor, base } = await montar('usuario-1')
+    await motor.sincronizar()
+
+    // Pestaña 2: entra el usuario 2 con la conexión de la pestaña 1 aún abierta
+    const pestana2 = await abrirBase('usuario-2')
+    abiertas.push(pestana2)
+
+    // La pestaña 1 intenta guardar un cambio antes de enterarse
+    await expect(crearTarea({ texto: 'Del usuario 1' })).rejects.toThrow(ErrorOtraCuenta)
+    expect(await pestana2.todos('tareas')).toEqual([])
+    expect(await pestana2.contar(ALMACEN_COLA)).toBe(0)
+
+    // Y su motor tampoco mete en la copia nada descargado con la sesión del usuario 1
+    await motor.sincronizar()
+    expect(await pestana2.todos('habitos')).toEqual([])
+    expect(await pestana2.leerMeta('usuario')).toBe('usuario-2')
+    expect(base.usuarioId).toBe('usuario-1')
   })
 
   it('una base cerrada rechaza cualquier operación', async () => {
