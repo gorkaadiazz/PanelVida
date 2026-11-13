@@ -9,7 +9,7 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "test": "vitest",
-    "test:sql": "bash tests/probar-sql.sh",
+    "test:sql": "vitest run tests/sql.test.ts",
     "typecheck": "tsc -b"
   },
   "dependencies": {
@@ -19,6 +19,7 @@
     "react-router-dom": "^7.18.5"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.16",
     "@types/node": "^24.19.2",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
