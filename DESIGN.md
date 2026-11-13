@@ -16,6 +16,7 @@ colors:
   on-accent: "#fcfdff"
   accent-soft: "#dde8fd"
   accent-ink: "#214487"
+  grafica: "#3057a3"
   ok: "#397247"
   ok-soft: "#dcf2df"
   ok-ink: "#295935"
@@ -48,6 +49,7 @@ colors:
   dark-accent: "#89b3f1"
   dark-accent-soft: "#25334c"
   dark-accent-ink: "#afcdf9"
+  dark-grafica: "#6592da"
 typography:
   screen:
     fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Noto Sans, sans-serif"
@@ -163,7 +165,8 @@ Restrained con trabajo real: neutros fríos teñidos de azul, un acento de tinta
 
 ### Primary
 - **Tinta de boli azul** (`--accent`): botón principal, elemento activo de la navegación, casillas marcadas, enlaces, anillo de foco. Nada decorativo. Sobre ella, `--on-accent` (6.8:1 en claro, 8.7:1 en oscuro).
-- **Tinta suave** (`--accent-soft` + `--accent-ink`): fondo del elemento activo en barra inferior y lateral, filtro seleccionado, selección de texto.
+- **Tinta suave** (`--accent-soft` + `--accent-ink`): fondo del elemento activo en barra inferior y lateral, filtro seleccionado, opción elegida de `.segmentos`, selección de texto.
+- **Gráfica** (`--grafica`): color de la única serie de las gráficas (barras de ahorro). En claro coincide con el acento; en oscuro baja a #6592da para quedar en la franja de luminosidad de las marcas. Las barras no marcadas van al 70 % de opacidad y aun así dan ≥ 3.3:1 sobre `--surface` en los dos modos.
 
 ### Neutral
 - **Papel frío** (`--bg`): fondo de la app.
@@ -310,6 +313,18 @@ Clases `.mod-sor`, `.mod-si`, `.mod-sr`, `.mod-ao`, `.mod-cnv`, `.mod-ipe2`, `.m
 - **`.break`**: `overflow-wrap: anywhere` para emails, URL o nombres sin espacios (preferible a `.truncate` cuando el dato completo importa, p. ej. el email en Cuenta).
 - **`a.list__item`**: fila de lista entera pulsable (lista de "Más"), sin subrayado, se hunde a `--surface-sunken` al pulsar.
 - El h1 de cada pantalla recibe el foco al navegar (`tabindex="-1"`) y no dibuja anillo; `.app-header` deja que el título se parta antes de desbordar.
+
+### Dinero y Negocio (fase 5)
+- **`.segmentos`**: selector de 2–3 opciones (Gasto / Ingreso). Es un `<fieldset>` con `<legend>` (oculta si el contexto ya lo dice) y un `<label>` con su `<input type="radio">` por opción; el radio es invisible pero ocupa toda la opción y el relleno del carril (44 px de alto). Carril `--surface-sunken`; opción elegida `--accent-soft` + texto `--accent-ink` + filete interior de 1 px `--accent` (≥ 3:1 contra el carril). Foco: anillo de 2 px `--focus` en la opción (`label:has(input:focus-visible)`). En `forced-colors`, la elegida pasa a `Highlight`.
+- **`.importe`** (siempre junto a `.num`): importe de un movimiento con su signo (`+` ingreso, `−` gasto) y la palabra «Ingreso»/«Gasto» en la línea de metadatos. `.importe--ingreso` en `--ok-ink` como segunda señal; el gasto va en `--text` (el rojo queda para el ahorro negativo).
+- **`.movimiento`** (fila de la lista de Dinero): concepto + metadatos, importe y dos `.icon-btn`. Por debajo de 480 px pasa a rejilla: importe arriba a la derecha y botones debajo, para que el concepto conserve ~200 px aun con importes de nueve cifras.
+- **`.cliente`** (fila de Negocio): nombre, precio, notas (`.cliente__notas`, 2 líneas como mucho) y cuatro `.icon-btn` (devolver, pasar, editar, borrar). Por debajo de 480 px los botones bajan a su propia línea, alineados a la derecha. Precio en `.num`; «Sin precio» en la fuente de interfaz.
+- **`.alta--tres`**: variante de `.alta` con un campo largo y dos cortos (concepto, importe, fecha). A 360 px el largo ocupa la primera línea y los dos cortos se reparten la segunda; en PC, todo en una.
+- **`.mes-nav`**: ‹ mes › con dos `.icon-btn` y el nombre del mes (`aria-live="polite"`). El botón «Mes siguiente» se bloquea con `aria-disabled="true"`, no con `disabled`, para no perder el foco al llegar al mes actual.
+- **`.cifras`**: `<dl>` de etiqueta → cifra dentro de una tarjeta (etiqueta en `--text-2`, cifra en `.num` alineada al final). Para agrupar `dt`/`dd` se puede usar `<div style="display: contents">`.
+- **Gráfica de ahorro (`.grafica`, `GraficaAhorro.tsx`)**: barras verticales de una serie en `--grafica`, que suben o bajan desde la línea de cero (`--border-field`). El SVG solo dibuja marcas; todos los textos son HTML para que no bajen de 12 px al encoger: arriba `.grafica__lectura` (mes señalado + ahorro en `.num`, en `--danger-ink` si es negativo), debajo `.grafica__meses` con un botón de 44 px por mes (`aria-pressed`, `aria-label` «noviembre de 2026: 125,40 €»; el mes actual subrayado y el señalado en semibold) y un pie (`figcaption`) que explica qué es una barra y, si hay meses negativos, qué significa que baje. Ratón: señala al pasar y vuelve al mes actual al salir; dedo: señala al tocar y se queda. Sin movimientos en los 6 meses, la gráfica se sustituye por una frase. Para lectores de pantalla, tabla oculta con ingresos, gastos y ahorro por mes.
+- **Carga**: mientras llega la primera copia, las cifras de las tarjetas son `.skeleton` (nunca un «0,00 €» falso). Si falla la lectura, solo se muestra el `.alert`: no se enseña el vacío «Aún no has apuntado nada».
+- **Cifra destacada en bloque** (`p.num--xl`): puede partirse si no cabe, antes que desbordar la tarjeta.
 
 ### Movimiento
 - Duraciones: `--dur-press` 120 ms (pulsar), `--dur-fast` 160 ms (color, casilla), `--dur-base` 220 ms (menús, avisos, progreso), `--dur-slow` 320 ms (hojas inferiores; tope).

@@ -723,8 +723,8 @@ button.card:active {
   cursor: not-allowed;
 }
 
-textarea.input {
-  min-height: 6rem;
+textarea.input {     /* unas 2 líneas; crece hacia abajo si hace falta */
+  min-height: calc(var(--tap) * 1.6);
   resize: vertical;
 }
 
@@ -1319,30 +1319,80 @@ a.list__item:focus-visible {
   cursor: pointer;
   transition: background-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
 }
-.segmentos input {
+.segmentos input {   /* el radio, invisible, ocupa la opción y el relleno del carril: 44 px de alto */
   position: absolute;
   opacity: 0;
-  inset: 0;
+  inset: -3px -1.5px;
   margin: 0;
   cursor: pointer;
 }
+/* Elegida: tinta suave + filete de tinta. El filete da ≥ 3:1 contra el carril
+   en claro y oscuro (el blanco sobre gris hundido no llegaba a 1.2:1). */
 .segmentos label:has(input:checked) {
-  background: var(--surface);
-  color: var(--text);
-  box-shadow: 0 1px 2px rgb(22 32 48 / 0.12);
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  box-shadow: inset 0 0 0 1px var(--accent);
 }
 .segmentos label:has(input:focus-visible) {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
-.importe {           /* importe de un movimiento: siempre con signo */
-  font-family: var(--font-num);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
+@media (forced-colors: active) {
+  .segmentos label:has(input:checked) {
+    forced-color-adjust: none;
+    background: Highlight;
+    color: HighlightText;
+  }
+}
+.importe {           /* importe de un movimiento (con .num): siempre con signo */
   font-weight: var(--fw-medium);
 }
-.importe--ingreso {
+.importe--ingreso {  /* el signo «+» y «Ingreso» ya lo dicen: el verde es la segunda señal */
   color: var(--ok-ink);
+}
+.alta--tres > .field--fecha {   /* importe + fecha: a 360 px comparten la segunda línea */
+  flex: 1 1 8rem;
+  max-width: 11rem;
+}
+
+/* Fila de movimiento. En móvil, el importe sube a la derecha del concepto y
+   los botones quedan debajo: el concepto no se queda en 70 px con importes grandes. */
+@media (max-width: 479.98px) {
+  .movimiento {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "main importe" "main acciones";
+    column-gap: var(--sp-3);
+    row-gap: 0;
+  }
+  .movimiento > .list__main { grid-area: main; }
+  .movimiento > .importe { grid-area: importe; justify-self: end; align-self: end; }
+  .movimiento > .acciones { grid-area: acciones; justify-self: end; }
+
+  /* Cliente: cuatro botones (176 px) dejaban 140 px al nombre; bajan a su línea */
+  .cliente {
+    flex-wrap: wrap;
+    row-gap: var(--sp-1);
+  }
+  .cliente > .list__main { flex-basis: 100%; }
+  .cliente > .acciones { margin-inline-start: auto; }
+}
+
+/* Cifra destacada en bloque: si no cabe (sumas de miles de millones a 360 px)
+   se parte antes que desbordar la tarjeta */
+p.num--xl {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/* Desactivado con aria-disabled (conserva el foco): mismo aspecto que :disabled */
+.icon-btn[aria-disabled="true"] {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.icon-btn[aria-disabled="true"]:active {
+  background: transparent;
+  transform: none;
 }
 .mes-nav {           /* ‹ noviembre de 2026 › */
   display: flex;
@@ -1377,25 +1427,63 @@ a.list__item:focus-visible {
   overflow-wrap: anywhere;
   white-space: pre-line;
 }
-textarea.input {
-  min-height: calc(var(--tap) * 1.6);
-  resize: vertical;
-}
 
-/* Gráfica de ahorro (Dinero): una serie, --grafica; textos con tokens de texto */
+/* Gráfica de ahorro (Dinero): una serie, --grafica. El SVG solo lleva marcas;
+   los textos son HTML para que midan siempre lo mismo (≥ 12 px) */
 .grafica {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-1);
+  gap: var(--sp-2);
   margin: 0;
+}
+.grafica__lectura {  /* mes señalado y su ahorro, encima de las barras */
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0 var(--sp-3);
+  min-height: 1.5rem;
+}
+.grafica__valor {
+  font-weight: var(--fw-semibold);
 }
 .grafica__svg {
   display: block;
   width: 100%;
-  height: auto;
-  max-height: 220px;
-  overflow: visible;
+  height: auto;     /* sin tope: así las columnas HTML de los meses casan con las barras */
   touch-action: pan-y;
+}
+.grafica__meses {    /* un botón por mes, alineado con su barra */
+  display: grid;
+  grid-template-columns: repeat(var(--n, 6), minmax(0, 1fr));
+  margin-top: calc(-1 * var(--sp-1));
+}
+.grafica__mes {
+  min-height: var(--tap);
+  min-width: 0;
+  border-radius: var(--r-sm);
+  color: var(--text-2);
+  font-size: var(--fs-xs);
+  line-height: 1.2;
+  transition: background-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+.grafica__mes--actual {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.25em;
+}
+.grafica__mes[aria-pressed="true"] {
+  color: var(--text);
+  font-weight: var(--fw-semibold);
+}
+.grafica__mes:active {
+  background: var(--surface-sunken);
+}
+.grafica__mes:focus-visible {
+  outline-offset: -2px;
+}
+.grafica__vacia {
+  padding-block: var(--sp-4);
 }
 .grafica__zona {
   fill: transparent;
@@ -1411,22 +1499,7 @@ textarea.input {
 .grafica__cero {
   stroke: var(--border-field);
   stroke-width: 1;
-}
-.grafica__valor {
-  fill: var(--text);
-  font-family: var(--font-num);
-  font-size: 12px;
-  font-weight: var(--fw-semibold);
-  font-variant-numeric: tabular-nums;
-}
-.grafica__mes {
-  fill: var(--text-2);
-  font-family: var(--font-ui);
-  font-size: 11px;
-}
-.grafica__mes--actual {
-  fill: var(--text);
-  font-weight: var(--fw-semibold);
+  vector-effect: non-scaling-stroke;
 }
 
 /* =========================================================
@@ -1442,8 +1515,10 @@ textarea.input {
   .btn--danger:hover { background: color-mix(in srgb, var(--danger) 88%, var(--text)); }
   .btn--ghost:hover { background: var(--accent-soft); }
   .btn--ghost.btn--danger-text:hover { background: var(--danger-soft); }
-  .icon-btn:hover:not(:disabled) { background: var(--surface-sunken); color: var(--text); }
-  .icon-btn--peligro:hover:not(:disabled) { background: var(--danger-soft); color: var(--danger-ink); }
+  .icon-btn:hover:not(:disabled, [aria-disabled="true"]) { background: var(--surface-sunken); color: var(--text); }
+  .icon-btn--peligro:hover:not(:disabled, [aria-disabled="true"]) { background: var(--danger-soft); color: var(--danger-ink); }
+  .segmentos label:hover:not(:has(input:checked)) { color: var(--text); }
+  .grafica__mes:hover:not([aria-pressed="true"]) { background: var(--surface-sunken); color: var(--text); }
   .sidebar__item:hover:not([aria-current="page"]) {
     background: color-mix(in srgb, var(--surface-sunken) 50%, var(--border));
     color: var(--text);

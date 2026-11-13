@@ -41,6 +41,8 @@ export function Dinero() {
 
   const lista = movimientos.datos ?? []
   const cargando = movimientos.cargando || (lista.length === 0 && !primeraDescargaHecha)
+  // Mientras llega la primera copia, las tarjetas no enseñan un «0,00 €» que no es real
+  const sinDatos = cargando && lista.length === 0 && !movimientos.error
   const delMes = movimientosDelMes(lista, mes)
   const resumen = resumenMes(lista, mes)
   const total = resumir(lista).ahorro
@@ -58,12 +60,16 @@ export function Dinero() {
           <p className="mes-nav__nombre" aria-live="polite">
             {nombreMes(mes).replace(/^./, (c) => c.toLocaleUpperCase('es-ES'))}
           </p>
+          {/* aria-disabled y no disabled: al llegar al mes actual el botón
+              conserva el foco en vez de soltarlo al <body> */}
           <button
             type="button"
             className="icon-btn"
             aria-label="Mes siguiente"
-            disabled={mes >= mesActual}
-            onClick={() => setMes((m) => sumarMeses(m, 1))}
+            aria-disabled={mes >= mesActual}
+            onClick={() => {
+              if (mes < mesActual) setMes((m) => sumarMeses(m, 1))
+            }}
           >
             <IconoFlecha />
           </button>
@@ -76,24 +82,30 @@ export function Dinero() {
                 Ahorro del mes
               </h2>
             </div>
-            <p className={`num num--xl${resumen.ahorro < 0 ? ' text-danger' : ''}`}>{formatearEuros(resumen.ahorro)}</p>
-            <dl className="cifras" style={{ marginTop: 'var(--sp-3)' }}>
-              <dt>Ingresos</dt>
-              <dd className="num">{formatearEuros(resumen.ingresos)}</dd>
-              <dt>Gastos</dt>
-              <dd className="num">{formatearEuros(resumen.gastos)}</dd>
-            </dl>
+            {sinDatos ? (
+              <EsqueletoCifra />
+            ) : (
+              <>
+                <p className={`num num--xl${resumen.ahorro < 0 ? ' text-danger' : ''}`}>{formatearEuros(resumen.ahorro)}</p>
+                <dl className="cifras" style={{ marginTop: 'var(--sp-3)' }}>
+                  <dt>Ingresos</dt>
+                  <dd className="num">{formatearEuros(resumen.ingresos)}</dd>
+                  <dt>Gastos</dt>
+                  <dd className="num">{formatearEuros(resumen.gastos)}</dd>
+                </dl>
+              </>
+            )}
           </section>
 
-          <TarjetaMeta total={total} perfil={perfil.datos ?? null} ejecutar={ejecutar} />
+          <TarjetaMeta total={total} perfil={perfil.datos ?? null} ejecutar={ejecutar} cargando={sinDatos} />
 
           <section className="card" aria-labelledby="dinero-grafica">
             <div className="card__head">
               <h2 id="dinero-grafica" className="card__titulo">
-                Últimos 6 meses
+                Ahorro de los últimos 6 meses
               </h2>
             </div>
-            <GraficaAhorro meses={ultimosMeses(lista, mesActual)} />
+            {sinDatos ? <EsqueletoCifra alto="8rem" /> : <GraficaAhorro meses={ultimosMeses(lista, mesActual)} />}
           </section>
         </div>
 
@@ -103,7 +115,7 @@ export function Dinero() {
           <h2 id="dinero-lista" className="t-section" tabIndex={-1}>
             Movimientos de {nombreMes(mes).replace(/ de \d+$/, '')} <span className="num muted">{delMes.length}</span>
           </h2>
-          {cargando && lista.length === 0 ? (
+          {movimientos.error && lista.length === 0 ? null : sinDatos ? (
             <div className="stack" role="status" aria-busy="true" style={{ '--gap': 'var(--sp-2)' } as CSSProperties}>
               <span className="visually-hidden">Cargando tus movimientos…</span>
               <span className="skeleton" style={{ '--h': '3rem' } as CSSProperties} />
@@ -126,7 +138,13 @@ export function Dinero() {
   )
 }
 
-function TarjetaMeta({ total, perfil, ejecutar }: { total: number; perfil: Perfil | null; ejecutar: Ejecutar }) {
+/** Hueco de carga con la forma de la cifra destacada (solo visual: el aviso
+ *  «Cargando…» lo da la lista de movimientos). */
+function EsqueletoCifra({ alto = '2rem' }: { alto?: string }) {
+  return <span className="skeleton" aria-hidden="true" style={{ '--h': alto, '--w': alto === '2rem' ? '9rem' : '100%' } as CSSProperties} />
+}
+
+function TarjetaMeta({ total, perfil, ejecutar, cargando }: { total: number; perfil: Perfil | null; ejecutar: Ejecutar; cargando: boolean }) {
   const meta = perfil?.meta_ahorro_centimos ?? null
   const progreso = progresoMeta(total, meta)
   const [editando, setEditando] = useState(false)
@@ -157,7 +175,7 @@ function TarjetaMeta({ total, perfil, ejecutar }: { total: number; perfil: Perfi
           Ahorro total
         </h2>
       </div>
-      <p className={`num num--xl${total < 0 ? ' text-danger' : ''}`}>{formatearEuros(total)}</p>
+      {cargando ? <EsqueletoCifra /> : <p className={`num num--xl${total < 0 ? ' text-danger' : ''}`}>{formatearEuros(total)}</p>}
 
       {editando ? (
         <form className="stack" style={{ '--gap': 'var(--sp-2)', marginTop: 'var(--sp-3)' } as CSSProperties} onSubmit={(e) => void guardar(e)}>
@@ -191,7 +209,7 @@ function TarjetaMeta({ total, perfil, ejecutar }: { total: number; perfil: Perfi
         </form>
       ) : (
         <>
-          {progreso && meta !== null && (
+          {!cargando && progreso && meta !== null && (
             <div className="stack" style={{ '--gap': 'var(--sp-2)', marginTop: 'var(--sp-3)' } as CSSProperties}>
               <div
                 className={`progress progress--lg${progreso.conseguida ? ' progress--ok' : ''}`}
@@ -270,7 +288,7 @@ function CamposMovimiento({
           </label>
         ))}
       </fieldset>
-      <div className="alta">
+      <div className="alta alta--tres">
         <div className="field">
           <label htmlFor={`${id}-concepto`} className="field__label">
             Concepto
@@ -405,14 +423,14 @@ function FilaMovimiento({ movimiento: m, ejecutar }: { movimiento: Movimiento; e
   }
 
   return (
-    <li className="list__item" ref={fila}>
+    <li className="list__item movimiento" ref={fila}>
       <div className="list__main">
         <p className="break">{m.concepto}</p>
         <p className="t-small muted">
           <span className="num">{formatearFecha(m.fecha)}</span> · {esIngreso ? 'Ingreso' : 'Gasto'}
         </p>
       </div>
-      <span className={`importe${esIngreso ? ' importe--ingreso' : ''}`}>
+      <span className={`num importe${esIngreso ? ' importe--ingreso' : ''}`}>
         {esIngreso ? '+' : '−'}
         {formatearEuros(m.importe_centimos)}
       </span>

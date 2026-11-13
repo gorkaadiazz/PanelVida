@@ -31,6 +31,9 @@ export function Negocio() {
   const lista = clientes.datos ?? []
   const cargando = clientes.cargando || (lista.length === 0 && !primeraDescargaHecha)
   const resumen = resumenNegocio(lista)
+  // Mientras llega la primera copia, las tarjetas no enseñan ceros que no son reales
+  const sinDatos = cargando && lista.length === 0 && !clientes.error
+  const hueco = (ancho: string, alto = '2rem') => <span className="skeleton" aria-hidden="true" style={{ '--h': alto, '--w': ancho } as CSSProperties} />
 
   return (
     <Pagina titulo="Negocio">
@@ -43,16 +46,23 @@ export function Negocio() {
             <h2 id="negocio-facturado" className="card__titulo" style={{ marginBottom: 'var(--sp-2)' }}>
               Facturado
             </h2>
-            <p className="num num--xl">{formatearEuros(resumen.facturado)}</p>
-            <dl className="cifras" style={{ marginTop: 'var(--sp-3)' }}>
-              <dt>En curso</dt>
-              <dd className="num">{formatearEuros(resumen.enCurso)}</dd>
-            </dl>
+            {sinDatos ? (
+              hueco('9rem')
+            ) : (
+              <>
+                <p className="num num--xl">{formatearEuros(resumen.facturado)}</p>
+                <dl className="cifras" style={{ marginTop: 'var(--sp-3)' }}>
+                  <dt>En curso</dt>
+                  <dd className="num">{formatearEuros(resumen.enCurso)}</dd>
+                </dl>
+              </>
+            )}
           </section>
           <section className="card" aria-labelledby="negocio-estados">
             <h2 id="negocio-estados" className="card__titulo" style={{ marginBottom: 'var(--sp-2)' }}>
               Clientes
             </h2>
+            {sinDatos ? hueco('100%', '6rem') : (
             <dl className="cifras">
               {ESTADOS.map((e) => (
                 <div key={e} style={{ display: 'contents' }}>
@@ -61,12 +71,13 @@ export function Negocio() {
                 </div>
               ))}
             </dl>
+            )}
           </section>
         </div>
 
         <AltaCliente ejecutar={ejecutar} />
 
-        {cargando && lista.length === 0 ? (
+        {clientes.error && lista.length === 0 ? null : sinDatos ? (
           <div className="stack" role="status" aria-busy="true" style={{ '--gap': 'var(--sp-2)' } as CSSProperties}>
             <span className="visually-hidden">Cargando tus clientes…</span>
             <span className="skeleton" style={{ '--h': '3.5rem' } as CSSProperties} />
@@ -260,13 +271,14 @@ function FilaCliente({ cliente: c, ejecutar }: { cliente: Cliente; ejecutar: Eje
   }
 
   return (
-    <li className="list__item" ref={fila}>
+    <li className="list__item cliente" ref={fila}>
       <div className="list__main">
         <p className="break" style={{ fontWeight: 'var(--fw-medium)' }}>
           {c.nombre}
         </p>
         <p className="t-small muted">
-          <span className="num">{c.precio_centimos ? formatearEuros(c.precio_centimos) : 'Sin precio'}</span>
+          {/* «Sin precio» son palabras: van en la fuente de interfaz (regla de la cifra) */}
+          {c.precio_centimos ? <span className="num">{formatearEuros(c.precio_centimos)}</span> : 'Sin precio'}
         </p>
         {c.notas && <p className="t-small muted cliente__notas">{c.notas}</p>}
       </div>

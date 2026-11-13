@@ -339,9 +339,9 @@ function TarjetaNegocio() {
           Negocio
         </h2>
         {!cargando && (
-          <span>
-            <span className="num num--xl">{r.porEstado.en_curso}</span>
-            <span className="visually-hidden"> proyectos en curso</span>
+          <span className="num num--xl">
+            {r.porEstado.en_curso}
+            <span className="num--unit">en curso</span>
           </span>
         )}
       </div>
@@ -351,7 +351,7 @@ function TarjetaNegocio() {
         <p className="muted">Aún no tienes clientes.</p>
       ) : (
         <dl className="cifras">
-          <dt>{r.porEstado.en_curso === 1 ? 'Proyecto en curso' : 'Proyectos en curso'}</dt>
+          <dt>Importe en curso</dt>
           <dd className="num">{formatearEuros(r.enCurso)}</dd>
           <dt>Facturado</dt>
           <dd className="num">{formatearEuros(r.facturado)}</dd>
