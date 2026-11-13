@@ -10,11 +10,11 @@ Actualizado el 13/11/2026, tras el commit `77d5896`. Fase 3 aprobada por segurid
 | 2 | Esquema de base de datos y RLS | Cerrada (aprobada por seguridad y tester) |
 | 3 | Inicio, Hábitos, Tareas | **Aprobada** por seguridad y tester. Falta probarla en navegador real con el Supabase real |
 | 4 | Estudios sin IA | **No se hace**: los estudios están en la web de exámenes. Mi Panel enlaza a ella y lee el próximo examen |
-| 5 | Dinero y Negocio web | **Hecha en código**; pendiente de las revisiones de seguridad, tester y diseño |
+| 5 | Dinero y Negocio web | **Aprobada** por seguridad y tester (revisada por diseño). Falta probarla en navegador real |
 | 6 | Examen IA y borrar cuenta | **No se hace**: el examen IA está en la web de exámenes; «Borrar mi cuenta» se ha quitado (borraría también los datos de esa web) |
 | 7 | Despliegue | Sin empezar |
 
-Comprobaciones ahora mismo: `npm test -- --run` 321/321, `npm run test:sql` 40/40, `npm run lint`, `npm run typecheck` y `npm run build` sin errores.
+Comprobaciones ahora mismo: `npm test -- --run` 473/473, `npm run test:sql` 41/41, `npm run lint`, `npm run typecheck` y `npm run build` sin errores.
 
 **Aviso importante:** todo está probado en simulación (Postgres dentro de Node, IndexedDB falso, servidor falso). Nada de las fases 2 y 3 se ha probado todavía contra el Supabase real ni en un navegador real.
 
@@ -65,7 +65,8 @@ Comprobaciones ahora mismo: `npm test -- --run` 321/321, `npm run test:sql` 40/4
 
 ### Fase 5: Dinero y Negocio
 - **Dinero:** ingresos y gastos (concepto, importe, fecha), siempre en céntimos. El importe se lee del texto sin pasar por decimales («12,50», «1.234,56»). Ahorro del mes con navegación por meses, ahorro total, gráfica del ahorro de los últimos 6 meses y meta de ahorro con barra de progreso. Editar y borrar con confirmación.
-- **Meta de ahorro:** se guarda en `perfiles` (la fila que comparte la web de exámenes). Mi Panel solo baja y sube esa columna; lo demás del perfil no se toca.
+- **Meta de ahorro:** se guarda en `perfiles` (la fila que comparte la web de exámenes). Mi Panel solo baja y sube esa columna y la web de exámenes nunca la envía, así que ninguna pisa las columnas de la otra.
+  - **Límite conocido:** el servidor decide «gana el último cambio» por la fila entera. Si cambias la meta SIN CONEXIÓN y, antes de que se suba, cambias el perfil en la web de exámenes (tema, nombre…), al subir la meta el servidor la descarta y vuelve la anterior, sin aviso. Al revés también: un cambio hecho sin conexión en la web de exámenes se pierde si Mi Panel sube antes una meta más reciente. Con conexión no pasa.
 - **Negocio:** clientes con nombre, precio y notas, que pasan de Contacto → Propuesta → En curso → Entregado. Cuántos hay en cada estado, lo facturado (entregados) y lo que está en curso.
 - **Inicio:** tarjetas de ahorro del mes (con la meta) y de negocio.
 - **Sincronización:** si una tabla falla en el servidor (p. ej. una migración sin aplicar), las demás siguen subiendo y bajando y los cambios de esa tabla esperan en la cola sin perderse. Un borrado que el servidor rechaza se cuenta y se deshace.

@@ -8,6 +8,7 @@ import {
   nombreMes,
   parsearImporte,
   parsearMeta,
+  parsearPrecio,
   progresoMeta,
   resumenMes,
   resumir,
@@ -60,7 +61,7 @@ describe('formato', () => {
     expect(euros(1250)).toBe('12,50 €')
     expect(euros(123456)).toBe('1234,56 €') // norma española: sin punto con 4 cifras
     expect(euros(1234567)).toBe('12.345,67 €')
-    expect(euros(-300)).toBe('-3,00 €')
+    expect(euros(-300)).toBe('−3,00 €')
     expect(euros(0)).toBe('0,00 €')
   })
 
@@ -222,7 +223,7 @@ describe('parsearImporte: entradas raras', () => {
 describe('formato cerca del tope', () => {
   it('el importe máximo se escribe sin errores de redondeo', () => {
     expect(euros(99_999_999_999)).toBe('999.999.999,99 €')
-    expect(euros(-99_999_999_999)).toBe('-999.999.999,99 €')
+    expect(euros(-99_999_999_999)).toBe('−999.999.999,99 €')
     expect(centimosATexto(99_999_999_999)).toBe('999999999,99')
   })
 })
@@ -314,5 +315,15 @@ describe('resúmenes: importes con céntimos sueltos', () => {
   it('sumar muchos 0,10 da un número exacto de céntimos', () => {
     const muchos = Array.from({ length: 1000 }, () => mov('gasto', 10, '2026-11-13'))
     expect(resumir(muchos)).toEqual({ ingresos: 0, gastos: 10000, ahorro: -10000 })
+  })
+})
+
+describe('parsearPrecio (precio de un cliente: 0 sí vale)', () => {
+  it.each([['', 0], ['  ', 0], ['0', 0], ['0,00', 0], ['0.0', 0], ['0 €', 0], ['350', 35000], ['12,5', 1250]])('"%s" → %i', (texto, c) => {
+    expect(parsearPrecio(texto)).toBe(c)
+  })
+  it('lo demás se valida como un importe', () => {
+    expect(() => parsearPrecio('-5')).toThrow(ErrorDeValidacion)
+    expect(() => parsearPrecio('gratis')).toThrow(ErrorDeValidacion)
   })
 })

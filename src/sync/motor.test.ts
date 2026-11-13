@@ -734,6 +734,18 @@ describe('una tabla que falla no bloquea a las demás', () => {
     expect(await listarMarcas()).toHaveLength(1)
   })
 
+  it('si una tabla no puede subir, igualmente se baja lo nuevo de todas', async () => {
+    const { motor, servidor } = await montar()
+    await motor.sincronizar()
+    await crearHabito('No puede subir todavía')
+    servidor.desdeOtroDispositivo('tareas', { id: '00000000-0000-4000-8000-0000000000c9', texto: 'Desde el móvil', fecha_limite: null, hecha: false, hecha_en: null })
+    servidor.fallo = (p) => (p.startsWith('guardar habitos') ? SIN_MIGRACION : null)
+
+    expect(await motor.sincronizar()).toBe(false)
+    expect(estadoSync().fase).toBe('error')
+    expect((await listarTareas()).map((t) => t.texto)).toEqual(['Desde el móvil'])
+  })
+
   it('sin red se corta todo, como siempre (nada se da por fallido)', async () => {
     const { motor, servidor, base } = await montar()
     await motor.sincronizar()

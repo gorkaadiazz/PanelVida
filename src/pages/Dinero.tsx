@@ -128,7 +128,7 @@ export function Dinero() {
           ) : (
             <ul className="list" role="list">
               {delMes.map((m) => (
-                <FilaMovimiento key={m.id} movimiento={m} ejecutar={ejecutar} />
+                <FilaMovimiento key={m.id} movimiento={m} ejecutar={ejecutar} onCambioDeMes={(fecha) => setMes(mesDe(fecha))} />
               ))}
             </ul>
           )}
@@ -357,7 +357,16 @@ function AltaMovimiento({ hoy, ejecutar, onCreado }: { hoy: FechaDia; ejecutar: 
   )
 }
 
-function FilaMovimiento({ movimiento: m, ejecutar }: { movimiento: Movimiento; ejecutar: Ejecutar }) {
+function FilaMovimiento({
+  movimiento: m,
+  ejecutar,
+  onCambioDeMes,
+}: {
+  movimiento: Movimiento
+  ejecutar: Ejecutar
+  /** Si se edita y pasa a otro mes, la pantalla se va a ese mes (si no, desaparecería sin más). */
+  onCambioDeMes: (fecha: FechaDia) => void
+}) {
   const [modo, setModo] = useState<'ver' | 'editar' | 'borrar'>('ver')
   const [datos, setDatos] = useState<DatosMovimiento>({ tipo: m.tipo, concepto: m.concepto, importe: '', fecha: m.fecha })
   const id = useId()
@@ -378,7 +387,12 @@ function FilaMovimiento({ movimiento: m, ejecutar }: { movimiento: Movimiento; e
 
   async function guardar(evento: FormEvent) {
     evento.preventDefault()
-    if (await ejecutar(() => editarMovimiento(m.id, datos))) volver(botonEditar)
+    if (!(await ejecutar(() => editarMovimiento(m.id, datos)))) return
+    if (mesDe(datos.fecha) !== mesDe(m.fecha)) {
+      // La fila se va a otra lista: se enseña ese mes y el foco va a su título
+      onCambioDeMes(datos.fecha)
+      requestAnimationFrame(() => document.getElementById('dinero-lista')?.focus())
+    } else volver(botonEditar)
   }
 
   async function borrar() {

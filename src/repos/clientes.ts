@@ -1,6 +1,6 @@
 // Repositorio de los clientes del negocio de páginas web. Funciona sin conexión.
 
-import { parsearImporte } from '../lib/dinero'
+import { parsearPrecio } from '../lib/dinero'
 import { ordenAlFinal, validarEstado, validarNombreCliente, validarNotas, type EstadoCliente } from '../lib/negocio'
 import type { FilaLocal } from '../sync/tablas'
 import { ErrorNoEncontrado, listar, transaccion } from './base'
@@ -9,7 +9,7 @@ export type Cliente = FilaLocal<'clientes_web'>
 
 export interface DatosCliente {
   nombre: string
-  /** Tal como lo escribe el usuario ("350" o "350,00"); '' = sin precio (0). */
+  /** Tal como lo escribe el usuario ("350" o "350,00"); '' o "0" = sin precio. */
   precio: string
   notas: string
 }
@@ -17,7 +17,7 @@ export interface DatosCliente {
 function validar(datos: DatosCliente) {
   return {
     nombre: validarNombreCliente(datos.nombre),
-    precio_centimos: datos.precio.trim() ? parsearImporte(datos.precio) : 0,
+    precio_centimos: parsearPrecio(datos.precio),
     notas: validarNotas(datos.notas),
   }
 }

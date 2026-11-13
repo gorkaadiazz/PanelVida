@@ -42,9 +42,9 @@ const formatoEuros = new Intl.NumberFormat('es-ES', { style: 'currency', currenc
 const formatoMesCorto = new Intl.DateTimeFormat('es-ES', { month: 'short', timeZone: 'UTC' })
 const formatoMesLargo = new Intl.DateTimeFormat('es-ES', { month: 'long', year: 'numeric', timeZone: 'UTC' })
 
-/** 1250 → "12,50 €". Negativos con signo: "-3,00 €". */
+/** 1250 → "12,50 €". Negativos con el signo menos tipográfico: "−3,00 €" (igual que en la lista). */
 export function formatearEuros(centimos: number): string {
-  return formatoEuros.format(centimos / 100)
+  return formatoEuros.format(centimos / 100).replace(/^-/, '−')
 }
 
 /** 1250 → "12,50" (para rellenar un campo de importe). */
@@ -170,5 +170,14 @@ export function progresoMeta(ahorroTotal: number, meta: number | null | undefine
 /** Meta escrita por el usuario: '' = sin meta (null). */
 export function parsearMeta(texto: string): number | null {
   if (!texto.trim()) return null
+  return parsearImporte(texto)
+}
+
+/**
+ * Precio de un cliente: como un importe, pero aquí 0 sí vale (una web
+ * regalada o aún sin precio). '' también es 0.
+ */
+export function parsearPrecio(texto: string): number {
+  if (/^\s*0*(?:[.,]0{0,2})?\s*€?\s*$/.test(texto)) return 0
   return parsearImporte(texto)
 }
