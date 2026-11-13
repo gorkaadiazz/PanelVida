@@ -13,6 +13,7 @@ import { alCambioLocal, estadoSync, reiniciarEstado, versionDe } from './avisos'
 import { ALMACEN_COLA, ALMACEN_META, ErrorOtraCuenta, ErrorSinSesion, abrirBase, baseActual, usarBase, type BaseLocal } from './bd'
 import { contarPendientes, listarPendientes } from './cola'
 import { MENSAJE_ERROR_SYNC, crearMotor } from './motor'
+import { PAGINA_DESCARGA } from './reglas'
 import { crearServidorFalso } from './servidorFalso'
 
 const HABITO_SEMILLA = '11111111-1111-4111-8111-111111111111'
@@ -537,6 +538,117 @@ describe('tablas de la web de exámenes (solo lectura)', () => {
     await motor.sincronizar()
     expect(await base.todos('modulos')).toEqual([])
     expect(await base.todos('evaluaciones')).toEqual([])
+  })
+
+  /** Deja la copia como la tendría la versión anterior de la app: al día, pero sin las tablas de exámenes. */
+  async function comoVersionAnterior(base: BaseLocal) {
+    await base.tx(['evaluaciones', 'modulos', ALMACEN_META], 'readwrite', (t) => {
+      t.objectStore('evaluaciones').clear()
+      t.objectStore('modulos').clear()
+      t.objectStore(ALMACEN_META).put({ clave: 'tablas_descargadas', valor: ['habitos', 'habito_marcas', 'tareas'] })
+    })
+  }
+
+  const tablasPedidas = (llamadas: unknown[][]) => llamadas.map((c) => `${String(c[0])} ${c[1] === null ? 'entera' : 'desde'}`)
+
+  it('dispositivo nuevo (sin meta): baja todo entero, sin borrados, y luego ya solo lo cambiado', async () => {
+    const { motor, servidor, base } = await montar()
+    servidor.desdeOtroDispositivo('modulos', MODULO)
+    servidor.desdeOtroDispositivo('evaluaciones', EXAMEN)
+    const descargar = vi.spyOn(servidor, 'descargar')
+    expect(await motor.sincronizar()).toBe(true)
+    expect(tablasPedidas(descargar.mock.calls)).toEqual(['habitos entera', 'habito_marcas entera', 'tareas entera', 'modulos entera', 'evaluaciones entera'])
+    expect(servidor.peticiones).not.toContain('descargar borrados')
+    expect(await base.leerMeta('tablas_descargadas')).toEqual(['habitos', 'habito_marcas', 'tareas', 'modulos', 'evaluaciones'])
+    expect(await base.todos('evaluaciones')).toHaveLength(1)
+
+    descargar.mockClear()
+    await motor.sincronizar()
+    expect(tablasPedidas(descargar.mock.calls)).toEqual(['habitos desde', 'habito_marcas desde', 'tareas desde', 'modulos desde', 'evaluaciones desde'])
+  })
+
+  it('con la versión anterior, solo las tablas nuevas se bajan enteras', async () => {
+    const { motor, servidor, base } = await montar()
+    servidor.desdeOtroDispositivo('modulos', MODULO)
+    servidor.desdeOtroDispositivo('evaluaciones', EXAMEN)
+    await motor.sincronizar()
+    await comoVersionAnterior(base)
+    const descargar = vi.spyOn(servidor, 'descargar')
+    await motor.sincronizar()
+    expect(tablasPedidas(descargar.mock.calls)).toEqual(['habitos desde', 'habito_marcas desde', 'tareas desde', 'modulos entera', 'evaluaciones entera'])
+    expect(await base.todos('evaluaciones')).toHaveLength(1)
+  })
+
+  it('los borrados de la tabla recién añadida no se pierden (durante la descarga entera y después)', async () => {
+    const { motor, servidor, base } = await montar()
+    const OTRO = { ...EXAMEN, id: '00000000-0000-4000-8000-0000000000b2', titulo: 'RA2' }
+    servidor.desdeOtroDispositivo('modulos', MODULO)
+    servidor.desdeOtroDispositivo('evaluaciones', EXAMEN)
+    servidor.desdeOtroDispositivo('evaluaciones', OTRO)
+    await motor.sincronizar()
+    await comoVersionAnterior(base)
+
+    // Se borra RA1 en la web de exámenes justo después de bajar evaluaciones entera
+    servidor.fallo = (p) => {
+      if (p === 'descargar borrados') servidor.borrarDesdeOtroDispositivo('evaluaciones', EXAMEN.id)
+      return null
+    }
+    // El borrado entra en la misma vuelta si llega antes de pedir los borrados; si no, en la siguiente
+    await motor.sincronizar()
+    servidor.fallo = null
+    await motor.sincronizar()
+    expect((await base.todos('evaluaciones')).map((e) => (e as { id: string }).id)).toEqual([OTRO.id])
+
+    // Y uno posterior también llega
+    servidor.borrarDesdeOtroDispositivo('evaluaciones', OTRO.id)
+    await motor.sincronizar()
+    expect(await base.todos('evaluaciones')).toEqual([])
+  })
+
+  for (const peticion of ['descargar modulos', 'descargar evaluaciones', 'descargar borrados']) {
+    it(`si falla «${peticion}» a mitad, no se apunta tablas_descargadas ni el cursor, y la siguiente vuelta la baja entera`, async () => {
+      const { motor, servidor, base } = await montar()
+      servidor.desdeOtroDispositivo('modulos', MODULO)
+      servidor.desdeOtroDispositivo('evaluaciones', EXAMEN)
+      await motor.sincronizar()
+      await comoVersionAnterior(base)
+      const cursor = await base.leerMeta('ultima_descarga')
+      // Un cambio nuevo en una tabla que ya iba al día: subiría el cursor si se guardara
+      servidor.desdeOtroDispositivo('tareas', { id: '00000000-0000-4000-8000-0000000000c1', texto: 'Nueva', fecha_limite: null, hecha: false, hecha_en: null })
+
+      servidor.fallo = (p) => (p === peticion ? { message: 'Failed to fetch' } : null)
+      expect(await motor.sincronizar()).toBe(false)
+      expect(await base.leerMeta('tablas_descargadas')).toEqual(['habitos', 'habito_marcas', 'tareas'])
+      expect(await base.leerMeta('ultima_descarga')).toBe(cursor)
+
+      servidor.fallo = null
+      const descargar = vi.spyOn(servidor, 'descargar')
+      expect(await motor.sincronizar()).toBe(true)
+      expect(tablasPedidas(descargar.mock.calls).slice(-2)).toEqual(['modulos entera', 'evaluaciones entera'])
+      expect(await base.todos('evaluaciones')).toHaveLength(1)
+      expect(await base.leerMeta('tablas_descargadas')).toContain('evaluaciones')
+    })
+  }
+
+  it('si falla la segunda página de la tabla nueva, no se apunta y luego llegan todas las filas', async () => {
+    const { motor, servidor, base } = await montar()
+    servidor.desdeOtroDispositivo('modulos', MODULO)
+    await motor.sincronizar()
+    await comoVersionAnterior(base)
+    const total = PAGINA_DESCARGA + 5
+    for (let i = 0; i < total; i++) {
+      servidor.desdeOtroDispositivo('evaluaciones', { ...EXAMEN, id: `00000000-0000-4000-8000-${String(i).padStart(12, '0')}` })
+    }
+    let paginas = 0
+    servidor.fallo = (p) => (p === 'descargar evaluaciones' && ++paginas === 2 ? { message: 'Failed to fetch' } : null)
+    expect(await motor.sincronizar()).toBe(false)
+    expect(await base.todos('evaluaciones')).toHaveLength(PAGINA_DESCARGA) // la primera página sí se guardó
+    expect(await base.leerMeta('tablas_descargadas')).not.toContain('evaluaciones')
+
+    servidor.fallo = null
+    expect(await motor.sincronizar()).toBe(true)
+    expect(await base.todos('evaluaciones')).toHaveLength(total)
+    expect(await base.leerMeta('tablas_descargadas')).toContain('evaluaciones')
   })
 })
 

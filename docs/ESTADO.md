@@ -14,7 +14,7 @@ Actualizado el 13/11/2026, tras el commit `77d5896`. Fase 3 aprobada por segurid
 | 6 | Examen IA y borrar cuenta | **No se hace**: el examen IA está en la web de exámenes; «Borrar mi cuenta» se ha quitado (borraría también los datos de esa web) |
 | 7 | Despliegue | Sin empezar |
 
-Comprobaciones ahora mismo: `npm test -- --run` 273/273, `npm run test:sql` 40/40, `npm run lint`, `npm run typecheck` y `npm run build` sin errores.
+Comprobaciones ahora mismo: `npm test -- --run` 321/321, `npm run test:sql` 40/40, `npm run lint`, `npm run typecheck` y `npm run build` sin errores.
 
 **Aviso importante:** todo está probado en simulación (Postgres dentro de Node, IndexedDB falso, servidor falso). Nada de las fases 2 y 3 se ha probado todavía contra el Supabase real ni en un navegador real.
 
@@ -67,7 +67,8 @@ Comprobaciones ahora mismo: `npm test -- --run` 273/273, `npm run test:sql` 40/4
 - Las fases 4 y 6 no se hacen: ya existen en tu web de exámenes (https://gorkaadiazz.github.io/SPEC_Examenes/), que usa el mismo proyecto de Supabase y la misma cuenta.
 - «Estudios» en la navegación abre esa web en otra pestaña.
 - Inicio tiene la tarjeta **Próximo examen**: lee en solo lectura las tablas `modulos` y `evaluaciones` de la web de exámenes (solo las columnas que hacen falta). Mi Panel nunca escribe en ellas.
-- Se ha quitado «Borrar mi cuenta» de Cuenta: como la cuenta es la misma, borraría también todo lo de la web de exámenes.
+- Se ha quitado «Borrar mi cuenta» de Cuenta: como la cuenta es la misma, borraría también todo lo de la web de exámenes. La Edge Function `borrar-cuenta` sigue desplegada porque la usa la web de exámenes (`js/auth.js`): borrar la cuenta desde allí borra también los datos de Mi Panel.
+- Aprobado por seguridad y tester (321 tests).
 - La sincronización guarda ahora qué tablas ha bajado enteras: una tabla nueva (estas, y las de la fase 5) se baja completa aunque el dispositivo ya estuviera al día.
 
 ### Fases siguientes
