@@ -31,6 +31,7 @@
   --on-accent: #fcfdff;     /* texto sobre --accent (6.8:1) */
   --accent-soft: #dde8fd;   /* fondo de elemento activo (nav, filtro elegido) */
   --accent-ink: #214487;    /* texto sobre --accent-soft (7.6:1) */
+  --grafica: #3057a3;       /* barras de las gráficas (validado: L y contraste ≥ 3:1 sobre --surface) */
   --focus: #3057a3;         /* anillo de foco */
 
   /* ---- Estados (siempre con texto o icono, nunca solo color) ---- */
@@ -139,6 +140,7 @@
     --on-accent: #0f1318;
     --accent-soft: #25334c;
     --accent-ink: #afcdf9;
+    --grafica: #6592da;       /* más oscuro que --accent: dentro de la franja de luminosidad para marcas en oscuro */
     --focus: #89b3f1;
 
     --ok: #7cbd89;      --ok-soft: #1f3423;      --ok-ink: #a6daaf;

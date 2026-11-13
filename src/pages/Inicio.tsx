@@ -6,16 +6,18 @@ import { EtiquetaFecha } from '../components/EtiquetaFecha'
 import { Pagina } from '../components/Pagina'
 import { prepararFoco } from '../components/foco'
 import { Racha } from '../components/Racha'
-import { IconoEstudios, IconoExterno, IconoFlecha, IconoHabitos, IconoTareas } from '../components/iconos'
+import { IconoDinero, IconoEstudios, IconoExterno, IconoFlecha, IconoHabitos, IconoNegocio, IconoTareas } from '../components/iconos'
 import { useAccion } from '../components/useAccion'
 import { useHoy } from '../components/useHoy'
 import type { FechaDia } from '../lib/fechas'
+import { formatearEuros, mesDe, progresoMeta, resumenMes, resumir } from '../lib/dinero'
 import { URL_EXAMENES } from '../lib/enlaces'
 import { proximoExamen, textoCuentaAtras } from '../lib/examenes'
 import { cuadricula } from '../lib/habitos'
+import { resumenNegocio } from '../lib/negocio'
 import { recuentoTareas } from '../lib/tareas'
 import { alternarDia } from '../repos/habitos'
-import { useExamenes, useHabitos, useMarcas, useTareas } from '../repos/hooks'
+import { useClientes, useExamenes, useHabitos, useMarcas, useMovimientos, usePerfil, useTareas } from '../repos/hooks'
 import { marcarTarea } from '../repos/tareas'
 import { useEstadoSync } from '../sync/hooks'
 
@@ -51,6 +53,8 @@ export function Inicio() {
           <TarjetaHabitos hoy={dia} ejecutar={ejecutar} />
           <TarjetaTareas hoy={dia} ejecutar={ejecutar} />
           <TarjetaExamen hoy={dia} />
+          <TarjetaAhorro hoy={dia} />
+          <TarjetaNegocio />
         </div>
       </div>
     </Pagina>
@@ -259,6 +263,107 @@ function TarjetaExamen({ hoy }: { hoy: FechaDia }) {
           <IconoExterno />
           <span className="visually-hidden"> (se abre en otra pestaña)</span>
         </a>
+      </div>
+    </section>
+  )
+}
+
+function TarjetaAhorro({ hoy }: { hoy: FechaDia }) {
+  const movimientos = useMovimientos()
+  const perfil = usePerfil()
+  const { primeraDescargaHecha } = useEstadoSync()
+  const lista = movimientos.datos ?? []
+  const cargando = movimientos.cargando || (lista.length === 0 && !primeraDescargaHecha)
+  const delMes = resumenMes(lista, mesDe(hoy))
+  const meta = perfil.datos?.meta_ahorro_centimos ?? null
+  const progreso = progresoMeta(resumir(lista).ahorro, meta)
+
+  return (
+    <section className="card" aria-labelledby="inicio-ahorro">
+      <div className="card__head">
+        <h2 id="inicio-ahorro" className="card__titulo">
+          <IconoDinero />
+          Ahorro del mes
+        </h2>
+      </div>
+      {cargando && lista.length === 0 ? (
+        <Esqueleto />
+      ) : (
+        <div className="stack" style={{ '--gap': 'var(--sp-2)' } as CSSProperties}>
+          <p className={`num num--xl${delMes.ahorro < 0 ? ' text-danger' : ''}`}>{formatearEuros(delMes.ahorro)}</p>
+          <p className="t-small muted">
+            Ingresos <span className="num">{formatearEuros(delMes.ingresos)}</span> · gastos{' '}
+            <span className="num">{formatearEuros(delMes.gastos)}</span>
+          </p>
+          {progreso && meta !== null && (
+            <>
+              <div
+                className={`progress${progreso.conseguida ? ' progress--ok' : ''}`}
+                role="progressbar"
+                aria-label="Progreso hacia la meta de ahorro"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={progreso.porcentaje}
+                style={{ '--p': `${progreso.porcentaje}%` } as CSSProperties}
+              />
+              <p className="t-small muted">
+                {progreso.conseguida ? 'Meta conseguida' : <><span className="num">{progreso.porcentaje} %</span> de la meta</>} ·{' '}
+                <span className="num">{formatearEuros(meta)}</span>
+              </p>
+            </>
+          )}
+        </div>
+      )}
+      <div className="card__foot">
+        <Link to="/dinero" className="btn btn--ghost">
+          {lista.length === 0 && !cargando ? 'Apuntar un gasto' : 'Ver Dinero'}
+          <IconoFlecha />
+        </Link>
+      </div>
+    </section>
+  )
+}
+
+function TarjetaNegocio() {
+  const clientes = useClientes()
+  const { primeraDescargaHecha } = useEstadoSync()
+  const lista = clientes.datos ?? []
+  const cargando = clientes.cargando || (lista.length === 0 && !primeraDescargaHecha)
+  const r = resumenNegocio(lista)
+
+  return (
+    <section className="card" aria-labelledby="inicio-negocio">
+      <div className="card__head">
+        <h2 id="inicio-negocio" className="card__titulo">
+          <IconoNegocio />
+          Negocio
+        </h2>
+        {!cargando && (
+          <span>
+            <span className="num num--xl">{r.porEstado.en_curso}</span>
+            <span className="visually-hidden"> proyectos en curso</span>
+          </span>
+        )}
+      </div>
+      {cargando && lista.length === 0 ? (
+        <Esqueleto />
+      ) : lista.length === 0 ? (
+        <p className="muted">Aún no tienes clientes.</p>
+      ) : (
+        <dl className="cifras">
+          <dt>{r.porEstado.en_curso === 1 ? 'Proyecto en curso' : 'Proyectos en curso'}</dt>
+          <dd className="num">{formatearEuros(r.enCurso)}</dd>
+          <dt>Facturado</dt>
+          <dd className="num">{formatearEuros(r.facturado)}</dd>
+          <dt>Pendientes de cerrar</dt>
+          <dd className="num">{r.porEstado.contacto + r.porEstado.propuesta}</dd>
+        </dl>
+      )}
+      <div className="card__foot">
+        <Link to="/negocio" className="btn btn--ghost">
+          {lista.length === 0 && !cargando ? 'Añadir un cliente' : 'Ver Negocio'}
+          <IconoFlecha />
+        </Link>
       </div>
     </section>
   )

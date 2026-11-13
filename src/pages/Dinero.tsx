@@ -1,13 +1,438 @@
+import { useEffect, useId, useRef, useState, type CSSProperties, type FormEvent, type RefObject } from 'react'
+import { AvisoError } from '../components/AvisoError'
+import { GraficaAhorro } from '../components/GraficaAhorro'
 import { Pagina } from '../components/Pagina'
 import { Vacio } from '../components/Vacio'
-import { IconoDinero } from '../components/iconos'
+import { prepararFoco } from '../components/foco'
+import { IconoBorrar, IconoDinero, IconoEditar, IconoFlecha } from '../components/iconos'
+import { useAccion } from '../components/useAccion'
+import { useHoy } from '../components/useHoy'
+import {
+  CONCEPTO_MAX,
+  centimosATexto,
+  formatearEuros,
+  mesDe,
+  movimientosDelMes,
+  nombreMes,
+  progresoMeta,
+  resumenMes,
+  resumir,
+  sumarMeses,
+  ultimosMeses,
+  type Mes,
+  type TipoMovimiento,
+} from '../lib/dinero'
+import { formatearFecha, type FechaDia } from '../lib/fechas'
+import { useMovimientos, usePerfil } from '../repos/hooks'
+import { borrarMovimiento, crearMovimiento, editarMovimiento, type DatosMovimiento, type Movimiento } from '../repos/movimientos'
+import { guardarMetaAhorro, type Perfil } from '../repos/perfil'
+import { useEstadoSync } from '../sync/hooks'
+
+type Ejecutar = (accion: () => Promise<unknown>) => Promise<boolean>
 
 export function Dinero() {
+  const dia = useHoy()
+  const mesActual = mesDe(dia)
+  const movimientos = useMovimientos()
+  const perfil = usePerfil()
+  const { primeraDescargaHecha } = useEstadoSync()
+  const { error, ejecutar, limpiar } = useAccion()
+  const [mes, setMes] = useState<Mes>(mesActual)
+
+  const lista = movimientos.datos ?? []
+  const cargando = movimientos.cargando || (lista.length === 0 && !primeraDescargaHecha)
+  const delMes = movimientosDelMes(lista, mes)
+  const resumen = resumenMes(lista, mes)
+  const total = resumir(lista).ahorro
+
   return (
     <Pagina titulo="Dinero">
-      <Vacio icono={<IconoDinero />} titulo="Aquí estará tu dinero">
-        Ingresos, gastos y ahorro del mes, en euros.
-      </Vacio>
+      <div className="stack">
+        {movimientos.error && <AvisoError mensaje="No se han podido leer tus movimientos de este dispositivo. Recarga la página." />}
+        <AvisoError mensaje={error} onCerrar={limpiar} />
+
+        <div className="mes-nav">
+          <button type="button" className="icon-btn" aria-label="Mes anterior" onClick={() => setMes((m) => sumarMeses(m, -1))}>
+            <IconoFlecha style={{ transform: 'rotate(180deg)' }} />
+          </button>
+          <p className="mes-nav__nombre" aria-live="polite">
+            {nombreMes(mes).replace(/^./, (c) => c.toLocaleUpperCase('es-ES'))}
+          </p>
+          <button
+            type="button"
+            className="icon-btn"
+            aria-label="Mes siguiente"
+            disabled={mes >= mesActual}
+            onClick={() => setMes((m) => sumarMeses(m, 1))}
+          >
+            <IconoFlecha />
+          </button>
+        </div>
+
+        <div className="grid-cards">
+          <section className="card" aria-labelledby="dinero-mes">
+            <div className="card__head">
+              <h2 id="dinero-mes" className="card__titulo">
+                Ahorro del mes
+              </h2>
+            </div>
+            <p className={`num num--xl${resumen.ahorro < 0 ? ' text-danger' : ''}`}>{formatearEuros(resumen.ahorro)}</p>
+            <dl className="cifras" style={{ marginTop: 'var(--sp-3)' }}>
+              <dt>Ingresos</dt>
+              <dd className="num">{formatearEuros(resumen.ingresos)}</dd>
+              <dt>Gastos</dt>
+              <dd className="num">{formatearEuros(resumen.gastos)}</dd>
+            </dl>
+          </section>
+
+          <TarjetaMeta total={total} perfil={perfil.datos ?? null} ejecutar={ejecutar} />
+
+          <section className="card" aria-labelledby="dinero-grafica">
+            <div className="card__head">
+              <h2 id="dinero-grafica" className="card__titulo">
+                Últimos 6 meses
+              </h2>
+            </div>
+            <GraficaAhorro meses={ultimosMeses(lista, mesActual)} />
+          </section>
+        </div>
+
+        <AltaMovimiento hoy={dia} ejecutar={ejecutar} onCreado={(fecha) => setMes(mesDe(fecha))} />
+
+        <section aria-labelledby="dinero-lista">
+          <h2 id="dinero-lista" className="t-section" tabIndex={-1}>
+            Movimientos de {nombreMes(mes).replace(/ de \d+$/, '')} <span className="num muted">{delMes.length}</span>
+          </h2>
+          {cargando && lista.length === 0 ? (
+            <div className="stack" role="status" aria-busy="true" style={{ '--gap': 'var(--sp-2)' } as CSSProperties}>
+              <span className="visually-hidden">Cargando tus movimientos…</span>
+              <span className="skeleton" style={{ '--h': '3rem' } as CSSProperties} />
+              <span className="skeleton" style={{ '--h': '3rem' } as CSSProperties} />
+            </div>
+          ) : delMes.length === 0 ? (
+            <Vacio icono={<IconoDinero />} titulo={lista.length === 0 ? 'Aún no has apuntado nada' : 'Nada apuntado este mes'}>
+              Apunta arriba tus ingresos y gastos para ver cuánto ahorras.
+            </Vacio>
+          ) : (
+            <ul className="list" role="list">
+              {delMes.map((m) => (
+                <FilaMovimiento key={m.id} movimiento={m} ejecutar={ejecutar} />
+              ))}
+            </ul>
+          )}
+        </section>
+      </div>
     </Pagina>
+  )
+}
+
+function TarjetaMeta({ total, perfil, ejecutar }: { total: number; perfil: Perfil | null; ejecutar: Ejecutar }) {
+  const meta = perfil?.meta_ahorro_centimos ?? null
+  const progreso = progresoMeta(total, meta)
+  const [editando, setEditando] = useState(false)
+  const [texto, setTexto] = useState('')
+  const id = useId()
+  const boton = useRef<HTMLButtonElement>(null)
+  const volver = useRef(false)
+  useEffect(() => {
+    if (editando || !volver.current) return
+    volver.current = false
+    boton.current?.focus()
+  }, [editando])
+
+  function terminar() {
+    volver.current = true
+    setEditando(false)
+  }
+
+  async function guardar(evento: FormEvent) {
+    evento.preventDefault()
+    if (await ejecutar(() => guardarMetaAhorro(texto))) terminar()
+  }
+
+  return (
+    <section className="card" aria-labelledby="dinero-total">
+      <div className="card__head">
+        <h2 id="dinero-total" className="card__titulo">
+          Ahorro total
+        </h2>
+      </div>
+      <p className={`num num--xl${total < 0 ? ' text-danger' : ''}`}>{formatearEuros(total)}</p>
+
+      {editando ? (
+        <form className="stack" style={{ '--gap': 'var(--sp-2)', marginTop: 'var(--sp-3)' } as CSSProperties} onSubmit={(e) => void guardar(e)}>
+          <div className="field">
+            <label htmlFor={id} className="field__label">
+              Meta de ahorro (€)
+            </label>
+            <input
+              id={id}
+              className="input"
+              inputMode="decimal"
+              autoComplete="off"
+              value={texto}
+              placeholder="Ej.: 1.000"
+              onChange={(e) => setTexto(e.target.value)}
+              aria-describedby={`${id}-ayuda`}
+              autoFocus
+            />
+            <p id={`${id}-ayuda`} className="field__hint">
+              Déjalo vacío para quitar la meta.
+            </p>
+          </div>
+          <div className="row">
+            <button type="submit" className="btn btn--primary">
+              Guardar
+            </button>
+            <button type="button" className="btn btn--ghost" onClick={terminar}>
+              Cancelar
+            </button>
+          </div>
+        </form>
+      ) : (
+        <>
+          {progreso && meta !== null && (
+            <div className="stack" style={{ '--gap': 'var(--sp-2)', marginTop: 'var(--sp-3)' } as CSSProperties}>
+              <div
+                className={`progress progress--lg${progreso.conseguida ? ' progress--ok' : ''}`}
+                role="progressbar"
+                aria-label="Progreso hacia la meta de ahorro"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={progreso.porcentaje}
+                style={{ '--p': `${progreso.porcentaje}%` } as CSSProperties}
+              />
+              <p className="t-small muted">
+                {progreso.conseguida ? (
+                  <>
+                    <span className="text-ok">Meta conseguida</span> · <span className="num">{formatearEuros(meta)}</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="num">{progreso.porcentaje} %</span> de <span className="num">{formatearEuros(meta)}</span> · faltan{' '}
+                    <span className="num">{formatearEuros(progreso.faltan)}</span>
+                  </>
+                )}
+              </p>
+            </div>
+          )}
+          <div className="card__foot">
+            <button
+              type="button"
+              ref={boton}
+              className="btn btn--ghost"
+              disabled={!perfil}
+              aria-describedby={perfil ? undefined : 'dinero-meta-espera'}
+              onClick={() => {
+                setTexto(meta ? centimosATexto(meta) : '')
+                setEditando(true)
+              }}
+            >
+              {meta ? 'Cambiar la meta' : 'Poner una meta'}
+            </button>
+          </div>
+          {!perfil && (
+            <p id="dinero-meta-espera" className="t-small muted">
+              Disponible cuando se sincronice tu cuenta.
+            </p>
+          )}
+        </>
+      )}
+    </section>
+  )
+}
+
+function CamposMovimiento({
+  id,
+  datos,
+  cambiar,
+  autoFocus,
+}: {
+  id: string
+  datos: DatosMovimiento
+  cambiar: (cambios: Partial<DatosMovimiento>) => void
+  autoFocus?: boolean
+}) {
+  return (
+    <>
+      <fieldset className="segmentos">
+        <legend className="visually-hidden">Tipo</legend>
+        {(['gasto', 'ingreso'] as TipoMovimiento[]).map((tipo) => (
+          <label key={tipo}>
+            <input
+              type="radio"
+              name={`${id}-tipo`}
+              value={tipo}
+              checked={datos.tipo === tipo}
+              onChange={() => cambiar({ tipo })}
+            />
+            {tipo === 'gasto' ? 'Gasto' : 'Ingreso'}
+          </label>
+        ))}
+      </fieldset>
+      <div className="alta">
+        <div className="field">
+          <label htmlFor={`${id}-concepto`} className="field__label">
+            Concepto
+          </label>
+          <input
+            id={`${id}-concepto`}
+            className="input"
+            value={datos.concepto}
+            maxLength={CONCEPTO_MAX}
+            placeholder="Ej.: Cine"
+            onChange={(e) => cambiar({ concepto: e.target.value })}
+            autoFocus={autoFocus}
+          />
+        </div>
+        <div className="field field--fecha">
+          <label htmlFor={`${id}-importe`} className="field__label">
+            Importe (€)
+          </label>
+          <input
+            id={`${id}-importe`}
+            className="input"
+            inputMode="decimal"
+            autoComplete="off"
+            value={datos.importe}
+            placeholder="0,00"
+            onChange={(e) => cambiar({ importe: e.target.value })}
+          />
+        </div>
+        <div className="field field--fecha">
+          <label htmlFor={`${id}-fecha`} className="field__label">
+            Fecha
+          </label>
+          <input id={`${id}-fecha`} type="date" className="input" value={datos.fecha} onChange={(e) => cambiar({ fecha: e.target.value })} />
+        </div>
+      </div>
+    </>
+  )
+}
+
+function AltaMovimiento({ hoy, ejecutar, onCreado }: { hoy: FechaDia; ejecutar: Ejecutar; onCreado: (fecha: FechaDia) => void }) {
+  const vacio = (): DatosMovimiento => ({ tipo: 'gasto', concepto: '', importe: '', fecha: hoy })
+  const [datos, setDatos] = useState<DatosMovimiento>(vacio)
+  const id = useId()
+
+  async function enviar(evento: FormEvent) {
+    evento.preventDefault()
+    if (await ejecutar(() => crearMovimiento(datos))) {
+      onCreado(datos.fecha)
+      // Se mantiene el tipo y la fecha: lo normal es apuntar varios seguidos
+      setDatos((d) => ({ ...d, concepto: '', importe: '' }))
+    }
+  }
+
+  return (
+    <form className="card stack" style={{ '--gap': 'var(--sp-3)' } as CSSProperties} onSubmit={(e) => void enviar(e)} aria-labelledby={`${id}-titulo`}>
+      <h2 id={`${id}-titulo`} className="t-section">
+        Apuntar
+      </h2>
+      <CamposMovimiento id={id} datos={datos} cambiar={(c) => setDatos((d) => ({ ...d, ...c }))} />
+      <div>
+        <button type="submit" className="btn btn--primary">
+          Añadir {datos.tipo === 'ingreso' ? 'ingreso' : 'gasto'}
+        </button>
+      </div>
+    </form>
+  )
+}
+
+function FilaMovimiento({ movimiento: m, ejecutar }: { movimiento: Movimiento; ejecutar: Ejecutar }) {
+  const [modo, setModo] = useState<'ver' | 'editar' | 'borrar'>('ver')
+  const [datos, setDatos] = useState<DatosMovimiento>({ tipo: m.tipo, concepto: m.concepto, importe: '', fecha: m.fecha })
+  const id = useId()
+  const fila = useRef<HTMLLIElement>(null)
+  const botonEditar = useRef<HTMLButtonElement>(null)
+  const botonBorrar = useRef<HTMLButtonElement>(null)
+  const volverA = useRef<RefObject<HTMLButtonElement | null> | null>(null)
+  useEffect(() => {
+    if (modo !== 'ver' || !volverA.current) return
+    volverA.current.current?.focus()
+    volverA.current = null
+  }, [modo])
+
+  function volver(boton: RefObject<HTMLButtonElement | null>) {
+    volverA.current = boton
+    setModo('ver')
+  }
+
+  async function guardar(evento: FormEvent) {
+    evento.preventDefault()
+    if (await ejecutar(() => editarMovimiento(m.id, datos))) volver(botonEditar)
+  }
+
+  async function borrar() {
+    const mover = prepararFoco(fila.current)
+    if (await ejecutar(() => borrarMovimiento(m.id))) mover()
+  }
+
+  const esIngreso = m.tipo === 'ingreso'
+
+  if (modo === 'editar') {
+    return (
+      <li className="list__item">
+        <form className="edicion stack" style={{ '--gap': 'var(--sp-3)', paddingBlock: 'var(--sp-2)' } as CSSProperties} onSubmit={(e) => void guardar(e)} aria-label={`Editar: ${m.concepto}`}>
+          <CamposMovimiento id={id} datos={datos} cambiar={(c) => setDatos((d) => ({ ...d, ...c }))} autoFocus />
+          <div className="row">
+            <button type="submit" className="btn btn--primary">
+              Guardar
+            </button>
+            <button type="button" className="btn btn--ghost" onClick={() => volver(botonEditar)}>
+              Cancelar
+            </button>
+          </div>
+        </form>
+      </li>
+    )
+  }
+
+  if (modo === 'borrar') {
+    return (
+      <li className="list__item" ref={fila}>
+        <div className="confirmar list__main">
+          <span className="break">¿Borrar «{m.concepto}»?</span>
+          <button type="button" className="btn btn--danger" onClick={() => void borrar()}>
+            Borrar
+          </button>
+          <button type="button" className="btn btn--ghost" autoFocus onClick={() => volver(botonBorrar)}>
+            Cancelar
+          </button>
+        </div>
+      </li>
+    )
+  }
+
+  return (
+    <li className="list__item" ref={fila}>
+      <div className="list__main">
+        <p className="break">{m.concepto}</p>
+        <p className="t-small muted">
+          <span className="num">{formatearFecha(m.fecha)}</span> · {esIngreso ? 'Ingreso' : 'Gasto'}
+        </p>
+      </div>
+      <span className={`importe${esIngreso ? ' importe--ingreso' : ''}`}>
+        {esIngreso ? '+' : '−'}
+        {formatearEuros(m.importe_centimos)}
+      </span>
+      <div className="acciones">
+        <button
+          type="button"
+          ref={botonEditar}
+          className="icon-btn"
+          aria-label={`Editar: ${m.concepto}`}
+          onClick={() => {
+            setDatos({ tipo: m.tipo, concepto: m.concepto, importe: centimosATexto(m.importe_centimos), fecha: m.fecha })
+            setModo('editar')
+          }}
+        >
+          <IconoEditar />
+        </button>
+        <button type="button" ref={botonBorrar} className="icon-btn icon-btn--peligro" aria-label={`Borrar: ${m.concepto}`} onClick={() => setModo('borrar')}>
+          <IconoBorrar />
+        </button>
+      </div>
+    </li>
   )
 }

@@ -1291,6 +1291,144 @@ a.list__item:focus-visible {
   padding: var(--sp-2) var(--sp-3);
 }
 
+
+/* Selector de dos o más opciones (Ingreso / Gasto): radios con aspecto de botones */
+.segmentos {
+  display: inline-flex;
+  padding: 3px;
+  gap: 3px;
+  border-radius: var(--r-md);
+  background: var(--surface-sunken);
+  border: 0;
+  margin: 0;
+  min-width: 0;
+}
+.segmentos legend {
+  padding: 0;
+}
+.segmentos label {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(var(--tap) - 6px);
+  padding: 0 var(--sp-4);
+  border-radius: calc(var(--r-md) - 3px);
+  color: var(--text-2);
+  font-weight: var(--fw-medium);
+  cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+.segmentos input {
+  position: absolute;
+  opacity: 0;
+  inset: 0;
+  margin: 0;
+  cursor: pointer;
+}
+.segmentos label:has(input:checked) {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 1px 2px rgb(22 32 48 / 0.12);
+}
+.segmentos label:has(input:focus-visible) {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.importe {           /* importe de un movimiento: siempre con signo */
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  font-weight: var(--fw-medium);
+}
+.importe--ingreso {
+  color: var(--ok-ink);
+}
+.mes-nav {           /* ‹ noviembre de 2026 › */
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+}
+.mes-nav__nombre {
+  font-weight: var(--fw-semibold);
+  text-align: center;
+}
+.cifras {            /* lista de cifras etiqueta → valor dentro de una tarjeta */
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--sp-1) var(--sp-3);
+  margin: 0;
+}
+.cifras dt {
+  color: var(--text-2);
+}
+.cifras dd {
+  margin: 0;
+  text-align: end;
+}
+
+.cliente__notas {   /* notas del cliente: como mucho 2 líneas en la lista */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+}
+textarea.input {
+  min-height: calc(var(--tap) * 1.6);
+  resize: vertical;
+}
+
+/* Gráfica de ahorro (Dinero): una serie, --grafica; textos con tokens de texto */
+.grafica {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  margin: 0;
+}
+.grafica__svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 220px;
+  overflow: visible;
+  touch-action: pan-y;
+}
+.grafica__zona {
+  fill: transparent;
+}
+.grafica__barra {
+  fill: var(--grafica);
+  opacity: 0.7;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+.grafica__barra--marcada {
+  opacity: 1;
+}
+.grafica__cero {
+  stroke: var(--border-field);
+  stroke-width: 1;
+}
+.grafica__valor {
+  fill: var(--text);
+  font-family: var(--font-num);
+  font-size: 12px;
+  font-weight: var(--fw-semibold);
+  font-variant-numeric: tabular-nums;
+}
+.grafica__mes {
+  fill: var(--text-2);
+  font-family: var(--font-ui);
+  font-size: 11px;
+}
+.grafica__mes--actual {
+  fill: var(--text);
+  font-weight: var(--fw-semibold);
+}
+
 /* =========================================================
    16. Hover solo con ratón (evita hover pegado en táctil)
    ========================================================= */

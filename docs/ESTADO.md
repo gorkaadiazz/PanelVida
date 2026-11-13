@@ -10,7 +10,7 @@ Actualizado el 13/11/2026, tras el commit `77d5896`. Fase 3 aprobada por segurid
 | 2 | Esquema de base de datos y RLS | Cerrada (aprobada por seguridad y tester) |
 | 3 | Inicio, Hábitos, Tareas | **Aprobada** por seguridad y tester. Falta probarla en navegador real con el Supabase real |
 | 4 | Estudios sin IA | **No se hace**: los estudios están en la web de exámenes. Mi Panel enlaza a ella y lee el próximo examen |
-| 5 | Dinero y Negocio web | Sin empezar (las tablas ya existen) |
+| 5 | Dinero y Negocio web | **Hecha en código**; pendiente de las revisiones de seguridad, tester y diseño |
 | 6 | Examen IA y borrar cuenta | **No se hace**: el examen IA está en la web de exámenes; «Borrar mi cuenta» se ha quitado (borraría también los datos de esa web) |
 | 7 | Despliegue | Sin empezar |
 
@@ -63,6 +63,13 @@ Comprobaciones ahora mismo: `npm test -- --run` 321/321, `npm run test:sql` 40/4
 1. ~~Veredictos de seguridad y tester~~: aprobados.
 2. Prueba en navegador real con Supabase real (necesita las migraciones aplicadas): crear sin conexión y ver que sube al volver, dos dispositivos a la vez, arrancar sin conexión con la sesión caducada y cerrar sesión sin red. Revisar a 360 px en claro y oscuro (sobre todo la semana de Hábitos y el campo de fecha en Android).
 
+### Fase 5: Dinero y Negocio
+- **Dinero:** ingresos y gastos (concepto, importe, fecha), siempre en céntimos. El importe se lee del texto sin pasar por decimales («12,50», «1.234,56»). Ahorro del mes con navegación por meses, ahorro total, gráfica del ahorro de los últimos 6 meses y meta de ahorro con barra de progreso. Editar y borrar con confirmación.
+- **Meta de ahorro:** se guarda en `perfiles` (la fila que comparte la web de exámenes). Mi Panel solo baja y sube esa columna; lo demás del perfil no se toca.
+- **Negocio:** clientes con nombre, precio y notas, que pasan de Contacto → Propuesta → En curso → Entregado. Cuántos hay en cada estado, lo facturado (entregados) y lo que está en curso.
+- **Inicio:** tarjetas de ahorro del mes (con la meta) y de negocio.
+- **Sincronización:** si una tabla falla en el servidor (p. ej. una migración sin aplicar), las demás siguen subiendo y bajando y los cambios de esa tabla esperan en la cola sin perderse. Un borrado que el servidor rechaza se cuenta y se deshace.
+
 ### Cambio de alcance (13/11/2026)
 - Las fases 4 y 6 no se hacen: ya existen en tu web de exámenes (https://gorkaadiazz.github.io/SPEC_Examenes/), que usa el mismo proyecto de Supabase y la misma cuenta.
 - «Estudios» en la navegación abre esa web en otra pestaña.
@@ -72,11 +79,9 @@ Comprobaciones ahora mismo: `npm test -- --run` 321/321, `npm run test:sql` 40/4
 - La sincronización guarda ahora qué tablas ha bajado enteras: una tabla nueva (estas, y las de la fase 5) se baja completa aunque el dispositivo ya estuviera al día.
 
 ### Fases siguientes
-- **Fase 5, Dinero y Negocio:** ingresos y gastos en céntimos, ahorro del mes, gráfica de 6 meses, meta de ahorro; clientes por estado, facturado y en curso. Las tarjetas de ahorro y negocio de Inicio.
 - **Fase 7, despliegue:** en Netlify con dominio propio, no en GitHub Pages.
 
 ### Pendientes de seguridad ya anotados
-- **Sincronización (menores, resolver el primero antes de añadir tablas en la fase 4):** un error permanente que no es de datos (p. ej. una migración sin aplicar) bloquea la cola hasta que se arregla (se reintenta cada minuto y se avisa); los borrados que el servidor rechaza no se cuentan en el aviso de rechazados.
 - ~~Fase 6, antes de activar «Borrar mi cuenta»~~ (ya no aplica: se ha quitado):
   - si falla el borrado del usuario, sus archivos ya se han eliminado y el mensaje debe decirlo;
   - probar el borrado con un usuario de prueba en el Supabase real;
