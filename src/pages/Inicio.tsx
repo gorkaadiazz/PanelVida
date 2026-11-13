@@ -4,6 +4,7 @@ import { nombreDeUsuario, useSesion } from '../auth/useSesion'
 import { AvisoError } from '../components/AvisoError'
 import { EtiquetaFecha } from '../components/EtiquetaFecha'
 import { Pagina } from '../components/Pagina'
+import { prepararFoco } from '../components/foco'
 import { Racha } from '../components/Racha'
 import { IconoFlecha, IconoHabitos, IconoTareas } from '../components/iconos'
 import { useAccion } from '../components/useAccion'
@@ -133,7 +134,7 @@ function TarjetaTareas({ hoy, ejecutar }: { hoy: FechaDia; ejecutar: Ejecutar })
   return (
     <section className="card" aria-labelledby="inicio-tareas">
       <div className="card__head">
-        <h2 id="inicio-tareas" className="card__titulo">
+        <h2 id="inicio-tareas" className="card__titulo" tabIndex={-1}>
           <IconoTareas />
           Tareas
         </h2>
@@ -165,7 +166,11 @@ function TarjetaTareas({ hoy, ejecutar }: { hoy: FechaDia; ejecutar: Ejecutar })
                 className="check"
                 aria-pressed={false}
                 aria-label={`Hecha: ${t.texto}`}
-                onClick={() => void ejecutar(() => marcarTarea(t.id, true))}
+                onClick={(e) => {
+                  // La fila desaparece: el foco pasa a la siguiente tarea
+                  const mover = prepararFoco(e.currentTarget.closest('li'))
+                  void ejecutar(() => marcarTarea(t.id, true)).then((bien) => bien && mover())
+                }}
               />
               <div className="list__main">
                 <p className="tarea__texto">{t.texto}</p>

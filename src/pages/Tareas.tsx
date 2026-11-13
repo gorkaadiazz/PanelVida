@@ -1,7 +1,8 @@
-import { useId, useState, type CSSProperties, type FormEvent } from 'react'
+import { useEffect, useId, useRef, useState, type CSSProperties, type FormEvent, type RefObject } from 'react'
 import { AvisoError } from '../components/AvisoError'
 import { EtiquetaFecha } from '../components/EtiquetaFecha'
 import { Pagina } from '../components/Pagina'
+import { prepararFoco } from '../components/foco'
 import { Vacio } from '../components/Vacio'
 import { IconoBorrar, IconoEditar, IconoTareas } from '../components/iconos'
 import { useAccion } from '../components/useAccion'
@@ -20,6 +21,14 @@ export function Tareas() {
   const { primeraDescargaHecha } = useEstadoSync()
   const { error, ejecutar, limpiar } = useAccion()
   const [aviso, setAviso] = useState<string | null>(null)
+  const [confirmarQuitar, setConfirmarQuitar] = useState(false)
+
+  // El aviso de "se han quitado…" se borra solo al poco
+  useEffect(() => {
+    if (!aviso) return
+    const t = setTimeout(() => setAviso(null), 6000)
+    return () => clearTimeout(t)
+  }, [aviso])
 
   const lista = tareas.datos ?? []
   const pendientes = lista.filter((t) => !t.hecha)
@@ -32,7 +41,9 @@ export function Tareas() {
     const bien = await ejecutar(async () => {
       quitadas = await quitarHechas()
     })
+    setConfirmarQuitar(false)
     if (bien) {
+      document.getElementById('tareas-pendientes')?.focus()
       setAviso(quitadas === 1 ? 'Se ha quitado 1 tarea hecha.' : `Se han quitado ${quitadas} tareas hechas.`)
     }
   }
@@ -58,7 +69,7 @@ export function Tareas() {
         ) : (
           <>
             <section aria-labelledby="tareas-pendientes">
-              <h2 id="tareas-pendientes" className="t-section">
+              <h2 id="tareas-pendientes" className="t-section" tabIndex={-1}>
                 Pendientes <span className="num muted">{pendientes.length}</span>
               </h2>
               {pendientes.length === 0 ? (
@@ -73,13 +84,28 @@ export function Tareas() {
             {hechas.length > 0 && (
               <section aria-labelledby="tareas-hechas">
                 <div className="row row--between">
-                  <h2 id="tareas-hechas" className="t-section">
+                  <h2 id="tareas-hechas" className="t-section" tabIndex={-1}>
                     Hechas <span className="num muted">{hechas.length}</span>
                   </h2>
-                  <button type="button" className="btn btn--ghost btn--danger-text" onClick={() => void quitar()}>
-                    Quitar las hechas
-                  </button>
+                  {!confirmarQuitar && (
+                    <button type="button" className="btn btn--ghost btn--danger-text" onClick={() => setConfirmarQuitar(true)}>
+                      Quitar las hechas
+                    </button>
+                  )}
                 </div>
+                {confirmarQuitar && (
+                  <div className="confirmar">
+                    <span>
+                      ¿Borrar {hechas.length === 1 ? 'la tarea hecha' : `las ${hechas.length} tareas hechas`}? No se puede deshacer.
+                    </span>
+                    <button type="button" className="btn btn--danger" onClick={() => void quitar()}>
+                      Borrar
+                    </button>
+                    <button type="button" className="btn btn--ghost" autoFocus onClick={() => setConfirmarQuitar(false)}>
+                      Cancelar
+                    </button>
+                  </div>
+                )}
                 <ListaTareas tareas={hechas} hoy={dia} ejecutar={ejecutar} />
               </section>
             )}
@@ -130,23 +156,71 @@ function ListaTareas({ tareas, hoy, ejecutar }: { tareas: Tarea[]; hoy: FechaDia
 
 function FilaTarea({ tarea, hoy, ejecutar }: { tarea: Tarea; hoy: FechaDia; ejecutar: Ejecutar }) {
   const [editando, setEditando] = useState(false)
+  const [confirmando, setConfirmando] = useState(false)
+  const fila = useRef<HTMLLIElement>(null)
+  const botonEditar = useRef<HTMLButtonElement>(null)
+  const botonBorrar = useRef<HTMLButtonElement>(null)
+  // Al salir de editar o de confirmar, el foco vuelve al botón que se pulsó
+  const volverA = useRef<RefObject<HTMLButtonElement | null> | null>(null)
+  useEffect(() => {
+    if (editando || confirmando || !volverA.current) return
+    volverA.current.current?.focus()
+    volverA.current = null
+  }, [editando, confirmando])
+
+  // Marcar o borrar saca la fila de su lista: el foco pasa a la vecina
+  async function sacarDeLaLista(accion: () => Promise<unknown>) {
+    const mover = prepararFoco(fila.current)
+    if (await ejecutar(accion)) mover()
+  }
 
   if (editando) {
     return (
       <li className="list__item">
-        <EdicionTarea tarea={tarea} ejecutar={ejecutar} onTerminar={() => setEditando(false)} />
+        <EdicionTarea
+          tarea={tarea}
+          ejecutar={ejecutar}
+          onTerminar={() => {
+            volverA.current = botonEditar
+            setEditando(false)
+          }}
+        />
+      </li>
+    )
+  }
+
+  if (confirmando) {
+    return (
+      <li className="list__item" ref={fila}>
+        <div className="confirmar list__main">
+          <span className="tarea__texto">¿Borrar «{tarea.texto}»?</span>
+          <button type="button" className="btn btn--danger" onClick={() => void sacarDeLaLista(() => borrarTarea(tarea.id))}>
+            Borrar
+          </button>
+          <button
+            type="button"
+            className="btn btn--ghost"
+            autoFocus
+            onClick={() => {
+              volverA.current = botonBorrar
+              setConfirmando(false)
+            }}
+          >
+            Cancelar
+          </button>
+        </div>
       </li>
     )
   }
 
   return (
-    <li className={`list__item${tarea.hecha ? ' tarea--hecha' : ''}`}>
+    <li className={`list__item${tarea.hecha ? ' tarea--hecha' : ''}`} ref={fila}>
       <button
         type="button"
         className="check"
         aria-pressed={tarea.hecha}
         aria-label={`Hecha: ${tarea.texto}`}
-        onClick={() => void ejecutar(() => marcarTarea(tarea.id, !tarea.hecha))}
+        onClick={() => void sacarDeLaLista(() => marcarTarea(tarea.id, !tarea.hecha))}
       />
       <div className="list__main">
         <p className="tarea__texto">{tarea.texto}</p>
@@ -158,15 +232,22 @@ function FilaTarea({ tarea, hoy, ejecutar }: { tarea: Tarea; hoy: FechaDia; ejec
       </div>
       <div className="acciones">
         {!tarea.hecha && (
-          <button type="button" className="icon-btn" aria-label={`Editar: ${tarea.texto}`} onClick={() => setEditando(true)}>
+          <button
+            type="button"
+            ref={botonEditar}
+            className="icon-btn"
+            aria-label={`Editar: ${tarea.texto}`}
+            onClick={() => setEditando(true)}
+          >
             <IconoEditar />
           </button>
         )}
         <button
           type="button"
+          ref={botonBorrar}
           className="icon-btn icon-btn--peligro"
           aria-label={`Borrar: ${tarea.texto}`}
-          onClick={() => void ejecutar(() => borrarTarea(tarea.id))}
+          onClick={() => setConfirmando(true)}
         >
           <IconoBorrar />
         </button>

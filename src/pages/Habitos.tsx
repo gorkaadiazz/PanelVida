@@ -1,6 +1,7 @@
-import { useId, useState, type CSSProperties, type FormEvent } from 'react'
+import { useEffect, useId, useRef, useState, type CSSProperties, type FormEvent } from 'react'
 import { AvisoError } from '../components/AvisoError'
 import { Pagina } from '../components/Pagina'
+import { prepararFoco } from '../components/foco'
 import { Racha } from '../components/Racha'
 import { Vacio } from '../components/Vacio'
 import {
@@ -14,7 +15,7 @@ import {
 import { useAccion } from '../components/useAccion'
 import { useHoy } from '../components/useHoy'
 import { diaDelMes, diaSemanaCorto, diaSemanaLargo, formatearFecha, type FechaDia } from '../lib/fechas'
-import { NOMBRE_HABITO_MAX, cuadricula, habitosActivos, type FilaCuadricula } from '../lib/habitos'
+import { NOMBRE_HABITO_MAX, cuadricula, habitosActivos, siguienteOrden, type FilaCuadricula } from '../lib/habitos'
 import {
   alternarDia,
   borrarHabito,
@@ -85,7 +86,7 @@ export function Habitos() {
 
         <AltaHabito ejecutar={ejecutar} />
 
-        {editando && archivados.length > 0 && <Archivados habitos={archivados} ejecutar={ejecutar} />}
+        {editando && archivados.length > 0 && <Archivados habitos={archivados} ordenNuevo={siguienteOrden(lista)} ejecutar={ejecutar} />}
       </div>
     </Pagina>
   )
@@ -216,10 +217,29 @@ function FilaEdicion({
   const [renombrando, setRenombrando] = useState(false)
   const [nombre, setNombre] = useState(habito.nombre)
   const id = useId()
+  const fila = useRef<HTMLLIElement>(null)
+  const botonRenombrar = useRef<HTMLButtonElement>(null)
+  // Al terminar de renombrar, el foco vuelve al lápiz
+  const volver = useRef(false)
+  useEffect(() => {
+    if (renombrando || !volver.current) return
+    volver.current = false
+    botonRenombrar.current?.focus()
+  }, [renombrando])
+
+  function terminar() {
+    volver.current = true
+    setRenombrando(false)
+  }
 
   async function guardar(evento: FormEvent) {
     evento.preventDefault()
-    if (await ejecutar(() => editarHabito(habito.id, { nombre }))) setRenombrando(false)
+    if (await ejecutar(() => editarHabito(habito.id, { nombre }))) terminar()
+  }
+
+  async function archivar() {
+    const mover = prepararFoco(fila.current)
+    if (await ejecutar(() => editarHabito(habito.id, { archivado: true }))) mover()
   }
 
   if (renombrando) {
@@ -246,7 +266,7 @@ function FilaEdicion({
             className="btn btn--ghost"
             onClick={() => {
               setNombre(habito.nombre)
-              setRenombrando(false)
+              terminar()
             }}
           >
             Cancelar
@@ -257,7 +277,7 @@ function FilaEdicion({
   }
 
   return (
-    <li className="list__item">
+    <li className="list__item" ref={fila}>
       <span className="list__main break">{habito.nombre}</span>
       <div className="acciones">
         <button type="button" className="icon-btn" aria-label={`Subir ${habito.nombre}`} disabled={esPrimero} onClick={onSubir}>
@@ -266,14 +286,20 @@ function FilaEdicion({
         <button type="button" className="icon-btn" aria-label={`Bajar ${habito.nombre}`} disabled={esUltimo} onClick={onBajar}>
           <IconoBajar />
         </button>
-        <button type="button" className="icon-btn" aria-label={`Cambiar el nombre de ${habito.nombre}`} onClick={() => setRenombrando(true)}>
+        <button
+          type="button"
+          ref={botonRenombrar}
+          className="icon-btn"
+          aria-label={`Cambiar el nombre de ${habito.nombre}`}
+          onClick={() => setRenombrando(true)}
+        >
           <IconoEditar />
         </button>
         <button
           type="button"
           className="icon-btn"
           aria-label={`Archivar ${habito.nombre} (se guarda su historial)`}
-          onClick={() => void ejecutar(() => editarHabito(habito.id, { archivado: true }))}
+          onClick={() => void archivar()}
         >
           <IconoArchivar />
         </button>
@@ -282,12 +308,18 @@ function FilaEdicion({
   )
 }
 
-function Archivados({ habitos, ejecutar }: { habitos: Habito[]; ejecutar: Ejecutar }) {
+function Archivados({ habitos, ordenNuevo, ejecutar }: { habitos: Habito[]; ordenNuevo: number; ejecutar: Ejecutar }) {
   const [porBorrar, setPorBorrar] = useState<string | null>(null)
+
+  // Sacar de la lista (recuperar o borrar) mueve el foco a la fila vecina
+  async function sacar(evento: { currentTarget: HTMLElement }, accion: () => Promise<unknown>) {
+    const mover = prepararFoco(evento.currentTarget.closest('li'))
+    if (await ejecutar(accion)) mover()
+  }
 
   return (
     <section className="stack" aria-labelledby="habitos-archivados" style={{ '--gap': 'var(--sp-2)' } as CSSProperties}>
-      <h2 id="habitos-archivados" className="t-section">
+      <h2 id="habitos-archivados" className="t-section" tabIndex={-1}>
         Archivados
       </h2>
       <p className="t-small muted">No salen en la semana ni en Inicio, pero conservan sus marcas.</p>
@@ -300,7 +332,7 @@ function Archivados({ habitos, ejecutar }: { habitos: Habito[]; ejecutar: Ejecut
                 <button
                   type="button"
                   className="btn btn--danger"
-                  onClick={() => void ejecutar(() => borrarHabito(h.id)).then(() => setPorBorrar(null))}
+                  onClick={(e) => void sacar(e, () => borrarHabito(h.id)).then(() => setPorBorrar(null))}
                 >
                   Borrar
                 </button>
@@ -315,7 +347,8 @@ function Archivados({ habitos, ejecutar }: { habitos: Habito[]; ejecutar: Ejecut
                 <button
                   type="button"
                   className="btn btn--ghost btn--sm"
-                  onClick={() => void ejecutar(() => editarHabito(h.id, { archivado: false }))}
+                  // Vuelve al final de la lista, sin chocar con el orden de los demás
+                  onClick={(e) => void sacar(e, () => editarHabito(h.id, { archivado: false, orden: ordenNuevo }))}
                 >
                   Recuperar
                 </button>
