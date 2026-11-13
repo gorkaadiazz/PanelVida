@@ -29,31 +29,66 @@ export async function entrarConGoogle(): Promise<void> {
   if (error) throw error
 }
 
+/** Lo que se espera como mucho a que el servidor confirme el cierre. */
+export const ESPERA_CIERRE_MS = 3000
+
 /**
- * Cierra la sesión SOLO en este dispositivo. NUNCA lanza y no depende de la
- * red: en un PC compartido (el de clase) la sesión no puede quedarse abierta
- * porque falle la wifi.
+ * Cierra la sesión SOLO en este dispositivo. NUNCA lanza, no depende de la
+ * red y termina en unos segundos como mucho: en un PC compartido (el de
+ * clase) la sesión no puede quedarse abierta porque falle la wifi.
  *
- *  1. signOut({ scope: 'local' }) borra la sesión guardada y avisa a la app
- *     (SIGNED_OUT) antes de hablar con el servidor; la llamada de red solo
- *     sirve para anular el token allí. Si falla, no pasa nada.
- *  2. Respaldo: si aun así la sesión siguiera guardada, se borra a mano y se
- *     recarga la app para que arranque limpia en la pantalla de entrada.
+ *  1. Se borra a mano la sesión guardada (localStorage) ANTES de nada. Si se
+ *     dejara a signOut(), con el token caducado y sin red supabase-js intenta
+ *     renovarlo primero y tarda hasta 30 s en borrarla: si en ese rato se
+ *     cierra la pestaña, el siguiente alumno entraría con tu cuenta.
+ *  2. signOut({ scope: 'local' }) ya no encuentra sesión: avisa a la app
+ *     (SIGNED_OUT) sin tocar la red.
+ *  3. Si hay red, se intenta anular el token en el servidor (como mucho
+ *     ESPERA_CIERRE_MS). Si falla, no pasa nada: en el dispositivo ya no está.
+ *  4. Si aun así quedara sesión guardada, se recarga la app limpia.
  *
  * Borrar la copia local de datos (IndexedDB) es cosa de sync/sesion.ts
  * (cerrarSesion), que es lo que deben llamar las pantallas.
  */
 export async function salir(): Promise<void> {
-  try {
-    const { error } = await supabase.auth.signOut({ scope: 'local' })
-    if (error) console.warn('El servidor no ha confirmado el cierre de sesión (en este dispositivo ya está cerrada).')
-  } catch {
-    console.warn('No se ha podido cerrar la sesión por la vía normal; se borra a mano.')
+  const token = sesionGuardada()?.access_token
+  borrarSesionGuardada(CLAVE_SESION)
+
+  await conTope(async () => {
+    try {
+      const { error } = await supabase.auth.signOut({ scope: 'local' })
+      if (error) console.warn('supabase-js no ha confirmado el cierre de sesión (en este dispositivo ya está cerrada).')
+    } catch {
+      console.warn('No se ha podido avisar del cierre de sesión por la vía normal.')
+    }
+  })
+
+  if (token && (typeof navigator === 'undefined' || navigator.onLine)) {
+    await conTope(async () => {
+      try {
+        await supabase.auth.admin.signOut(token, 'local')
+      } catch {
+        // El token caducará solo; en este dispositivo ya no está
+      }
+    })
   }
+
   if (sesionGuardada()) {
     borrarSesionGuardada(CLAVE_SESION)
     location.replace('/')
   }
+}
+
+/** Espera a `fn`, pero nunca más de ESPERA_CIERRE_MS. No lanza. */
+async function conTope(fn: () => Promise<void>): Promise<void> {
+  let temporizador: ReturnType<typeof setTimeout> | undefined
+  await Promise.race([
+    fn().catch(() => {}),
+    new Promise<void>((ok) => {
+      temporizador = setTimeout(ok, ESPERA_CIERRE_MS)
+    }),
+  ])
+  clearTimeout(temporizador)
 }
 
 /**

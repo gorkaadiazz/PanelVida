@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // El cliente real exige variables de entorno; aquí no hace falta.
-vi.mock('./supabase', () => ({ supabase: { auth: {} }, CLAVE_SESION: 'sb-prueba-auth-token' }))
+vi.mock('./supabase', () => ({ supabase: { auth: { admin: {} } }, CLAVE_SESION: 'sb-prueba-auth-token' }))
 
-import { leerErrorDeVuelta, mensajeDeErrorAuth, salir, sesionGuardada } from './auth'
+import { ESPERA_CIERRE_MS, leerErrorDeVuelta, mensajeDeErrorAuth, salir, sesionGuardada } from './auth'
 import { supabase } from './supabase'
 
 const SIN_ACCESO = 'Este email no tiene acceso a la app. Pide que lo añadan a la lista.'
@@ -120,59 +120,103 @@ describe('salir (cerrar sesión en este dispositivo)', () => {
   const SESION = JSON.stringify({ access_token: 'a', refresh_token: 'r', expires_at: 1, user: { id: 'u1' } })
   let guardado: Map<string, string>
   let replace: ReturnType<typeof vi.fn>
-  const auth = supabase.auth as unknown as { signOut?: (opciones: { scope: string }) => Promise<{ error: unknown }> }
+  let enLinea: boolean
+  const auth = supabase.auth as unknown as {
+    signOut?: (opciones: { scope: string }) => Promise<{ error: unknown }>
+    admin: { signOut?: (token: string, scope: string) => Promise<{ error: unknown }> }
+  }
+  const adminOriginal = auth.admin.signOut
 
   beforeEach(() => {
     guardado = new Map([[CLAVE, SESION]])
     replace = vi.fn()
+    enLinea = true
     vi.stubGlobal('localStorage', {
       getItem: (k: string) => guardado.get(k) ?? null,
       removeItem: (k: string) => void guardado.delete(k),
     })
     vi.stubGlobal('location', { replace })
+    vi.stubGlobal('navigator', {
+      get onLine() {
+        return enLinea
+      },
+    })
     vi.spyOn(console, 'warn').mockImplementation(() => {})
+    auth.admin.signOut = vi.fn(async () => ({ error: null }))
   })
 
   afterEach(() => {
     delete auth.signOut
+    auth.admin.signOut = adminOriginal
+    vi.useRealTimers()
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
   })
 
-  it('pide a supabase cerrar solo este dispositivo (scope local)', async () => {
+  it('borra la sesión guardada ANTES de llamar a signOut, que cierra solo este dispositivo', async () => {
+    let habiaSesionAlLlamar: boolean | null = null
     const signOut = vi.fn(async () => {
-      guardado.delete(CLAVE) // supabase-js borra la sesión guardada
+      habiaSesionAlLlamar = guardado.has(CLAVE)
       return { error: null }
     })
     auth.signOut = signOut
     await salir()
+    expect(habiaSesionAlLlamar).toBe(false)
     expect(signOut).toHaveBeenCalledWith({ scope: 'local' })
-    expect(replace).not.toHaveBeenCalled()
-  })
-
-  it('sin conexión: el error de red no impide cerrar (la sesión local ya está borrada)', async () => {
-    auth.signOut = async () => {
-      guardado.delete(CLAVE)
-      return { error: new TypeError('Failed to fetch') }
-    }
-    await expect(salir()).resolves.toBeUndefined()
     expect(sesionGuardada()).toBeNull()
     expect(replace).not.toHaveBeenCalled()
   })
 
-  it('respaldo: si signOut devuelve error y NO ha borrado la sesión, se borra a mano y se recarga', async () => {
-    guardado.set(`${CLAVE}-code-verifier`, 'x')
-    auth.signOut = async () => ({ error: new TypeError('Failed to fetch') })
-    await expect(salir()).resolves.toBeUndefined()
-    expect([...guardado.keys()]).toEqual([])
-    expect(replace).toHaveBeenCalledWith('/')
+  it('con red, anula en el servidor el token que había guardado', async () => {
+    auth.signOut = async () => ({ error: null })
+    await salir()
+    expect(auth.admin.signOut).toHaveBeenCalledWith('a', 'local')
   })
 
-  it('respaldo: también si signOut lanza', async () => {
+  it('sin red no intenta anular el token en el servidor', async () => {
+    enLinea = false
+    auth.signOut = async () => ({ error: new TypeError('Failed to fetch') })
+    await expect(salir()).resolves.toBeUndefined()
+    expect(sesionGuardada()).toBeNull()
+    expect(auth.admin.signOut).not.toHaveBeenCalled()
+  })
+
+  it('token caducado y sin red: aunque signOut no responda nunca, la sesión se borra al momento y salir() termina', async () => {
+    vi.useFakeTimers()
+    enLinea = false
+    guardado.set(`${CLAVE}-code-verifier`, 'x')
+    auth.signOut = () => new Promise(() => {}) // supabase-js reintentando renovar el token
+    const terminado = salir()
+    // Antes de que pase ningún tiempo, ya no queda nada en localStorage
+    expect([...guardado.keys()]).toEqual([])
+    await vi.advanceTimersByTimeAsync(ESPERA_CIERRE_MS)
+    await expect(terminado).resolves.toBeUndefined()
+  })
+
+  it('tampoco se queda colgado si el servidor no contesta al anular el token', async () => {
+    vi.useFakeTimers()
+    auth.signOut = async () => ({ error: null })
+    auth.admin.signOut = () => new Promise(() => {})
+    const terminado = salir()
+    await vi.advanceTimersByTimeAsync(2 * ESPERA_CIERRE_MS)
+    await expect(terminado).resolves.toBeUndefined()
+    expect(sesionGuardada()).toBeNull()
+  })
+
+  it('si signOut lanza, la sesión ya está borrada igualmente', async () => {
     auth.signOut = async () => {
       throw new Error('roto')
     }
     await expect(salir()).resolves.toBeUndefined()
+    expect(sesionGuardada()).toBeNull()
+  })
+
+  it('respaldo: si algo vuelve a guardar la sesión mientras se cierra, se borra y se recarga', async () => {
+    auth.signOut = async () => {
+      guardado.set(CLAVE, SESION) // p. ej. otra pestaña que acaba de renovar el token
+      return { error: null }
+    }
+    await salir()
     expect(sesionGuardada()).toBeNull()
     expect(replace).toHaveBeenCalledWith('/')
   })
