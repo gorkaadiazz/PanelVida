@@ -12,7 +12,7 @@ Actualizado el 13/11/2026, tras el commit `77d5896`. Fase 3 aprobada por segurid
 | 4 | Estudios sin IA | **No se hace**: los estudios están en la web de exámenes. Mi Panel enlaza a ella y lee el próximo examen |
 | 5 | Dinero y Negocio web | **Aprobada** por seguridad y tester (revisada por diseño). Falta probarla en navegador real |
 | 6 | Examen IA y borrar cuenta | **No se hace**: el examen IA está en la web de exámenes; «Borrar mi cuenta» se ha quitado (borraría también los datos de esa web) |
-| 7 | Despliegue | Sin empezar |
+| 7 | Despliegue | Configuración lista (`netlify.toml`); falta publicarla en Netlify |
 
 Comprobaciones ahora mismo: `npm test -- --run` 473/473, `npm run test:sql` 41/41, `npm run lint`, `npm run typecheck` y `npm run build` sin errores.
 
@@ -80,15 +80,16 @@ Comprobaciones ahora mismo: `npm test -- --run` 473/473, `npm run test:sql` 41/4
 - La sincronización guarda ahora qué tablas ha bajado enteras: una tabla nueva (estas, y las de la fase 5) se baja completa aunque el dispositivo ya estuviera al día.
 
 ### Fases siguientes
-- **Fase 7, despliegue:** en Netlify con dominio propio, no en GitHub Pages.
+- **Fase 7, despliegue:** en Netlify (origen propio), no en GitHub Pages. Pasos en `docs/DESPLEGAR.md`.
 
 ### Pendientes de seguridad ya anotados
 - ~~Fase 6, antes de activar «Borrar mi cuenta»~~ (ya no aplica: se ha quitado):
   - si falla el borrado del usuario, sus archivos ya se han eliminado y el mensaje debe decirlo;
   - probar el borrado con un usuario de prueba en el Supabase real;
   - valorar exigir un inicio de sesión reciente.
-- **Fase 7:** cambiar los orígenes permitidos de `borrar-cuenta` al dominio nuevo, dejar `localhost` solo en desarrollo y añadir una política CSP.
-- `npm audit` da 6 avisos (2 bajos, 4 moderados) en herramientas de compilación, no en lo que se envía al navegador. El arreglo automático cambia de versión mayor `vite-plugin-pwa`; queda para revisar antes del despliegue.
+- ~~Fase 7: CSP~~ hecho: cabeceras de seguridad y CSP en `netlify.toml` (solo el propio origen y el proyecto de Supabase).
+- Orígenes de `borrar-cuenta`: no cambian. Mi Panel ya no llama a esa función; solo la usa la web de exámenes, que sigue en `gorkaadiazz.github.io`.
+- `npm audit`: 0 avisos en lo que se envía al navegador (`npm audit --omit=dev`). Los 6 avisos (2 bajos, 4 moderados) están en `glob`/`minimatch`, que solo usa `vite-plugin-pwa` al compilar con nuestros propios archivos; el «arreglo» automático bajaría a `vite-plugin-pwa` 1.x. Se deja así y se revisa cuando salga una versión nueva.
 
 ## Cómo se ha hecho
 

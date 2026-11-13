@@ -1,0 +1,59 @@
+# Despliegue de Mi Panel en Netlify (ver docs/DESPLEGAR.md).
+#
+# Las variables VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY NO van aquí:
+# se ponen en Netlify → Site configuration → Environment variables.
+
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "24"
+
+# Un archivo de /assets que no existe (p. ej. uno de una versión vieja) da 404
+# en vez de devolver index.html con apariencia de JS.
+[[redirects]]
+  from = "/assets/*"
+  to = "/404.html"
+  status = 404
+
+# App de una sola página: cualquier ruta (/dinero, /tareas…) sirve index.html.
+# Sin "force", los archivos que existen (assets, sw.js, iconos) se sirven tal cual.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Cabeceras de seguridad para todas las páginas.
+# CSP: solo se ejecuta y se carga lo de este mismo origen; las únicas
+# conexiones de fuera son a NUESTRO proyecto de Supabase (API y tiempo real).
+# Si cambias de proyecto de Supabase, cambia aquí la dirección.
+# El inicio de sesión con Google es una navegación (no lo limita connect-src).
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Content-Security-Policy = "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://pmcacougksqimitapiqr.supabase.co wss://pmcacougksqimitapiqr.supabase.co; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests"
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "DENY"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+    Cross-Origin-Opener-Policy = "same-origin"
+    Strict-Transport-Security = "max-age=31536000"
+
+# El service worker y la página no se guardan en caché del navegador:
+# así una versión nueva llega en cuanto se publica.
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+# Los archivos con huella en el nombre no cambian nunca: caché larga.
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
