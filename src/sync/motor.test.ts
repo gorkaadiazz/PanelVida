@@ -652,6 +652,93 @@ describe('tablas de la web de exámenes (solo lectura)', () => {
   })
 })
 
+describe('una tabla que falla no bloquea a las demás', () => {
+  // PGRST204: "columna que no existe", lo que pasa si falta una migración
+  const SIN_MIGRACION = { code: 'PGRST204', message: "Could not find the 'hecha_en' column of 'tareas' in the schema cache" }
+
+  it('al subir: las demás tablas suben y los cambios de la que falla se quedan en la cola, sin perderse', async () => {
+    const { motor, servidor, base } = await montar()
+    await motor.sincronizar()
+    await crearHabito('No puede subir todavía')
+    await crearTarea({ texto: 'Esta sí' })
+    // habitos va antes que tareas: si su fallo cortara la vuelta, la tarea no subiría
+    servidor.fallo = (p) => (p.startsWith('guardar habitos') ? SIN_MIGRACION : null)
+
+    expect(await motor.sincronizar()).toBe(false)
+    expect(estadoSync().fase).toBe('error')
+    expect(servidor.filas('tareas').map((t) => t.texto)).toEqual(['Esta sí'])
+    expect(servidor.filas('habitos').map((h) => h.nombre)).not.toContain('No puede subir todavía')
+    expect((await listarPendientes(base)).map((e) => e.tabla)).toEqual(['habitos'])
+    expect((await listarHabitos()).map((h) => h.nombre)).toContain('No puede subir todavía') // sigue en la copia local
+    expect(estadoSync().rechazados).toBe(0)
+
+    // Se aplica la migración: la siguiente vuelta lo sube
+    servidor.fallo = null
+    expect(await motor.sincronizar()).toBe(true)
+    expect(servidor.filas('habitos').map((h) => h.nombre)).toContain('No puede subir todavía')
+  })
+
+  it('si la madre no puede subir, la hija espera (no se rechaza por la clave foránea)', async () => {
+    const { motor, servidor, base } = await montar()
+    await motor.sincronizar()
+    const habito = await crearHabito('Nadar')
+    await marcarDia(habito.id, hoy(), true)
+    servidor.fallo = (p) => (p.startsWith('guardar habitos') ? SIN_MIGRACION : null)
+
+    await motor.sincronizar()
+    expect(servidor.peticiones.some((p) => p.startsWith('guardar habito_marcas'))).toBe(false)
+    expect((await listarPendientes(base)).map((e) => e.tabla).sort()).toEqual(['habito_marcas', 'habitos'])
+    expect(estadoSync().rechazados).toBe(0)
+
+    servidor.fallo = null
+    await motor.sincronizar()
+    expect(servidor.filas('habito_marcas')).toHaveLength(1)
+  })
+
+  it('al bajar: las demás tablas bajan, y la que falla se baja entera cuando se arregla', async () => {
+    const { motor, servidor, base } = await montar()
+    await motor.sincronizar()
+    servidor.desdeOtroDispositivo('tareas', { id: '00000000-0000-4000-8000-0000000000c1', texto: 'Desde el móvil', fecha_limite: null, hecha: false, hecha_en: null })
+    servidor.desdeOtroDispositivo('habitos', { id: '00000000-0000-4000-8000-0000000000c2', nombre: 'Desde el móvil', orden: 5, archivado: false })
+    servidor.fallo = (p) => (p === 'descargar tareas' ? SIN_MIGRACION : null)
+
+    expect(await motor.sincronizar()).toBe(false)
+    expect((await listarHabitos()).map((h) => h.nombre)).toContain('Desde el móvil')
+    expect(await listarTareas()).toEqual([])
+    expect(await base.leerMeta('tablas_descargadas')).not.toContain('tareas')
+
+    servidor.fallo = null
+    expect(await motor.sincronizar()).toBe(true)
+    expect((await listarTareas()).map((t) => t.texto)).toEqual(['Desde el móvil'])
+    expect(await base.leerMeta('tablas_descargadas')).toContain('tareas')
+  })
+
+  it('un borrado rechazado se cuenta y la fila (con sus hijas) vuelve a la copia local', async () => {
+    const { motor, servidor } = await montar()
+    const habito = await crearHabito('Leer')
+    await marcarDia(habito.id, hoy(), true)
+    await motor.sincronizar()
+    await borrarHabito(habito.id)
+    expect(await listarMarcas()).toEqual([])
+    servidor.fallo = (p) => (p.startsWith('borrar habitos') ? { code: '23503', message: 'violates foreign key constraint' } : null)
+
+    await motor.sincronizar()
+    expect(estadoSync().rechazados).toBe(1)
+    expect((await listarHabitos()).map((h) => h.nombre)).toContain('Leer')
+    expect(await listarMarcas()).toHaveLength(1)
+  })
+
+  it('sin red se corta todo, como siempre (nada se da por fallido)', async () => {
+    const { motor, servidor, base } = await montar()
+    await motor.sincronizar()
+    await crearHabito('Correr')
+    servidor.fallo = () => new TypeError('Failed to fetch')
+    expect(await motor.sincronizar()).toBe(false)
+    expect(estadoSync().fase).toBe('sin-conexion')
+    expect(await base.leerMeta('tablas_descargadas')).toContain('tareas')
+  })
+})
+
 describe('copia local por usuario', () => {
   it('al abrirla otro usuario se vacía entera: datos, cola y meta', async () => {
     const { motor, base } = await montar('usuario-1')

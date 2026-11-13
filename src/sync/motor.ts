@@ -34,7 +34,7 @@ import {
   type Lote,
 } from './reglas'
 import type { Borrado, FilaRemota, Remoto } from './remoto'
-import { TABLAS, definicion, esTabla, type DefTabla, type Fila } from './tablas'
+import { TABLAS, definicion, esTabla, hijasDe, type DefTabla, type Fila } from './tablas'
 
 /** Mensaje para el usuario. El detalle técnico va solo a la consola. */
 export const MENSAJE_ERROR_SYNC = 'No se han podido sincronizar los cambios. Se volverá a intentar.'
@@ -151,11 +151,45 @@ export function crearMotor({ base, remoto, enLinea, tablas = TABLAS }: OpcionesM
   // Subir
   // -------------------------------------------------------------------------
 
+  /**
+   * Ejecuta el trabajo de una tabla sin que su fallo pare a las demás. Un
+   * error que no es de red ni de datos (p. ej. una migración sin aplicar en
+   * el servidor: la tabla o la columna no existen) deja los cambios de ESA
+   * tabla en la cola, sin perder nada, y el resto sigue. Sin red, o si se ha
+   * parado el motor, se corta todo como siempre.
+   */
+  async function aislado(tabla: string, fallos: Map<string, unknown>, trabajo: () => Promise<void>) {
+    try {
+      await trabajo()
+    } catch (e) {
+      if (e instanceof Detenido || esErrorDeRed(e) || !enLinea()) throw e
+      console.warn(`Sincronización de ${tabla}`, e)
+      if (!fallos.has(tabla)) fallos.set(tabla, e)
+    }
+  }
+
+  /** Si alguna tabla ha fallado, la vuelta acaba en error (después de hacer lo demás). */
+  function lanzarSiHuboFallos(fallos: Map<string, unknown>) {
+    const [primero] = fallos.values()
+    if (fallos.size) throw primero
+  }
+
   async function subir() {
     const plan = planDeSubida(await listarPendientes(base), tablas)
     await quitarSubidos(base, plan.descartar)
-    for (const lote of plan.guardar) await guardarLote(lote)
-    for (const lote of plan.borrar) await borrarLote(lote)
+    const fallos = new Map<string, unknown>()
+    for (const lote of plan.guardar) {
+      // Si su madre no ha podido subir, la hija tampoco: el servidor la
+      // rechazaría por la clave foránea y se perdería el cambio.
+      const madre = definicion(lote.tabla, tablas).padre?.tabla
+      if (madre && fallos.has(madre)) {
+        fallos.set(lote.tabla, fallos.get(madre))
+        continue
+      }
+      await aislado(lote.tabla, fallos, () => guardarLote(lote))
+    }
+    for (const lote of plan.borrar) await aislado(lote.tabla, fallos, () => borrarLote(lote))
+    lanzarSiHuboFallos(fallos)
   }
 
   async function guardarLote({ tabla, entradas }: Lote) {
@@ -236,9 +270,27 @@ export function crearMotor({ base, remoto, enLinea, tablas = TABLAS }: OpcionesM
     } catch (e) {
       if (!esErrorDeDatos(e)) throw e
       console.warn(`El servidor ha rechazado un borrado de ${tabla}`, e)
+      comprobar()
+      await deshacerBorrados(tabla, entradas)
     }
     comprobar()
     await quitarSubidos(base, entradas)
+  }
+
+  /**
+   * Un borrado que el servidor no acepta se deshace: se cuenta como rechazado
+   * y la tabla (con sus hijas, que aquí se borraron en cascada) se vuelve a
+   * bajar entera en esta misma vuelta, así la copia local vuelve a estar
+   * como el servidor.
+   */
+  async function deshacerBorrados(tabla: string, entradas: readonly EntradaCola[]) {
+    rechazados += entradas.length
+    const afectadas = new Set([tabla, ...hijasDe(tabla, tablas).map((h) => h.tabla)])
+    const completas = (await base.leerMeta<string[]>('tablas_descargadas')) ?? []
+    await base.guardarMeta(
+      'tablas_descargadas',
+      completas.filter((n) => !afectadas.has(n)),
+    )
   }
 
   // -------------------------------------------------------------------------
@@ -256,15 +308,18 @@ export function crearMotor({ base, remoto, enLinea, tablas = TABLAS }: OpcionesM
     // vaya al día: si no, sus filas antiguas no llegarían nunca.
     const completas = new Set((await base.leerMeta<string[]>('tablas_descargadas')) ?? [])
 
+    const fallos = new Map<string, unknown>()
     for (const def of tablas) {
       const desdeTabla = completas.has(def.nombre) ? desde : null
-      for (let pos = 0; ; pos += PAGINA_DESCARGA) {
-        const filas = await remoto.descargar(def.nombre, desdeTabla, pos, PAGINA_DESCARGA)
-        comprobar()
-        if (await aplicarRemotas(def.nombre, filas)) cambiadas.add(def.nombre)
-        for (const f of filas) maxima = masReciente(maxima, f.sync_at)
-        if (filas.length < PAGINA_DESCARGA) break
-      }
+      await aislado(def.nombre, fallos, async () => {
+        for (let pos = 0; ; pos += PAGINA_DESCARGA) {
+          const filas = await remoto.descargar(def.nombre, desdeTabla, pos, PAGINA_DESCARGA)
+          comprobar()
+          if (await aplicarRemotas(def.nombre, filas)) cambiadas.add(def.nombre)
+          for (const f of filas) maxima = masReciente(maxima, f.sync_at)
+          if (filas.length < PAGINA_DESCARGA) break
+        }
+      })
     }
 
     // Borrados en otros dispositivos (la primera vez no hace falta: se acaba
@@ -282,10 +337,13 @@ export function crearMotor({ base, remoto, enLinea, tablas = TABLAS }: OpcionesM
     await base.tx([ALMACEN_META], 'readwrite', (t) => {
       const meta = t.objectStore(ALMACEN_META)
       if (maxima && maxima !== ultima) meta.put({ clave: 'ultima_descarga', valor: maxima })
-      meta.put({ clave: 'tablas_descargadas', valor: tablas.map((d) => d.nombre) })
+      // Una tabla que ha fallado se quita de la lista: el cursor sigue
+      // adelante con las demás y ella se bajará entera la próxima vez.
+      meta.put({ clave: 'tablas_descargadas', valor: tablas.map((d) => d.nombre).filter((n) => !fallos.has(n)) })
       meta.put({ clave: 'primera_descarga', valor: true })
     })
     avisarCambio([...cambiadas], 'remoto')
+    lanzarSiHuboFallos(fallos)
   }
 
   /**
