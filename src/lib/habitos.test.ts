@@ -168,3 +168,45 @@ describe('validarNombreHabito', () => {
     expect(validarNombreHabito('a'.repeat(60))).toHaveLength(60)
   })
 })
+
+describe('rachas: casos límite añadidos por tester', () => {
+  it('la racha que empieza ayer cruza el cambio de año con hoy (1 de enero) sin marcar', () => {
+    expect(rachaActual(['2026-12-29', '2026-12-30', '2026-12-31'], '2027-01-01')).toBe(3)
+  })
+
+  it('la racha que empieza ayer cruza el cambio de hora con hoy sin marcar', () => {
+    expect(rachaActual(['2026-10-24', '2026-10-25'], '2026-10-26')).toBe(2)
+    expect(rachaActual(['2026-03-28', '2026-03-29'], '2026-03-30')).toBe(2)
+  })
+
+  it('hoy desmarcado (hecho = false) y ayer hecho: la racha sigue viva en la cuadrícula', () => {
+    const c = cuadricula([habito('a', 0)], [marca('a', '2026-11-11'), marca('a', '2026-11-12'), marca('a', HOY, false)], HOY)
+    expect(c.filas[0].racha).toBe(2)
+    expect(c.filas[0].dias.at(-1)).toEqual({ fecha: HOY, hecho: false, esHoy: true })
+    expect(c.resumen).toEqual({ hechos: 0, total: 1, porcentaje: 0 })
+  })
+
+  it('un día desmarcado en medio rompe la racha', () => {
+    const c = cuadricula([habito('a', 0)], [marca('a', '2026-11-11'), marca('a', '2026-11-12', false), marca('a', HOY)], HOY)
+    expect(c.filas[0].racha).toBe(1)
+  })
+
+  it('una marca futura (otro dispositivo con el reloj adelantado) no suma racha ni sale en la cuadrícula', () => {
+    const c = cuadricula([habito('a', 0)], [marca('a', '2026-11-14'), marca('a', '2026-11-12')], HOY)
+    expect(c.filas[0].racha).toBe(1)
+    expect(c.dias.at(-1)).toBe(HOY)
+    expect(c.filas[0].dias.map((d) => d.hecho)).toEqual([false, false, false, false, false, true, false])
+  })
+
+  it('la cuadrícula del 2 de enero cruza el año', () => {
+    expect(cuadricula([], [], '2027-01-02').dias).toEqual([
+      '2026-12-27',
+      '2026-12-28',
+      '2026-12-29',
+      '2026-12-30',
+      '2026-12-31',
+      '2027-01-01',
+      '2027-01-02',
+    ])
+  })
+})

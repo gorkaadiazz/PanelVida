@@ -47,7 +47,11 @@ export function crearServidorFalso(tablas: readonly DefTabla[] = TABLAS): Servid
 
   function comprobar(nombre: string, fila: Record<string, unknown>) {
     const codigo = servidor.rechazar?.(nombre, fila)
-    if (codigo) throw { code: codigo, message: `fila rechazada (${codigo})` }
+    if (codigo) {
+      // Mismo texto que PostgREST cuando es una política RLS la que rechaza la fila
+      const message = codigo === '42501' ? `new row violates row-level security policy for table "${nombre}"` : `fila rechazada (${codigo})`
+      throw { code: codigo, message }
+    }
     const def = tablas.find((t) => t.nombre === nombre)
     if (def?.padre && !tabla(def.padre.tabla).has(String(fila[def.padre.columna]))) {
       throw { code: '23503', message: 'violates foreign key constraint' }

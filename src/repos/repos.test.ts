@@ -267,3 +267,32 @@ describe('transacciones y avisos', () => {
     expect(sellar('basura')).toBe('2026-11-13T10:00:00.000Z')
   })
 })
+
+describe('"hoy" en hora de Madrid al marcar (casos límite añadidos por tester)', () => {
+  it('a las 00:30 de Madrid (23:30 UTC) ya se puede marcar el día nuevo, y no el siguiente', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-11-13T23:30:00Z')) // en Madrid ya es 14/11
+    const h = await crearHabito('Leer')
+    await expect(marcarDia(h.id, '2026-11-14', true)).resolves.toMatchObject({ fecha: '2026-11-14', hecho: true })
+    await expect(marcarDia(h.id, '2026-11-15', true)).rejects.toBeInstanceOf(ErrorDeValidacion)
+  })
+
+  it('en verano (UTC+2) a las 23:30 UTC ya es el día siguiente en Madrid', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-07-01T22:30:00Z')) // 00:30 del 2/7 en Madrid
+    const h = await crearHabito('Leer')
+    await expect(marcarDia(h.id, '2026-07-02', true)).resolves.toMatchObject({ hecho: true })
+  })
+
+  it('a las 23:30 de Madrid el día siguiente aún no se puede marcar', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-12-31T22:30:00Z')) // 23:30 del 31/12 en Madrid
+    const h = await crearHabito('Leer')
+    await expect(marcarDia(h.id, '2027-01-01', true)).rejects.toBeInstanceOf(ErrorDeValidacion)
+    await expect(marcarDia(h.id, '2026-12-31', true)).resolves.toMatchObject({ hecho: true })
+  })
+
+  it('crear una tarea sin fecha con undefined', async () => {
+    expect(await crearTarea({ texto: 'Sin fecha' })).toMatchObject({ fecha_limite: null })
+  })
+})

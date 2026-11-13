@@ -7,8 +7,8 @@ import { IDBFactory } from 'fake-indexeddb'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { hoy, restarDias } from '../lib/fechas'
 import { idMarca } from '../lib/uuid'
-import { borrarHabito, crearHabito, editarHabito, listarHabitos, listarMarcas, marcarDia } from '../repos/habitos'
-import { borrarTarea, crearTarea, editarTarea, listarTareas, marcarTarea } from '../repos/tareas'
+import { borrarHabito, crearHabito, editarHabito, listarHabitos, listarMarcas, marcarDia, reordenarHabitos } from '../repos/habitos'
+import { borrarTarea, crearTarea, editarTarea, listarTareas, marcarTarea, quitarHechas } from '../repos/tareas'
 import { alCambioLocal, estadoSync, reiniciarEstado, versionDe } from './avisos'
 import { ALMACEN_COLA, ErrorSinSesion, abrirBase, baseActual, usarBase, type BaseLocal } from './bd'
 import { contarPendientes, listarPendientes } from './cola'
@@ -546,5 +546,153 @@ describe('copia local por usuario', () => {
     expect(await ampliada.todos('tareas')).toHaveLength(1)
     expect(await ampliada.todos('movimientos')).toEqual([])
     expect(await ampliada.porIndice('movimientos', 'fecha', '2026-11-13')).toEqual([])
+  })
+})
+
+describe('flujos de la fase 3 de punta a punta (repositorios + motor + servidor falso)', () => {
+  it('rechazo RLS (42501 "row-level security") de una fila: no se reintenta para siempre y cuenta en rechazados', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const { motor, servidor, base } = await montar()
+    await motor.sincronizar()
+    const mala = await crearTarea({ texto: 'La rechaza RLS' })
+    const buena = await crearTarea({ texto: 'Buena' })
+    servidor.rechazar = (_t, fila) => (fila.id === mala.id ? '42501' : null)
+
+    expect(await motor.sincronizar()).toBe(true)
+    expect(estadoSync()).toMatchObject({ fase: 'sincronizado', rechazados: 1, pendientes: 0, error: null })
+    expect(await contarPendientes(base)).toBe(0)
+    expect(servidor.filas('tareas').map((t) => t.id)).toEqual([buena.id])
+    expect((await listarTareas()).map((t) => t.id)).toEqual([buena.id])
+
+    // Las vueltas siguientes ya no la vuelven a mandar
+    servidor.peticiones.length = 0
+    await motor.sincronizar()
+    await motor.sincronizar()
+    expect(servidor.peticiones.filter((p) => p.startsWith('guardar'))).toEqual([])
+    expect(estadoSync().rechazados).toBe(1)
+  })
+
+  it('hábito: crear, renombrar, reordenar, archivar, recuperar y borrar llegan al servidor', async () => {
+    const { motor, servidor } = await montar()
+    await motor.sincronizar()
+    const leer = await crearHabito('Leer')
+    const agua = await crearHabito('Beber agua')
+    await motor.sincronizar()
+    expect(servidor.filas('habitos').map((h) => h.nombre).sort()).toEqual(['Beber agua', 'Gimnasio', 'Leer'])
+
+    await editarHabito(leer.id, { nombre: 'Leer 30 min' })
+    await reordenarHabitos([agua.id, HABITO_SEMILLA, leer.id])
+    await motor.sincronizar()
+    expect(servidor.fila('habitos', leer.id)).toMatchObject({ nombre: 'Leer 30 min', orden: 2 })
+    expect(servidor.fila('habitos', agua.id)?.orden).toBe(0)
+    expect(servidor.fila('habitos', HABITO_SEMILLA)?.orden).toBe(1)
+
+    await marcarDia(leer.id, hoy(), true)
+    await editarHabito(leer.id, { archivado: true })
+    await motor.sincronizar()
+    expect(servidor.fila('habitos', leer.id)?.archivado).toBe(true)
+    expect(servidor.filas('habito_marcas')).toHaveLength(1) // archivar conserva el historial
+
+    await editarHabito(leer.id, { archivado: false })
+    await motor.sincronizar()
+    expect(servidor.fila('habitos', leer.id)?.archivado).toBe(false)
+
+    await borrarHabito(leer.id)
+    await motor.sincronizar()
+    expect(servidor.fila('habitos', leer.id)).toBeUndefined()
+    expect(servidor.filas('habito_marcas')).toEqual([])
+    expect((await listarHabitos()).map((h) => h.nombre)).toEqual(['Beber agua', 'Gimnasio'])
+  })
+
+  it('marcar y desmarcar un día: la fila del servidor sigue el último cambio y nunca se duplica', async () => {
+    const { motor, servidor } = await montar()
+    await motor.sincronizar()
+    await marcarDia(HABITO_SEMILLA, hoy(), true)
+    await motor.sincronizar()
+    expect(servidor.filas('habito_marcas')).toMatchObject([{ id: idMarca(HABITO_SEMILLA, hoy()), hecho: true }])
+    await marcarDia(HABITO_SEMILLA, hoy(), false)
+    await motor.sincronizar()
+    expect(servidor.filas('habito_marcas')).toMatchObject([{ id: idMarca(HABITO_SEMILLA, hoy()), hecho: false }])
+  })
+
+  it('dos dispositivos SIN conexión marcan el mismo hábito el mismo día: al subir los dos queda una sola fila', async () => {
+    const servidor = crearServidorFalso()
+    servidor.semilla = [{ id: HABITO_SEMILLA, nombre: 'Gimnasio', orden: 0, archivado: false }]
+    const dispositivo = async () => {
+      vi.stubGlobal('indexedDB', new IDBFactory()) // cada dispositivo tiene su propio IndexedDB
+      const base = await abrirBase('usuario-1')
+      abiertas.push(base)
+      const red = { conectada: true }
+      return { base, red, motor: crearMotor({ base, remoto: servidor, enLinea: () => red.conectada }) }
+    }
+    const movil = await dispositivo()
+    const pc = await dispositivo()
+    usarBase(Promise.resolve(movil.base))
+    await movil.motor.sincronizar()
+    usarBase(Promise.resolve(pc.base))
+    await pc.motor.sincronizar()
+
+    movil.red.conectada = false
+    pc.red.conectada = false
+    usarBase(Promise.resolve(movil.base))
+    await marcarDia(HABITO_SEMILLA, hoy(), true)
+    usarBase(Promise.resolve(pc.base))
+    await marcarDia(HABITO_SEMILLA, hoy(), true)
+
+    movil.red.conectada = true
+    pc.red.conectada = true
+    expect(await movil.motor.sincronizar()).toBe(true)
+    expect(await pc.motor.sincronizar()).toBe(true)
+    usarBase(Promise.resolve(movil.base))
+    expect(await movil.motor.sincronizar()).toBe(true)
+
+    expect(servidor.filas('habito_marcas')).toHaveLength(1)
+    expect(servidor.filas('habito_marcas')[0]).toMatchObject({ habito_id: HABITO_SEMILLA, fecha: hoy(), hecho: true })
+    expect(await listarMarcas()).toHaveLength(1)
+    usarBase(Promise.resolve(pc.base))
+    expect(await listarMarcas()).toHaveLength(1)
+  })
+
+  it('tareas: crear con y sin fecha, editar, marcar hecha y quitar las hechas llegan al servidor', async () => {
+    const { motor, servidor } = await montar()
+    await motor.sincronizar()
+    const conFecha = await crearTarea({ texto: 'Entregar SOR', fecha_limite: '2026-11-20' })
+    const sinFecha = await crearTarea({ texto: 'Comprar pan' })
+    await motor.sincronizar()
+    expect(servidor.fila('tareas', conFecha.id)).toMatchObject({ fecha_limite: '2026-11-20', hecha: false })
+    expect(servidor.fila('tareas', sinFecha.id)).toMatchObject({ fecha_limite: null, hecha: false })
+
+    await editarTarea(sinFecha.id, { texto: 'Comprar pan y leche', fecha_limite: '2026-11-14' })
+    await marcarTarea(conFecha.id, true)
+    await motor.sincronizar()
+    expect(servidor.fila('tareas', sinFecha.id)).toMatchObject({ texto: 'Comprar pan y leche', fecha_limite: '2026-11-14' })
+    expect(servidor.fila('tareas', conFecha.id)?.hecha).toBe(true)
+    expect(servidor.fila('tareas', conFecha.id)?.hecha_en).toEqual(expect.any(String))
+
+    servidor.peticiones.length = 0
+    expect(await quitarHechas()).toBe(1)
+    await motor.sincronizar()
+    expect(servidor.peticiones.filter((p) => p.startsWith('borrar'))).toEqual(['borrar tareas x1'])
+    expect(servidor.filas('tareas').map((t) => t.id)).toEqual([sinFecha.id])
+  })
+
+  it('sin conexión: hábito, marca y tareas creados offline suben todos al volver la red', async () => {
+    const { motor, servidor, red, base } = await montar()
+    await motor.sincronizar()
+    red.conectada = false
+    const h = await crearHabito('Meditar')
+    await marcarDia(h.id, hoy(), true)
+    await marcarDia(h.id, restarDias(hoy(), 1), true)
+    await crearTarea({ texto: 'Sin fecha' })
+    await crearTarea({ texto: 'Con fecha', fecha_limite: '2027-01-01' })
+    expect(await motor.sincronizar()).toBe(false)
+    expect(estadoSync()).toMatchObject({ fase: 'sin-conexion', pendientes: 5 })
+
+    red.conectada = true
+    expect(await motor.sincronizar()).toBe(true)
+    expect(await contarPendientes(base)).toBe(0)
+    expect(servidor.fila('habitos', h.id)?.nombre).toBe('Meditar')
+    expect(servidor.filas('habito_marcas')).toHaveLength(2)
+    expect(servidor.filas('tareas')).toHaveLength(2)
   })
 })

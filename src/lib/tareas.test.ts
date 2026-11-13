@@ -153,3 +153,39 @@ describe('textoFechaLimite', () => {
     expect(textoFechaLimite('2026-10-25', '2026-10-26')).toBe('Ayer')
   })
 })
+
+describe('casos límite añadidos por tester', () => {
+  it('textoFechaLimite: el límite de "Hace N días" está en 6; con 7 sale la fecha', () => {
+    expect(textoFechaLimite('2026-11-06', HOY)).toBe('06/11/2026')
+    expect(textoFechaLimite('2026-11-11', HOY)).toBe('Hace 2 días')
+  })
+
+  it('textoFechaLimite: "Mañana" y "Ayer" en las noches de cambio de hora y de año', () => {
+    expect(textoFechaLimite('2026-03-29', '2026-03-28')).toBe('Mañana')
+    expect(textoFechaLimite('2026-03-29', '2026-03-30')).toBe('Ayer')
+    expect(textoFechaLimite('2026-10-26', '2026-10-25')).toBe('Mañana')
+    expect(textoFechaLimite('2026-12-31', '2027-01-01')).toBe('Ayer')
+    expect(textoFechaLimite('2026-12-27', '2027-01-01')).toBe('Hace 5 días')
+  })
+
+  it('urgencia al cruzar el año: lo del 31/12 va atrasado el 1/1', () => {
+    expect(urgencia(tarea({ fecha_limite: '2026-12-31' }), '2027-01-01')).toBe('atrasada')
+  })
+
+  it('ordenarTareas: todas sin fecha, por antigüedad; y una hecha sin fecha va tras las pendientes', () => {
+    const b = tarea({ texto: 'b', created_at: '2026-11-03T10:00:00Z' })
+    const a = tarea({ texto: 'a', created_at: '2026-11-02T10:00:00Z' })
+    const h = tarea({ texto: 'h', hecha: true, hecha_en: '2026-11-13T10:00:00Z', created_at: '2026-11-01T10:00:00Z' })
+    expect(ordenarTareas([h, b, a]).map((t) => t.texto)).toEqual(['a', 'b', 'h'])
+  })
+
+  it('ordenarTareas: la de fecha cruza bien el cambio de año (texto AAAA-MM-DD)', () => {
+    const enero = tarea({ texto: 'enero', fecha_limite: '2027-01-02' })
+    const diciembre = tarea({ texto: 'diciembre', fecha_limite: '2026-12-30' })
+    expect(ordenarTareas([enero, diciembre]).map((t) => t.texto)).toEqual(['diciembre', 'enero'])
+  })
+
+  it('recuentoTareas: las tareas sin fecha cuentan como pendientes pero no como urgentes', () => {
+    expect(recuentoTareas([tarea(), tarea()], HOY)).toEqual({ pendientes: 2, atrasadas: 0, proximas: 0, hechas: 0 })
+  })
+})

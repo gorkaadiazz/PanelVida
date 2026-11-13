@@ -40,3 +40,22 @@ describe('textos', () => {
     expect(avisoRechazados(4)).toContain('4 cambios y se han descartado')
   })
 })
+
+describe('casos límite añadidos por tester', () => {
+  it('sin conexión con 1 cambio usa el singular', () => {
+    expect(describirSync(estado({ fase: 'sin-conexion', pendientes: 1 }), false).texto).toBe('Sin conexión · 1 cambio por subir')
+  })
+
+  it('cero cambios usa el plural', () => {
+    expect(cambiosPorSubir(0)).toBe('0 cambios por subir')
+  })
+
+  it('sin conexión manda sobre "sincronizando" y sobre "preparando"', () => {
+    expect(describirSync(estado({ fase: 'sincronizando', sincronizando: true }), false).texto).toBe('Sin conexión')
+    expect(describirSync(ESTADO_INICIAL, false).texto).toBe('Sin conexión')
+  })
+
+  it('rechazados negativos no dan aviso', () => {
+    expect(avisoRechazados(-1)).toBeNull()
+  })
+})
