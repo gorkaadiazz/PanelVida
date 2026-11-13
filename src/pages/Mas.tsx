@@ -14,7 +14,7 @@ export function Mas() {
       <ul className="list" role="list">
         {ENLACES.map((e) => (
           <li key={e.ruta}>
-            <Link to={e.ruta} className="list__item" style={{ color: 'inherit', textDecoration: 'none' }}>
+            <Link to={e.ruta} className="list__item">
               {e.icono}
               <span className="list__main">{e.texto}</span>
               <IconoFlecha className="subtle" />

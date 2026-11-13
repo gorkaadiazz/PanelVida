@@ -232,6 +232,11 @@ hr {
   justify-content: space-between;
 }
 
+.break {             /* textos sin espacios (emails, URL): parte donde haga falta */
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
 .truncate {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -269,6 +274,21 @@ hr {
   gap: var(--sp-3);
   min-height: var(--tap);
   margin-bottom: var(--sp-5);
+}
+
+.app-header > :first-child {   /* el título cede ancho: nombres largos no desbordan */
+  flex: 1;
+  min-width: 0;
+}
+
+.app-header .t-screen {
+  overflow-wrap: anywhere;
+}
+
+/* El h1 recibe el foco al cambiar de pantalla (para lectores de pantalla):
+   no es interactivo, así que no se dibuja anillo. */
+h1[tabindex="-1"]:focus-visible {
+  outline: none;
 }
 
 .nav-bottom {
@@ -938,6 +958,21 @@ input.input[type="number"] {
   min-width: 0;
 }
 
+a.list__item {       /* fila entera pulsable (lista de "Más") */
+  color: inherit;
+  text-decoration: none;
+  transition: background-color var(--dur-fast) var(--ease-out);
+}
+
+a.list__item:active {
+  background: var(--surface-sunken);
+}
+
+a.list__item:focus-visible {
+  outline-offset: -2px;
+  border-radius: var(--r-sm);
+}
+
 /* =========================================================
    14. Estados: vacío, carga, error
    ========================================================= */
@@ -1065,6 +1100,7 @@ input.input[type="number"] {
   }
   a.card:hover,
   button.card:hover { border-color: var(--border-field); }
+  a.list__item:hover { background: var(--surface-sunken); }
   .check:hover:not(:disabled)::before { border-color: var(--accent); }
   .input:hover:not(:disabled, :focus) { border-color: var(--text-2); }
 }
@@ -1087,7 +1123,19 @@ input.input[type="number"] {
 .login__marca {
   width: 56px;
   height: 56px;
-  border-radius: 14px;
+  border-radius: var(--r-lg);
+}
+
+.login__privacidad { /* candado + texto, el icono arriba si el texto ocupa dos líneas */
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-2);
+}
+
+.login__privacidad svg {
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
 }
 
 .avisos {            /* avisos de conexión y actualización: flotan sobre el contenido */
@@ -1103,13 +1151,35 @@ input.input[type="number"] {
   pointer-events: none;
 }
 
-.avisos > * {
+.avisos:not(:has(.alert)) {   /* sin avisos no ocupa sitio ni separa huecos */
+  gap: 0;
+}
+
+/* La sombra va en el aviso, no en su región role="status" (siempre montada y
+   vacía casi siempre: con sombra dejaría una raya fantasma). */
+.avisos .alert {
   pointer-events: auto;
   box-shadow: var(--shadow-float);
+  animation: aviso-entra var(--dur-base) var(--ease-out);
+}
+
+.avisos .btn {       /* en móvil el aviso no tiene otro objetivo grande al lado */
+  min-height: var(--tap);
 }
 
 .app ~ .avisos {     /* encima de la barra inferior */
   bottom: calc(var(--nav-bottom-h) + var(--safe-bottom) + var(--sp-3));
+}
+
+/* En la pantalla de acceso, "Sin conexión" ya se explica bajo el botón: el
+   aviso flotante queda solo para el lector de pantalla y no tapa el pie. */
+.login ~ .avisos .avisos__conexion .alert {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 @media (min-width: 900px) {
@@ -1117,6 +1187,10 @@ input.input[type="number"] {
     bottom: var(--sp-6);
     left: calc(var(--sidebar-w) + var(--gutter));
   }
+}
+
+@keyframes aviso-entra {
+  from { opacity: 0; transform: translateY(8px); }
 }
 
 /* =========================================================

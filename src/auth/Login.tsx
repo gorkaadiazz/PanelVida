@@ -60,8 +60,8 @@ export function Login({ errorInicial = null }: Props) {
         )}
       </div>
 
-      <p className="row t-small subtle" style={{ flexWrap: 'nowrap', alignItems: 'flex-start' }}>
-        <IconoCandado width={18} height={18} />
+      <p className="login__privacidad t-small muted">
+        <IconoCandado />
         <span>Cada persona ve solo sus datos. Solo pueden entrar los emails autorizados.</span>
       </p>
     </main>

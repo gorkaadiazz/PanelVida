@@ -31,11 +31,11 @@ export function Cuenta() {
           <dl className="stack" style={{ '--gap': 'var(--sp-3)' } as CSSProperties}>
             <div>
               <dt className="t-label">Nombre</dt>
-              <dd>{nombreDeUsuario(usuario) || '—'}</dd>
+              <dd className="break">{nombreDeUsuario(usuario) || '—'}</dd>
             </div>
             <div>
               <dt className="t-label">Email</dt>
-              <dd className="truncate">{usuario?.email ?? '—'}</dd>
+              <dd className="break">{usuario?.email ?? '—'}</dd>
             </div>
           </dl>
         </section>

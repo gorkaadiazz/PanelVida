@@ -6,7 +6,7 @@ export function AvisoConexion() {
   // La región role="status" está siempre montada para que el lector de
   // pantalla anuncie el cambio; solo se ve cuando no hay conexión.
   return (
-    <div role="status">
+    <div role="status" className="avisos__conexion">
       {!enLinea && (
         <div className="alert">
           <IconoSinConexion />

@@ -295,6 +295,21 @@ Clases `.mod-sor`, `.mod-si`, `.mod-sr`, `.mod-ao`, `.mod-cnv`, `.mod-ipe2`, `.m
 ### Superficies flotantes
 `.float` (menú, aviso emergente) y `.sheet` (hoja inferior móvil con safe-area): `--surface-raised` + `--shadow-float`.
 
+### Avisos flotantes (`.avisos`)
+- Contenedor fijo abajo (en `App.tsx`, hermano de la app) con los avisos de conexión y de versión nueva. Cada aviso es un `.alert` dentro de su región `role="status"` siempre montada; la sombra `--shadow-float` va en el `.alert`, no en la región.
+- Posición: encima de la barra inferior en móvil (`--nav-bottom-h` + safe-area + 12 px); en PC, abajo a la derecha de la barra lateral; ancho máximo `--reading-max`. Entra subiendo 8 px en `--dur-base`.
+- Botones dentro: 44 px de alto aunque lleven `.btn--sm`. En la pantalla de acceso, "Sin conexión" ya se explica bajo el botón y el aviso flotante solo lo oye el lector de pantalla (`.avisos__conexion`).
+- Con teclado abierto en Android (`interactive-widget=resizes-content`) los avisos suben con el borde visible, no quedan debajo del teclado.
+
+### Pantalla de acceso (`.login`)
+- Columna centrada de 26rem como máximo, alto `100dvh`, safe-areas en los cuatro lados, separación de 24 px entre bloques.
+- Orden: `.login__marca` (icono de 56 px, radio `--r-lg`), `h1.t-screen` "Mi Panel" y una frase `.muted`; después el error (`.alert--danger`, `role="alert"`) y un único `.btn--primary.btn--block` "Continuar con Google" (deshabilitado sin conexión, con la explicación enlazada por `aria-describedby`); al pie `.login__privacidad` (candado de 18 px + texto `.t-small.muted`).
+
+### Utilidades de texto
+- **`.break`**: `overflow-wrap: anywhere` para emails, URL o nombres sin espacios (preferible a `.truncate` cuando el dato completo importa, p. ej. el email en Cuenta).
+- **`a.list__item`**: fila de lista entera pulsable (lista de "Más"), sin subrayado, se hunde a `--surface-sunken` al pulsar.
+- El h1 de cada pantalla recibe el foco al navegar (`tabindex="-1"`) y no dibuja anillo; `.app-header` deja que el título se parta antes de desbordar.
+
 ### Movimiento
 - Duraciones: `--dur-press` 120 ms (pulsar), `--dur-fast` 160 ms (color, casilla), `--dur-base` 220 ms (menús, avisos, progreso), `--dur-slow` 320 ms (hojas inferiores; tope).
 - Curvas: `--ease-out` cubic-bezier(0.23, 1, 0.32, 1) para casi todo; `--ease-in-out` para lo que se mueve dentro de la pantalla; `--ease-sheet` cubic-bezier(0.32, 0.72, 0, 1) para hojas. Nunca `ease-in`.
