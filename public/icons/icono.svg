@@ -1,6 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <!-- Icono provisional: un prompt ">_" sobre el fondo oscuro de la app -->
-  <rect width="512" height="512" fill="#0f1419"/>
-  <path d="M170 186 L250 256 L170 326" fill="none" stroke="#6b8fb3" stroke-width="30" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M272 330 H346" fill="none" stroke="#d7dde4" stroke-width="30" stroke-linecap="round"/>
+  <!-- Mi Panel: cuatro casillas de un panel sobre tinta azul; la primera, marcada.
+       Fondo a sangre (maskable). Todo el dibujo cabe en el círculo central del 80 % (radio 205). -->
+  <rect width="512" height="512" fill="#3057a3"/>
+  <rect x="132" y="132" width="112" height="112" rx="28" fill="#fcfdff"/>
+  <rect x="268" y="132" width="112" height="112" rx="28" fill="#fcfdff" fill-opacity="0.92"/>
+  <rect x="132" y="268" width="112" height="112" rx="28" fill="#fcfdff" fill-opacity="0.92"/>
+  <rect x="268" y="268" width="112" height="112" rx="28" fill="#9dbbf0"/>
+  <path d="M159 190 L180 211 L218 168" fill="none" stroke="#3057a3" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>

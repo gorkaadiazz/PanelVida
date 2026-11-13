@@ -1,0 +1,1104 @@
+/*
+ * Mi Panel · estilos base y componentes
+ * Importar después de tokens.css:  import './styles/tokens.css'; import './styles/base.css'
+ * Reglas en DESIGN.md. Todos los :hover van dentro de (hover: hover) and (pointer: fine).
+ */
+
+/* =========================================================
+   1. Reset mínimo
+   ========================================================= */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+* {
+  margin: 0;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+  scrollbar-color: var(--border-field) transparent;
+}
+
+body {
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: var(--fs-md);
+  line-height: var(--lh-body);
+  font-synthesis-weight: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+img,
+svg,
+video,
+canvas {
+  display: block;
+  max-width: 100%;
+}
+
+svg {
+  flex-shrink: 0;
+}
+
+input,
+button,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+  background: none;
+  border: 0;
+  padding: 0;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+button,
+a,
+[role="button"],
+summary,
+label {
+  touch-action: manipulation;
+}
+
+button,
+[role="button"],
+.nav-bottom__item,
+.sidebar__item {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+p,
+h1,
+h2,
+h3,
+h4,
+li,
+dd {
+  overflow-wrap: break-word;
+}
+
+ul[role="list"],
+ol[role="list"] {
+  list-style: none;
+  padding: 0;
+}
+
+a {
+  color: var(--accent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
+}
+
+::selection {
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
+input,
+textarea {
+  caret-color: var(--accent);
+}
+
+hr {
+  border: 0;
+  border-top: 1px solid var(--border);
+}
+
+/* =========================================================
+   2. Tipografía
+   ========================================================= */
+.t-screen {          /* título de pantalla: uno por vista */
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-semibold);
+  line-height: var(--lh-tight);
+  letter-spacing: var(--tracking-title);
+  text-wrap: balance;
+}
+
+.t-section {         /* título de tarjeta o sección */
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-semibold);
+  line-height: var(--lh-snug);
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+
+.t-label {           /* etiqueta de dato, encabezado de columna */
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  color: var(--text-2);
+  line-height: var(--lh-snug);
+}
+
+.t-small {
+  font-size: var(--fs-sm);
+  line-height: var(--lh-snug);
+}
+
+.muted {
+  color: var(--text-2);
+}
+
+.subtle {
+  color: var(--text-3);
+}
+
+/* Números y fechas: monoespaciada solo aquí */
+.num {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums slashed-zero;
+  font-feature-settings: "tnum" 1, "zero" 1;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+.num--xl {           /* cifra destacada: x/y de hábitos, ahorro, racha */
+  font-size: var(--fs-2xl);
+  font-weight: var(--fw-semibold);
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+}
+
+.num--unit {         /* unidad pegada a la cifra: "€", "días", "%" */
+  font-family: var(--font-ui);
+  font-size: 0.6em;
+  font-weight: var(--fw-medium);
+  color: var(--text-2);
+  margin-inline-start: 0.15em;
+  letter-spacing: 0;
+}
+
+/* =========================================================
+   3. Foco visible
+   ========================================================= */
+:focus {
+  outline: none;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* =========================================================
+   4. Utilidades
+   ========================================================= */
+.visually-hidden {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0 0 0 0) !important;
+  clip-path: inset(50%) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+.stack {             /* pila vertical; ajustar con --gap */
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap, var(--sp-4));
+}
+
+.row {               /* fila que se ajusta */
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--gap, var(--sp-2));
+}
+
+.row--between {
+  justify-content: space-between;
+}
+
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.grid-cards {        /* rejilla de tarjetas de Inicio */
+  display: grid;
+  gap: var(--sp-3);
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr));
+}
+
+/* =========================================================
+   5. Estructura: barra inferior (móvil) y lateral (PC ≥ 900 px)
+   ========================================================= */
+.app {
+  min-height: 100dvh;
+}
+
+.app-main {
+  width: 100%;
+  max-width: var(--content-max);
+  margin-inline: auto;
+  padding-top: calc(var(--safe-top) + var(--sp-5));
+  padding-inline: calc(var(--gutter) + var(--safe-left)) calc(var(--gutter) + var(--safe-right));
+  /* deja sitio a la barra inferior */
+  padding-bottom: calc(var(--nav-bottom-h) + var(--safe-bottom) + var(--sp-6));
+}
+
+.app-header {        /* cabecera de cada pantalla: título + acción */
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  min-height: var(--tap);
+  margin-bottom: var(--sp-5);
+}
+
+.nav-bottom {
+  position: fixed;
+  inset: auto 0 0 0;
+  z-index: 20;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  height: calc(var(--nav-bottom-h) + var(--safe-bottom));
+  padding: 0 var(--safe-right) var(--safe-bottom) var(--safe-left);
+  background: var(--surface);
+  box-shadow: var(--shadow-nav);
+}
+
+.nav-bottom__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-width: 0;
+  color: var(--text-2);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  line-height: 1.2;
+  text-decoration: none;
+}
+
+.nav-bottom__icon {  /* indicador en píldora detrás del icono (patrón Android) */
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 30px;
+  border-radius: var(--r-pill);
+  transition: background-color var(--dur-fast) var(--ease-out);
+}
+
+.nav-bottom__icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.nav-bottom__item[aria-current="page"] {
+  color: var(--accent-ink);
+  font-weight: var(--fw-semibold);
+}
+
+.nav-bottom__item[aria-current="page"] .nav-bottom__icon {
+  background: var(--accent-soft);
+}
+
+.nav-bottom__item:active .nav-bottom__icon {
+  background: var(--accent-soft);
+}
+
+.nav-bottom__item:focus-visible {
+  outline-offset: -4px;
+}
+
+.sidebar {
+  display: none;
+}
+
+@media (min-width: 900px) {
+  .app {
+    display: grid;
+    grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
+  }
+
+  .nav-bottom {
+    display: none;
+  }
+
+  .sidebar {
+    position: sticky;
+    top: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    height: 100dvh;
+    padding: calc(var(--safe-top) + var(--sp-5)) var(--sp-3) var(--sp-4) calc(var(--safe-left) + var(--sp-3));
+    background: var(--surface-sunken);
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .app-main {
+    padding-top: calc(var(--safe-top) + var(--sp-8));
+    padding-bottom: var(--sp-10);
+  }
+}
+
+.sidebar__brand {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: 0 var(--sp-3);
+  margin-bottom: var(--sp-5);
+  font-weight: var(--fw-semibold);
+  font-size: var(--fs-md);
+}
+
+.sidebar__brand img,
+.sidebar__brand svg {
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+}
+
+.sidebar__group {    /* separa Inicio/Hábitos/Tareas/Estudios de Dinero/Negocio/Cuenta */
+  margin-top: var(--sp-4);
+  padding-top: var(--sp-4);
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sidebar__item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-height: 40px;
+  padding: 0 var(--sp-3);
+  border-radius: var(--r-md);
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  text-decoration: none;
+  transition: background-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+
+.sidebar__item svg {
+  width: 20px;
+  height: 20px;
+}
+
+.sidebar__item[aria-current="page"] {
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  font-weight: var(--fw-semibold);
+}
+
+.sidebar__item:focus-visible {
+  outline-offset: -2px;
+}
+
+.sidebar__foot {     /* cuenta / cerrar sesión al pie */
+  margin-top: auto;
+}
+
+/* =========================================================
+   6. Tarjeta
+   ========================================================= */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: var(--sp-4);
+  min-width: 0;
+}
+
+.card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-3);
+  min-width: 0;
+}
+
+.card__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin-top: var(--sp-4);
+}
+
+a.card,
+button.card {       /* tarjeta entera pulsable */
+  display: block;
+  width: 100%;
+  text-align: start;
+  color: inherit;
+  text-decoration: none;
+  transition: border-color var(--dur-fast) var(--ease-out), transform var(--dur-press) var(--ease-out);
+}
+
+a.card:active,
+button.card:active {
+  transform: scale(0.99);
+}
+
+/* Tarjeta de módulo: la "pestaña de separador" arriba a la izquierda.
+   Usar junto a una clase .mod-<módulo>. */
+.card--mod {
+  position: relative;
+  padding-top: calc(var(--sp-4) + 4px);
+}
+
+.card--mod::before {
+  content: "";
+  position: absolute;
+  top: -1px;
+  left: var(--sp-4);
+  width: 36px;
+  height: 5px;
+  border-radius: 0 0 3px 3px;
+  background: var(--mod);
+}
+
+/* =========================================================
+   7. Contexto de módulo: define --mod, --mod-soft, --mod-ink
+   ========================================================= */
+.mod-sor  { --mod: var(--mod-sor);  --mod-soft: var(--mod-sor-soft);  --mod-ink: var(--mod-sor-ink); }
+.mod-si   { --mod: var(--mod-si);   --mod-soft: var(--mod-si-soft);   --mod-ink: var(--mod-si-ink); }
+.mod-sr   { --mod: var(--mod-sr);   --mod-soft: var(--mod-sr-soft);   --mod-ink: var(--mod-sr-ink); }
+.mod-ao   { --mod: var(--mod-ao);   --mod-soft: var(--mod-ao-soft);   --mod-ink: var(--mod-ao-ink); }
+.mod-cnv  { --mod: var(--mod-cnv);  --mod-soft: var(--mod-cnv-soft);  --mod-ink: var(--mod-cnv-ink); }
+.mod-ipe2 { --mod: var(--mod-ipe2); --mod-soft: var(--mod-ipe2-soft); --mod-ink: var(--mod-ipe2-ink); }
+.mod-pi   { --mod: var(--mod-pi);   --mod-soft: var(--mod-pi-soft);   --mod-ink: var(--mod-pi-ink); }
+.mod-fe   { --mod: var(--mod-fe);   --mod-soft: var(--mod-fe-soft);   --mod-ink: var(--mod-fe-ink); }
+
+.dot {               /* punto de color de módulo, siempre junto al nombre */
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  background: var(--mod, var(--text-3));
+  flex-shrink: 0;
+}
+
+/* =========================================================
+   8. Botones
+   ========================================================= */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  min-height: var(--tap);
+  padding: 0 var(--sp-4);
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semibold);
+  line-height: 1.2;
+  text-decoration: none;
+  white-space: nowrap;
+  transition:
+    background-color var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    transform var(--dur-press) var(--ease-out);
+}
+
+.btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+.btn:active:not(:disabled, [aria-disabled="true"]) {
+  transform: scale(0.97);
+}
+
+.btn--primary {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.btn--primary:active {
+  background: var(--accent-hover);
+}
+
+.btn--secondary {
+  background: var(--surface);
+  color: var(--text);
+  border-color: var(--border-field);
+}
+
+.btn--secondary:active {
+  background: var(--surface-sunken);
+}
+
+.btn--danger {
+  background: var(--danger);
+  color: var(--on-danger);
+}
+
+.btn--ghost {
+  background: transparent;
+  color: var(--accent);
+  padding-inline: var(--sp-3);
+}
+
+.btn--ghost:active {
+  background: var(--accent-soft);
+}
+
+.btn--ghost.btn--danger-text {   /* acción destructiva secundaria: "Quitar hechas" */
+  color: var(--danger-ink);
+}
+
+.btn--sm {           /* solo en PC o junto a otro objetivo de 44 px */
+  min-height: 36px;
+  padding: 0 var(--sp-3);
+  font-size: var(--fs-sm);
+}
+
+.btn--block {
+  width: 100%;
+}
+
+.btn:disabled,
+.btn[aria-disabled="true"] {
+  opacity: 0.45;
+}
+
+.btn[aria-busy="true"] {         /* cargando: mantiene ancho, muestra giro */
+  position: relative;
+  color: transparent;
+  pointer-events: none;
+}
+
+.btn[aria-busy="true"]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  border-color: var(--btn-spinner, var(--text-2)) transparent var(--btn-spinner, var(--text-2)) var(--btn-spinner, var(--text-2));
+  animation: girar 700ms linear infinite;
+}
+
+.btn--primary[aria-busy="true"] { --btn-spinner: var(--on-accent); }
+.btn--danger[aria-busy="true"]  { --btn-spinner: var(--on-danger); }
+
+.icon-btn {          /* botón solo icono: siempre con aria-label */
+  display: inline-grid;
+  place-items: center;
+  width: var(--tap);
+  height: var(--tap);
+  border-radius: var(--r-md);
+  color: var(--text-2);
+  transition: background-color var(--dur-fast) var(--ease-out), transform var(--dur-press) var(--ease-out);
+}
+
+.icon-btn svg {
+  width: 22px;
+  height: 22px;
+}
+
+.icon-btn:active {
+  background: var(--surface-sunken);
+  transform: scale(0.95);
+}
+
+/* =========================================================
+   9. Campos de formulario
+   ========================================================= */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.field__label {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  color: var(--text);
+}
+
+.field__hint {
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+}
+
+.field__error {      /* siempre con texto: "Pon una fecha válida" */
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: var(--fs-sm);
+  color: var(--danger-ink);
+}
+
+.input {
+  width: 100%;
+  min-height: var(--tap);
+  padding: 10px var(--sp-3);
+  background: var(--surface);
+  border: 1px solid var(--border-field);
+  border-radius: var(--r-md);
+  font-size: 16px; /* nunca menos: evita el zoom en el móvil */
+  line-height: 1.35;
+  transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+}
+
+.input::placeholder {
+  color: var(--text-3);
+  opacity: 1;
+}
+
+.input:focus-visible,
+.input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.input[aria-invalid="true"] {
+  border-color: var(--danger);
+}
+
+.input[aria-invalid="true"]:focus {
+  box-shadow: 0 0 0 3px var(--danger-soft);
+}
+
+.input:disabled {
+  background: var(--surface-sunken);
+  color: var(--text-2);
+  cursor: not-allowed;
+}
+
+textarea.input {
+  min-height: 6rem;
+  resize: vertical;
+}
+
+select.input {
+  appearance: none;
+  padding-right: 2.5rem;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%2381878f' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 8l5 5 5-5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 18px;
+}
+
+input.input[type="date"],
+input.input[inputmode="decimal"],
+input.input[inputmode="numeric"],
+input.input[type="number"] {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+}
+
+/* =========================================================
+   10. Casilla grande de hábito (botón con aria-pressed)
+   <button class="check" aria-pressed="true" aria-label="Gimnasio, lunes 10/11: hecho"></button>
+   ========================================================= */
+.check {
+  --check-box: 36px;
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: var(--tap);
+  height: var(--tap);
+  border-radius: var(--r-md);
+  color: var(--on-accent);
+}
+
+.check::before {     /* la caja visible */
+  content: "";
+  grid-area: 1 / 1;
+  width: var(--check-box);
+  height: var(--check-box);
+  border-radius: 9px;
+  border: 1.5px solid var(--border-field);
+  background: var(--surface);
+  transition:
+    background-color var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    transform var(--dur-press) var(--ease-out);
+}
+
+.check::after {      /* el tic, dibujado con máscara */
+  content: "";
+  grid-area: 1 / 1;
+  width: 22px;
+  height: 22px;
+  background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E") center / contain no-repeat;
+  opacity: 0;
+  transform: scale(0.7);
+  transition: opacity var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
+}
+
+.check[aria-pressed="true"]::before {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.check[aria-pressed="true"]::after {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.check:active::before {
+  transform: scale(0.92);
+}
+
+.check--today::before {   /* columna de hoy: borde más marcado */
+  border-width: 2px;
+  border-color: var(--accent);
+}
+
+.check--lg {              /* casilla de Inicio */
+  --check-box: 44px;
+  width: 52px;
+  height: 52px;
+}
+
+.check--lg::after {
+  width: 26px;
+  height: 26px;
+}
+
+.check:disabled {         /* días futuros */
+  opacity: 0.35;
+}
+
+.check:focus-visible {
+  outline-offset: -2px;
+}
+
+/* Rejilla de 7 días. Fuera de tarjeta (en .list) a 360 px mide 328 px:
+   cada celda ≥ 44 px. Dentro de una tarjeta baja a ~42 px de ancho (44 de alto). */
+.week {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0;
+  max-width: calc(7 * 52px);
+}
+
+.week .check {
+  width: 100%;
+  justify-self: center;
+}
+
+.week__day {              /* cabecera L M X J V S D + número de día */
+  display: grid;
+  place-items: center;
+  font-size: var(--fs-xs);
+  color: var(--text-2);
+  line-height: 1.25;
+}
+
+.week__day[aria-current="date"] {
+  color: var(--accent-ink);
+  font-weight: var(--fw-semibold);
+}
+
+/* =========================================================
+   11. Etiquetas
+   ========================================================= */
+.tag {               /* etiqueta neutra */
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  min-height: 24px;
+  padding: 2px 8px;
+  border-radius: var(--r-sm);
+  background: var(--surface-sunken);
+  color: var(--text-2);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+.tag--mod {          /* etiqueta de módulo: usar con .mod-<módulo> */
+  background: var(--mod-soft);
+  color: var(--mod-ink);
+}
+
+.tag--mod::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  background: var(--mod);
+}
+
+/* Estado: siempre con texto ("Atrasada", "Hoy", "Bajo 5") y, si cabe, icono */
+.tag--ok     { background: var(--ok-soft);     color: var(--ok-ink); }
+.tag--warn   { background: var(--warn-soft);   color: var(--warn-ink); }
+.tag--danger { background: var(--danger-soft); color: var(--danger-ink); }
+.tag--info   { background: var(--info-soft);   color: var(--info-ink); }
+
+.tag svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Texto de estado sin fondo (fecha de tarea atrasada, nota baja) */
+.text-ok     { color: var(--ok-ink); }
+.text-warn   { color: var(--warn-ink); }
+.text-danger { color: var(--danger-ink); }
+.text-info   { color: var(--info-ink); }
+
+/* =========================================================
+   12. Barra de progreso
+   <div class="progress" role="progressbar" aria-valuenow="60" aria-valuemin="0"
+        aria-valuemax="100" aria-label="Meta de ahorro" style="--p: 60%"></div>
+   ========================================================= */
+.progress {
+  position: relative;
+  height: 8px;
+  border-radius: var(--r-pill);
+  background: var(--surface-sunken);
+  overflow: hidden;
+}
+
+.card .progress {
+  background: color-mix(in srgb, var(--surface-sunken) 70%, var(--border));
+}
+
+.progress::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: clamp(0%, var(--p, 0%), 100%);
+  border-radius: inherit;
+  background: var(--progress-color, var(--accent));
+  transition: width var(--dur-base) var(--ease-out);
+}
+
+.progress--mod  { --progress-color: var(--mod); }
+.progress--ok   { --progress-color: var(--ok); }
+.progress--warn { --progress-color: var(--warn); }
+.progress--danger { --progress-color: var(--danger); }
+.progress--lg   { height: 12px; }
+
+/* =========================================================
+   13. Listas
+   ========================================================= */
+.list {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.list__item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-height: 56px;
+  padding: var(--sp-2) 0;
+  border-bottom: 1px solid var(--border);
+  min-width: 0;
+}
+
+.list__item:last-child {
+  border-bottom: 0;
+}
+
+.list__main {
+  flex: 1;
+  min-width: 0;
+}
+
+/* =========================================================
+   14. Estados: vacío, carga, error
+   ========================================================= */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-8) var(--sp-4);
+  text-align: center;
+  color: var(--text-2);
+}
+
+.empty svg {
+  width: 40px;
+  height: 40px;
+  color: var(--text-3);
+}
+
+.empty__title {
+  color: var(--text);
+  font-weight: var(--fw-semibold);
+  font-size: var(--fs-md);
+}
+
+.empty p {
+  max-width: 32ch;
+  font-size: var(--fs-sm);
+}
+
+.skeleton {          /* bloque de carga con la forma del contenido */
+  display: block;
+  height: var(--h, 1em);
+  width: var(--w, 100%);
+  border-radius: var(--r-sm);
+  background: var(--surface-sunken);
+  background-image: linear-gradient(90deg, transparent 0, color-mix(in srgb, var(--surface) 60%, transparent) 50%, transparent 100%);
+  background-size: 200% 100%;
+  background-repeat: no-repeat;
+  animation: brillo 1.4s linear infinite;
+}
+
+.card .skeleton {
+  background-color: color-mix(in srgb, var(--surface-sunken) 80%, var(--border));
+}
+
+.alert {             /* aviso en línea: error, atraso, límite de faltas */
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--r-md);
+  background: var(--info-soft);
+  color: var(--info-ink);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-snug);
+}
+
+.alert svg {
+  width: 20px;
+  height: 20px;
+  margin-top: 1px;
+}
+
+.alert__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.alert__title {
+  font-weight: var(--fw-semibold);
+}
+
+.alert--ok     { background: var(--ok-soft);     color: var(--ok-ink); }
+.alert--warn   { background: var(--warn-soft);   color: var(--warn-ink); }
+.alert--danger { background: var(--danger-soft); color: var(--danger-ink); }
+
+.spinner {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  animation: girar 700ms linear infinite;
+}
+
+/* =========================================================
+   15. Superficies flotantes (menús, hojas, avisos tipo toast)
+   ========================================================= */
+.float {
+  background: var(--surface-raised);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-float);
+}
+
+.sheet {             /* hoja inferior en móvil */
+  position: fixed;
+  inset: auto 0 0 0;
+  z-index: 40;
+  max-height: 90dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--sp-5) calc(var(--gutter) + var(--safe-right)) calc(var(--sp-5) + var(--safe-bottom)) calc(var(--gutter) + var(--safe-left));
+  background: var(--surface-raised);
+  border-radius: var(--r-lg) var(--r-lg) 0 0;
+  box-shadow: var(--shadow-float);
+}
+
+/* =========================================================
+   16. Hover solo con ratón (evita hover pegado en táctil)
+   ========================================================= */
+@media (hover: hover) and (pointer: fine) {
+  a:hover {
+    text-decoration-thickness: 2px;
+  }
+
+  .btn--primary:hover { background: var(--accent-hover); }
+  .btn--secondary:hover { background: var(--surface-sunken); }
+  .btn--danger:hover { background: color-mix(in srgb, var(--danger) 88%, var(--text)); }
+  .btn--ghost:hover { background: var(--accent-soft); }
+  .icon-btn:hover { background: var(--surface-sunken); color: var(--text); }
+  .sidebar__item:hover:not([aria-current="page"]) {
+    background: color-mix(in srgb, var(--surface-sunken) 50%, var(--border));
+    color: var(--text);
+  }
+  a.card:hover,
+  button.card:hover { border-color: var(--border-field); }
+  .check:hover:not(:disabled)::before { border-color: var(--accent); }
+  .input:hover:not(:disabled, :focus) { border-color: var(--text-2); }
+}
+
+/* =========================================================
+   17. Animaciones y movimiento reducido
+   ========================================================= */
+@keyframes girar {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes brillo {
+  from { background-position: 150% 0; }
+  to { background-position: -50% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+
+  .skeleton {
+    animation: none;
+    background-image: none;
+  }
+
+  .spinner,
+  .btn[aria-busy="true"]::after {   /* el giro informa de carga: se mantiene, más lento */
+    animation-duration: 1.6s !important;
+    animation-iteration-count: infinite !important;
+  }
+}

@@ -1,0 +1,161 @@
+/*
+ * Mi Panel · tokens de diseño
+ * Fuente de verdad de colores, tipos, espacios, radios, sombras y movimiento.
+ * Documentados en DESIGN.md. Los colores están en hex (calculados desde OKLCH
+ * y verificados con contraste WCAG AA en claro y oscuro).
+ *
+ * Reglas de nombres:
+ *   --<rol>            color de base del rol (fondos, texto, acento, estado)
+ *   --<rol>-soft       fondo suave del rol (etiquetas, avisos, selección)
+ *   --<rol>-ink        texto del rol sobre su fondo suave o sobre --surface (≥ 4.5:1)
+ *   --mod-<módulo>     color sólido del módulo (puntos, barras, pestañas: ≥ 3:1)
+ */
+
+:root {
+  color-scheme: light dark;
+
+  /* ---- Neutros (papel de cuadrícula, frío) ---- */
+  --bg: #f3f6f9;            /* fondo de la app */
+  --surface: #fcfdff;       /* tarjetas, barra inferior, campos */
+  --surface-raised: #fcfdff;/* menús y hojas flotantes (en oscuro sube un tono) */
+  --surface-sunken: #eaeef2;/* barra lateral, pistas de progreso, esqueletos */
+  --text: #1c222b;          /* texto principal (15.7:1 sobre surface) */
+  --text-2: #4f565f;        /* texto secundario (7.3:1) */
+  --text-3: #666c75;        /* marcadores, pistas, placeholder (≥ 4.5:1 en todos los fondos) */
+  --border: #dbdee3;        /* separadores y borde de tarjeta (decorativo) */
+  --border-field: #81878f;  /* borde de campos y casillas (≥ 3:1, WCAG 1.4.11) */
+
+  /* ---- Acento: tinta de boli azul ---- */
+  --accent: #3057a3;        /* acción principal, selección, enlaces */
+  --accent-hover: #264a8e;
+  --on-accent: #fcfdff;     /* texto sobre --accent (6.8:1) */
+  --accent-soft: #dde8fd;   /* fondo de elemento activo (nav, filtro elegido) */
+  --accent-ink: #214487;    /* texto sobre --accent-soft (7.6:1) */
+  --focus: #3057a3;         /* anillo de foco */
+
+  /* ---- Estados (siempre con texto o icono, nunca solo color) ---- */
+  --ok: #397247;      --ok-soft: #dcf2df;      --ok-ink: #295935;
+  --warn: #aa732b;    --warn-soft: #fbe9ca;    --warn-ink: #754a1a;
+  --danger: #af3c3a;  --danger-soft: #ffe4e1;  --danger-ink: #932b2a;
+  --info: #236b8f;    --info-soft: #dceefa;    --info-ink: #175675;
+  --on-danger: #fcfdff; /* texto del botón de peligro (5.8:1) */
+
+  /* ---- Módulos de 2º SMR: sólido / suave / tinta ---- */
+  --mod-sor: #5284b7;  --mod-sor-soft: #dcedff;  --mod-sor-ink: #27527c;   /* Sistemas Operativos en Red */
+  --mod-si: #b2686b;   --mod-si-soft: #ffe3e3;   --mod-si-ink: #773b3e;    /* Seguridad Informática */
+  --mod-sr: #22928f;   --mod-sr-soft: #d4f2f1;   --mod-sr-ink: #005e5c;    /* Servicios en Red */
+  --mod-ao: #a6753d;   --mod-ao-soft: #fae8d5;   --mod-ao-ink: #6e4611;    /* Aplicaciones Ofimáticas */
+  --mod-cnv: #7f76b5;  --mod-cnv-soft: #eae8ff;  --mod-cnv-ink: #4f477b;   /* Computación en la Nube y Virtualización */
+  --mod-ipe2: #57905f; --mod-ipe2-soft: #def2df; --mod-ipe2-ink: #2b5c34;  /* Itinerario Empleabilidad II */
+  --mod-pi: #a36a97;   --mod-pi-soft: #fae4f4;   --mod-pi-ink: #6c3d62;    /* Proyecto Intermodular */
+  --mod-fe: #77828a;   --mod-fe-soft: #e7ecf0;   --mod-fe-ink: #475159;    /* Formación en Empresa (grafito: va aparte) */
+
+  /* ---- Tipografía ---- */
+  --font-ui: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", Ubuntu, Cantarell, "Helvetica Neue", Arial, sans-serif;
+  --font-num: ui-monospace, "Cascadia Mono", "Segoe UI Mono", "Roboto Mono", "SF Mono", "DejaVu Sans Mono", Menlo, Consolas, monospace;
+
+  --fs-xs: 0.75rem;    /* 12 · etiquetas de la barra inferior, metadatos */
+  --fs-sm: 0.875rem;   /* 14 · texto secundario, etiquetas de campo */
+  --fs-md: 1rem;       /* 16 · cuerpo, campos (evita el zoom en móvil) */
+  --fs-lg: 1.125rem;   /* 18 · título de tarjeta */
+  --fs-xl: 1.375rem;   /* 22 · título de pantalla */
+  --fs-2xl: 1.75rem;   /* 28 · cifra destacada (racha, ahorro, x/y) */
+
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+
+  --lh-tight: 1.2;
+  --lh-snug: 1.35;
+  --lh-body: 1.5;
+
+  --tracking-title: -0.015em;
+
+  /* ---- Espaciado (base 4 px) ---- */
+  --sp-1: 0.25rem;  /* 4 */
+  --sp-2: 0.5rem;   /* 8 */
+  --sp-3: 0.75rem;  /* 12 */
+  --sp-4: 1rem;     /* 16 · margen lateral en móvil */
+  --sp-5: 1.25rem;  /* 20 */
+  --sp-6: 1.5rem;   /* 24 · margen lateral en PC */
+  --sp-8: 2rem;     /* 32 */
+  --sp-10: 2.5rem;  /* 40 */
+  --sp-12: 3rem;    /* 48 */
+
+  /* ---- Radios ---- */
+  --r-sm: 6px;      /* etiquetas, casillas pequeñas */
+  --r-md: 10px;     /* botones, campos, casilla de hábito */
+  --r-lg: 14px;     /* tarjetas */
+  --r-pill: 999px;  /* barras de progreso, indicador activo de la barra inferior */
+
+  /* ---- Elevación: las tarjetas van con borde; la sombra es solo para lo que flota ---- */
+  --shadow-float: 0 10px 28px -8px rgb(22 32 48 / 0.22), 0 2px 6px -2px rgb(22 32 48 / 0.12);
+  --shadow-nav: 0 -1px 0 var(--border);
+
+  /* ---- Movimiento ---- */
+  --dur-press: 120ms;   /* respuesta al pulsar */
+  --dur-fast: 160ms;    /* color, casillas, hover */
+  --dur-base: 220ms;    /* paneles, menús, aparición de avisos */
+  --dur-slow: 320ms;    /* hojas inferiores; tope de la app */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-sheet: cubic-bezier(0.32, 0.72, 0, 1);
+
+  /* ---- Estructura ---- */
+  --tap: 44px;               /* objetivo táctil mínimo */
+  --nav-bottom-h: 64px;      /* barra inferior sin contar safe-area */
+  --sidebar-w: 15rem;        /* 240 px, barra lateral en PC (≥ 900 px) */
+  --content-max: 68rem;      /* ancho máximo del contenido en PC */
+  --reading-max: 40rem;      /* formularios y textos largos */
+  --gutter: var(--sp-4);     /* margen lateral; sube a --sp-6 en PC */
+
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+}
+
+@media (min-width: 900px) {
+  :root {
+    --gutter: var(--sp-6);
+  }
+}
+
+/* ---- Modo oscuro según el sistema ---- */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1318;
+    --surface: #181c22;
+    --surface-raised: #21262d;
+    --surface-sunken: #0a0d12;
+    --text: #e7ecf0;
+    --text-2: #aeb5bd;
+    --text-3: #8f969e;
+    --border: #2c3138;
+    --border-field: #636a72;
+
+    --accent: #89b3f1;
+    --accent-hover: #a4c6f8;
+    --on-accent: #0f1318;
+    --accent-soft: #25334c;
+    --accent-ink: #afcdf9;
+    --focus: #89b3f1;
+
+    --ok: #7cbd89;      --ok-soft: #1f3423;      --ok-ink: #a6daaf;
+    --warn: #e5b568;    --warn-soft: #3c2d18;    --warn-ink: #f4ce90;
+    --danger: #e6857e;  --danger-soft: #462623;  --danger-ink: #fbb7b0;
+    --info: #78b3d6;    --info-soft: #18313f;    --info-ink: #a5d2ed;
+    --on-danger: #0f1318;
+
+    --mod-sor: #7ba9d8;  --mod-sor-soft: #202f3f;  --mod-sor-ink: #b1d2f4;
+    --mod-si: #d58f90;   --mod-si-soft: #3e2727;   --mod-si-ink: #f3bfbf;
+    --mod-sr: #5eb6b2;   --mod-sr-soft: #163332;   --mod-sr-ink: #a0dbd8;
+    --mod-ao: #c89b69;   --mod-ao-soft: #3a2b1a;   --mod-ao-ink: #e9c7a4;
+    --mod-cnv: #a39cd7;  --mod-cnv-soft: #2d2b3e;  --mod-cnv-ink: #ccc8f3;
+    --mod-ipe2: #80b487; --mod-ipe2-soft: #223324; --mod-ipe2-ink: #b4d9b8;
+    --mod-pi: #c691ba;   --mod-pi-soft: #392735;   --mod-pi-ink: #e7c0de;
+    --mod-fe: #9ba6af;   --mod-fe-soft: #2a2e31;   --mod-fe-ink: #c4d0d9;
+
+    --shadow-float: 0 12px 32px -8px rgb(0 0 0 / 0.55), 0 2px 6px -2px rgb(0 0 0 / 0.4);
+  }
+}
