@@ -8,6 +8,7 @@
 // Notas:
 // - `numeric` llega como `number` y `timestamptz`/`date` como cadena ISO.
 // - Las tablas `uso_ia` y `borrados` son de solo lectura para la app (RLS).
+// - Importes en céntimos (`bigint`) llegan como `number` (máx. < 10^11, seguro en JS).
 // - `emails_permitidos` no es accesible desde la app (sin políticas); está
 //   aquí porque forma parte del esquema.
 
@@ -134,6 +135,45 @@ export type Database = {
           created_at?: string
           descripcion?: string
           id?: string
+          sync_at?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      clientes_web: {
+        Row: {
+          created_at: string
+          estado: string
+          id: string
+          nombre: string
+          notas: string
+          orden: number
+          precio_centimos: number
+          sync_at: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          estado?: string
+          id?: string
+          nombre: string
+          notas?: string
+          orden?: number
+          precio_centimos?: number
+          sync_at?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          created_at?: string
+          estado?: string
+          id?: string
+          nombre?: string
+          notas?: string
+          orden?: number
+          precio_centimos?: number
           sync_at?: string
           updated_at?: string
           user_id?: string
@@ -436,15 +476,91 @@ export type Database = {
           },
         ]
       }
+      habito_marcas: {
+        Row: {
+          created_at: string
+          fecha: string
+          habito_id: string
+          hecho: boolean
+          id: string
+          sync_at: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          fecha: string
+          habito_id: string
+          hecho?: boolean
+          id?: string
+          sync_at?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          created_at?: string
+          fecha?: string
+          habito_id?: string
+          hecho?: boolean
+          id?: string
+          sync_at?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "habito_marcas_habito_id_user_id_fkey"
+            columns: ["habito_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "habitos"
+            referencedColumns: ["id", "user_id"]
+          },
+        ]
+      }
+      habitos: {
+        Row: {
+          archivado: boolean
+          created_at: string
+          id: string
+          nombre: string
+          orden: number
+          sync_at: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          archivado?: boolean
+          created_at?: string
+          id?: string
+          nombre: string
+          orden?: number
+          sync_at?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          archivado?: boolean
+          created_at?: string
+          id?: string
+          nombre?: string
+          orden?: number
+          sync_at?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       modulos: {
         Row: {
           abreviatura: string
           color: string
+          con_examenes: boolean
           created_at: string
           foto: string | null
           horas_semanales: number | null
           id: string
           imagen: string | null
+          limite_faltas: number | null
           nombre: string
           orden: number
           profesor: string
@@ -456,11 +572,13 @@ export type Database = {
         Insert: {
           abreviatura: string
           color?: string
+          con_examenes?: boolean
           created_at?: string
           foto?: string | null
           horas_semanales?: number | null
           id?: string
           imagen?: string | null
+          limite_faltas?: number | null
           nombre: string
           orden?: number
           profesor?: string
@@ -472,16 +590,54 @@ export type Database = {
         Update: {
           abreviatura?: string
           color?: string
+          con_examenes?: boolean
           created_at?: string
           foto?: string | null
           horas_semanales?: number | null
           id?: string
           imagen?: string | null
+          limite_faltas?: number | null
           nombre?: string
           orden?: number
           profesor?: string
           sistema_notas?: string
           sync_at?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      movimientos: {
+        Row: {
+          concepto: string
+          created_at: string
+          fecha: string
+          id: string
+          importe_centimos: number
+          sync_at: string
+          tipo: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          concepto: string
+          created_at?: string
+          fecha: string
+          id?: string
+          importe_centimos: number
+          sync_at?: string
+          tipo: string
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          concepto?: string
+          created_at?: string
+          fecha?: string
+          id?: string
+          importe_centimos?: number
+          sync_at?: string
+          tipo?: string
           updated_at?: string
           user_id?: string
         }
@@ -494,8 +650,11 @@ export type Database = {
           curso: string
           id: string
           limite_faltas: number
+          meta_ahorro_centimos: number | null
+          mi_panel_inicializado: boolean
           nombre: string
           preferencias: Json
+          semanas_curso: number
           sync_at: string
           tema: string
           updated_at: string
@@ -507,8 +666,11 @@ export type Database = {
           curso?: string
           id?: string
           limite_faltas?: number
+          meta_ahorro_centimos?: number | null
+          mi_panel_inicializado?: boolean
           nombre?: string
           preferencias?: Json
+          semanas_curso?: number
           sync_at?: string
           tema?: string
           updated_at?: string
@@ -520,8 +682,11 @@ export type Database = {
           curso?: string
           id?: string
           limite_faltas?: number
+          meta_ahorro_centimos?: number | null
+          mi_panel_inicializado?: boolean
           nombre?: string
           preferencias?: Json
+          semanas_curso?: number
           sync_at?: string
           tema?: string
           updated_at?: string
@@ -614,6 +779,42 @@ export type Database = {
           },
         ]
       }
+      tareas: {
+        Row: {
+          created_at: string
+          fecha_limite: string | null
+          hecha: boolean
+          hecha_en: string | null
+          id: string
+          sync_at: string
+          texto: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          fecha_limite?: string | null
+          hecha?: boolean
+          hecha_en?: string | null
+          id?: string
+          sync_at?: string
+          texto: string
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          created_at?: string
+          fecha_limite?: string | null
+          hecha?: boolean
+          hecha_en?: string | null
+          id?: string
+          sync_at?: string
+          texto?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       temas: {
         Row: {
           created_at: string
@@ -693,6 +894,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      inicializar_cuenta: {
+        Args: never
+        Returns: boolean
+      }
       sumar_uso_ia: {
         Args: { p_limite: number; p_user: string }
         Returns: number

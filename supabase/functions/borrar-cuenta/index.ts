@@ -7,7 +7,7 @@
 // Se despliega CON verificación de JWT (no usar --no-verify-jwt).
 // SUPABASE_URL, SUPABASE_ANON_KEY y SUPABASE_SERVICE_ROLE_KEY los pone Supabase.
 
-import { createClient } from 'npm:@supabase/supabase-js@2';
+import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2';
 
 const ORIGENES = ['https://gorkaadiazz.github.io'];
 const esLocalhost = (origen: string) => /^http:\/\/localhost(:\d+)?$/.test(origen);
@@ -20,6 +20,30 @@ function cors(req: Request): Record<string, string> {
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     Vary: 'Origin',
   };
+}
+
+type Bucket = ReturnType<SupabaseClient['storage']['from']>;
+
+/**
+ * Devuelve las rutas de TODOS los archivos bajo `prefijo/`, entrando en las
+ * subcarpetas a cualquier profundidad. En la respuesta de `list`, las carpetas
+ * vienen con `id` nulo y los archivos con su id.
+ */
+async function listarArchivos(bucket: Bucket, prefijo: string, profundidad = 0): Promise<string[]> {
+  if (profundidad > 32) throw new Error(`Demasiados niveles de carpetas en ${prefijo}`);
+  const rutas: string[] = [];
+  const POR_PAGINA = 100;
+  for (let offset = 0; ; offset += POR_PAGINA) {
+    const { data, error } = await bucket.list(prefijo, { limit: POR_PAGINA, offset, sortBy: { column: 'name', order: 'asc' } });
+    if (error) throw new Error(`No se han podido listar los archivos de ${prefijo}: ${error.message}`);
+    for (const item of data ?? []) {
+      const ruta = `${prefijo}/${item.name}`;
+      if (item.id) rutas.push(ruta);
+      else rutas.push(...(await listarArchivos(bucket, ruta, profundidad + 1)));
+    }
+    if (!data || data.length < POR_PAGINA) break;
+  }
+  return rutas;
 }
 
 Deno.serve(async (req) => {
@@ -44,25 +68,20 @@ Deno.serve(async (req) => {
 
     const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false } });
 
-    // 2. Archivos de su carpeta {user_id}/… (dos niveles: carpeta/archivo)
+    // 2. Archivos de su carpeta {user_id}/… (a cualquier profundidad)
     const bucket = admin.storage.from('temarios');
-    for (let vuelta = 0; vuelta < 200; vuelta++) {
-      const { data: carpetas, error: e1 } = await bucket.list(user.id, { limit: 100 });
-      if (e1) throw new Error(`No se han podido listar los archivos: ${e1.message}`);
-      if (!carpetas?.length) break;
-      const rutas: string[] = [];
-      for (const c of carpetas) {
-        if (c.id) rutas.push(`${user.id}/${c.name}`); // archivo suelto
-        else {
-          const { data: dentro, error: e2 } = await bucket.list(`${user.id}/${c.name}`, { limit: 1000 });
-          if (e2) throw new Error(`No se han podido listar los archivos: ${e2.message}`);
-          for (const a of dentro ?? []) rutas.push(`${user.id}/${c.name}/${a.name}`);
-        }
-      }
+    const raiz = user.id;
+    for (let vuelta = 0; vuelta < 5; vuelta++) {
+      const rutas = await listarArchivos(bucket, raiz);
       if (!rutas.length) break;
-      const { error: e3 } = await bucket.remove(rutas);
-      if (e3) throw new Error(`No se han podido borrar los archivos: ${e3.message}`);
+      for (let i = 0; i < rutas.length; i += 100) {
+        const { error: e3 } = await bucket.remove(rutas.slice(i, i + 100));
+        if (e3) throw new Error(`No se han podido borrar los archivos: ${e3.message}`);
+      }
     }
+    // Antes de borrar el usuario, se comprueba que no queda nada
+    const quedan = await listarArchivos(bucket, raiz);
+    if (quedan.length) throw new Error(`Quedan ${quedan.length} archivos sin borrar en ${raiz}/`);
 
     // 3. El usuario (y, en cascada, todas sus filas)
     const { error: e4 } = await admin.auth.admin.deleteUser(user.id);
@@ -72,6 +91,7 @@ Deno.serve(async (req) => {
     return responder(200, { ok: true });
   } catch (e) {
     console.error(e);
-    return responder(500, { mensaje: `La cuenta NO se ha borrado. ${e instanceof Error ? e.message : 'Error del servidor.'}` });
+    // El detalle solo va al log de la función, nunca al cliente
+    return responder(500, { mensaje: 'La cuenta NO se ha borrado. Inténtalo más tarde.' });
   }
 });
