@@ -9,6 +9,10 @@
 
 [build.environment]
   NODE_VERSION = "24"
+  # Las dos VITE_* son PÚBLICAS (van dentro de la app que descarga el navegador;
+  # lo que protege los datos es RLS). El escáner de secretos de Netlify sigue
+  # activo para todo lo demás: la service role nunca debe estar en Netlify.
+  SECRETS_SCAN_OMIT_KEYS = "VITE_SUPABASE_URL,VITE_SUPABASE_ANON_KEY"
 
 # Un archivo de /assets que no existe (p. ej. uno de una versión vieja) da 404
 # en vez de devolver index.html con apariencia de JS.
