@@ -1082,6 +1082,133 @@ a.list__item:focus-visible {
 }
 
 /* =========================================================
+   15b. Hábitos, Tareas e Inicio (fase 3)
+   ========================================================= */
+.alta {              /* formulario de alta en una línea: campo + botón */
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  align-items: flex-end;
+}
+.alta > .field {
+  flex: 1 1 14rem;
+}
+.alta > .field--fecha {
+  flex: 0 1 11rem;
+}
+
+/* Hábitos: nombre y racha arriba, semana debajo (cabe a 360 px) */
+.habito {
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--sp-1);
+  padding-block: var(--sp-3);
+}
+.habito__cab {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-width: 0;
+  min-height: var(--tap);
+}
+.habito__nombre {
+  flex: 1;
+  min-width: 0;
+  font-weight: var(--fw-medium);
+}
+.racha {             /* "5 días" con su llama */
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+}
+.racha svg {
+  width: 16px;
+  height: 16px;
+}
+.racha--viva {
+  color: var(--warn-ink);
+}
+.semana-cab {        /* cabecera de días, alineada con las casillas */
+  padding-bottom: var(--sp-1);
+  border-bottom: 1px solid var(--border);
+}
+.acciones {          /* botones de icono al final de una fila */
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+.icon-btn:disabled {
+  opacity: 0.35;
+}
+.icon-btn--peligro {
+  color: var(--danger-ink);
+}
+
+/* Tareas */
+.tarea__texto {
+  overflow-wrap: anywhere;
+}
+.tarea--hecha .tarea__texto {
+  color: var(--text-2);
+  text-decoration: line-through;
+  text-decoration-color: var(--text-3);
+}
+.tarea__meta {
+  margin-top: 2px;
+}
+.edicion {           /* formulario en línea dentro de una fila */
+  flex: 1;
+  min-width: 0;
+}
+.confirmar {         /* "¿Seguro?" en línea: texto + dos botones */
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+/* Inicio */
+.card__titulo {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-semibold);
+}
+.card__titulo svg {
+  width: 20px;
+  height: 20px;
+  color: var(--text-2);
+}
+.card .list__item {
+  min-height: 52px;
+}
+
+/* Estado de la sincronización */
+.sync {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+}
+.sync::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--sync-color, var(--ok));
+}
+.sync--pendiente { --sync-color: var(--warn); }
+.sync--error     { --sync-color: var(--danger); }
+.sync--activo    { --sync-color: var(--info); }
+.sidebar__sync {
+  padding: var(--sp-2) var(--sp-3);
+}
+
+/* =========================================================
    16. Hover solo con ratón (evita hover pegado en táctil)
    ========================================================= */
 @media (hover: hover) and (pointer: fine) {
@@ -1093,7 +1220,7 @@ a.list__item:focus-visible {
   .btn--secondary:hover { background: var(--surface-sunken); }
   .btn--danger:hover { background: color-mix(in srgb, var(--danger) 88%, var(--text)); }
   .btn--ghost:hover { background: var(--accent-soft); }
-  .icon-btn:hover { background: var(--surface-sunken); color: var(--text); }
+  .icon-btn:hover:not(:disabled) { background: var(--surface-sunken); color: var(--text); }
   .sidebar__item:hover:not([aria-current="page"]) {
     background: color-mix(in srgb, var(--surface-sunken) 50%, var(--border));
     color: var(--text);

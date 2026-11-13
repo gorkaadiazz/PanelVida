@@ -1,5 +1,6 @@
 import { useEffect, useRef, type ReactNode } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
+import { EstadoSincronizacion } from './EstadoSincronizacion'
 import {
   IconoCuenta,
   IconoDinero,
@@ -59,6 +60,9 @@ export function Layout() {
           <EnlaceLateral destino={NEGOCIO} />
         </div>
         <div className="sidebar__foot">
+          <p className="sidebar__sync">
+            <EstadoSincronizacion />
+          </p>
           <EnlaceLateral destino={CUENTA} />
         </div>
       </nav>

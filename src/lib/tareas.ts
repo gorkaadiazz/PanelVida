@@ -1,7 +1,7 @@
 // Lógica pura de las tareas: orden, urgencia y recuentos para Inicio.
 // Sin React ni Supabase.
 
-import { esFechaDia, sumarDias, type FechaDia } from './fechas'
+import { diferenciaDias, esFechaDia, formatearFecha, sumarDias, type FechaDia } from './fechas'
 import { ErrorDeValidacion } from './validacion'
 
 export { ErrorDeValidacion }
@@ -109,4 +109,18 @@ export function recuentoTareas(tareas: readonly ParaUrgencia[], hoy: FechaDia): 
     else if (u === 'proxima') r.proximas += 1
   }
   return r
+}
+
+/**
+ * Texto corto de la fecha límite para la lista: "Hoy", "Mañana", "Ayer",
+ * "Hace 3 días" o la fecha en español. Null si la tarea no tiene fecha.
+ */
+export function textoFechaLimite(fecha: FechaDia | null, hoy: FechaDia): string | null {
+  if (!fecha) return null
+  const dias = diferenciaDias(hoy, fecha)
+  if (dias === 0) return 'Hoy'
+  if (dias === 1) return 'Mañana'
+  if (dias === -1) return 'Ayer'
+  if (dias < 0 && dias >= -6) return `Hace ${-dias} días`
+  return formatearFecha(fecha)
 }

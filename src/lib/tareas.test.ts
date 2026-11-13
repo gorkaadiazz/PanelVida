@@ -3,6 +3,7 @@ import {
   ErrorDeValidacion,
   ordenarTareas,
   recuentoTareas,
+  textoFechaLimite,
   urgencia,
   validarFechaLimite,
   validarTextoTarea,
@@ -128,5 +129,27 @@ describe('validaciones', () => {
     expect(validarFechaLimite('2026-11-13')).toBe('2026-11-13')
     expect(() => validarFechaLimite('2026-02-30')).toThrow(ErrorDeValidacion)
     expect(() => validarFechaLimite('13/11/2026')).toThrow(ErrorDeValidacion)
+  })
+})
+
+describe('textoFechaLimite', () => {
+  it('sin fecha', () => {
+    expect(textoFechaLimite(null, HOY)).toBeNull()
+  })
+  it('días cercanos con palabras', () => {
+    expect(textoFechaLimite('2026-11-13', HOY)).toBe('Hoy')
+    expect(textoFechaLimite('2026-11-14', HOY)).toBe('Mañana')
+    expect(textoFechaLimite('2026-11-12', HOY)).toBe('Ayer')
+    expect(textoFechaLimite('2026-11-10', HOY)).toBe('Hace 3 días')
+    expect(textoFechaLimite('2026-11-07', HOY)).toBe('Hace 6 días')
+  })
+  it('el resto, con la fecha en español', () => {
+    expect(textoFechaLimite('2026-11-06', HOY)).toBe('06/11/2026')
+    expect(textoFechaLimite('2026-11-15', HOY)).toBe('15/11/2026')
+    expect(textoFechaLimite('2027-01-02', HOY)).toBe('02/01/2027')
+  })
+  it('cruza el cambio de año y de hora', () => {
+    expect(textoFechaLimite('2027-01-01', '2026-12-31')).toBe('Mañana')
+    expect(textoFechaLimite('2026-10-25', '2026-10-26')).toBe('Ayer')
   })
 })

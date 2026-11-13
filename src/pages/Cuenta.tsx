@@ -1,5 +1,6 @@
 import { useState, type CSSProperties } from 'react'
 import { nombreDeUsuario, useSesion } from '../auth/useSesion'
+import { EstadoSincronizacion } from '../components/EstadoSincronizacion'
 import { Pagina } from '../components/Pagina'
 import { IconoAviso } from '../components/iconos'
 import { useEstadoSync } from '../sync/hooks'
@@ -37,6 +38,12 @@ export function Cuenta() {
             <div>
               <dt className="t-label">Email</dt>
               <dd className="break">{usuario?.email ?? '—'}</dd>
+            </div>
+            <div>
+              <dt className="t-label">Sincronización</dt>
+              <dd>
+                <EstadoSincronizacion />
+              </dd>
             </div>
           </dl>
         </section>

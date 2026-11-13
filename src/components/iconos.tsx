@@ -160,3 +160,67 @@ export function IconoFlecha(props: PropsIcono) {
     </Icono>
   )
 }
+
+export function IconoMasUno(props: PropsIcono) {
+  return (
+    <Icono {...props}>
+      <path d="M12 5v14" />
+      <path d="M5 12h14" />
+    </Icono>
+  )
+}
+
+export function IconoBorrar(props: PropsIcono) {
+  return (
+    <Icono {...props}>
+      <path d="M4.5 7h15" />
+      <path d="M9.5 7V4.5h5V7" />
+      <path d="M6.5 7l.9 12.1a1.5 1.5 0 0 0 1.5 1.4h6.2a1.5 1.5 0 0 0 1.5-1.4L17.5 7" />
+      <path d="M10 11v6" />
+      <path d="M14 11v6" />
+    </Icono>
+  )
+}
+
+export function IconoEditar(props: PropsIcono) {
+  return (
+    <Icono {...props}>
+      <path d="M4.5 19.5h4l10-10a2.1 2.1 0 0 0-3-3l-10 10z" />
+      <path d="m13.5 8.5 3 3" />
+    </Icono>
+  )
+}
+
+export function IconoSubir(props: PropsIcono) {
+  return (
+    <Icono {...props}>
+      <path d="m6 14.5 6-6 6 6" />
+    </Icono>
+  )
+}
+
+export function IconoBajar(props: PropsIcono) {
+  return (
+    <Icono {...props}>
+      <path d="m6 9.5 6 6 6-6" />
+    </Icono>
+  )
+}
+
+export function IconoArchivar(props: PropsIcono) {
+  return (
+    <Icono {...props}>
+      <rect x="3.5" y="4.5" width="17" height="4" rx="1" />
+      <path d="M5 8.5v10a1.5 1.5 0 0 0 1.5 1.5h11a1.5 1.5 0 0 0 1.5-1.5v-10" />
+      <path d="M10 12.5h4" />
+    </Icono>
+  )
+}
+
+export function IconoRacha(props: PropsIcono) {
+  return (
+    <Icono {...props}>
+      <path d="M12 21c3.6 0 6-2.4 6-5.8 0-3.7-3-5.6-3.8-9.2-1.9 1.5-2.6 3.3-2.6 4.8-1-.6-1.7-1.6-2-3C7.7 9.6 6 11.9 6 15.2 6 18.6 8.4 21 12 21z" />
+    </Icono>
+  )
+}

@@ -4,6 +4,7 @@ import { Login } from './auth/Login'
 import { useSesion } from './auth/useSesion'
 import { AvisoActualizacion } from './components/AvisoActualizacion'
 import { AvisoConexion } from './components/AvisoConexion'
+import { AvisoSync } from './components/AvisoSync'
 import { Layout } from './components/Layout'
 import { Cuenta } from './pages/Cuenta'
 import { Dinero } from './pages/Dinero'
@@ -21,6 +22,7 @@ export default function App({ errorInicial }: { errorInicial: string | null }) {
       <Contenido errorInicial={errorInicial} />
       <div className="avisos">
         <AvisoConexion />
+        <AvisoSync />
         <AvisoActualizacion />
       </div>
     </>
