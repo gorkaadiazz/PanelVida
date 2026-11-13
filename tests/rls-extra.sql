@@ -92,7 +92,42 @@ insert into public.evaluaciones (id, modulo_id, titulo, tipo, fecha)
   values ('b0000000-0000-4000-8000-0000000000e1', 'b0000000-0000-4000-8000-0000000000a1', 'Examen de B', 'examen_teorico', now() + interval '1 day');
 insert into public.temas (id, evaluacion_id, texto) values ('b0000000-0000-4000-8000-0000000000f1', 'b0000000-0000-4000-8000-0000000000e1', 'DNS');
 
+-- Mi Panel (fase 2): A y B tienen una fila en cada tabla nueva. Los ids acaban
+-- en d01 (hábito), d02 (marca), d03 (tarea), d04 (movimiento) y d05 (cliente).
+select pg_temp.como('aaaaaaaa-0000-4000-8000-000000000001');
+insert into public.habitos (id, nombre) values ('a0000000-0000-4000-8000-000000000d01', 'Gimnasio de A');
+insert into public.habito_marcas (id, habito_id, fecha) values ('a0000000-0000-4000-8000-000000000d02', 'a0000000-0000-4000-8000-000000000d01', '2026-03-29');
+insert into public.tareas (id, texto, fecha_limite) values ('a0000000-0000-4000-8000-000000000d03', 'Tarea de A', '2026-12-31');
+insert into public.movimientos (id, tipo, concepto, importe_centimos, fecha) values ('a0000000-0000-4000-8000-000000000d04', 'gasto', 'Café de A', 125, '2026-10-25');
+insert into public.clientes_web (id, nombre, precio_centimos) values ('a0000000-0000-4000-8000-000000000d05', 'Cliente de A', 49999);
+
+select pg_temp.como('bbbbbbbb-0000-4000-8000-000000000002');
+insert into public.habitos (id, nombre) values ('b0000000-0000-4000-8000-000000000d01', 'Gimnasio de B');
+insert into public.habito_marcas (id, habito_id, fecha) values ('b0000000-0000-4000-8000-000000000d02', 'b0000000-0000-4000-8000-000000000d01', '2026-03-29');
+insert into public.tareas (id, texto) values ('b0000000-0000-4000-8000-000000000d03', 'Tarea de B');
+insert into public.movimientos (id, tipo, concepto, importe_centimos, fecha) values ('b0000000-0000-4000-8000-000000000d04', 'ingreso', 'Paga de B', 2000, '2026-10-25');
+insert into public.clientes_web (id, nombre) values ('b0000000-0000-4000-8000-000000000d05', 'Cliente de B');
+
 reset role;
+
+-- Ayuda para los casos de Mi Panel: inserta, con el usuario actual, una fila
+-- válida en una de las 5 tablas nuevas con el id dado. `extra_cols`/`extra_vals`
+-- permiten añadir columnas (p. ej. updated_at). Las marcas se cuelgan del
+-- hábito `habito` y usan un día distinto cada vez (secuencia `dias`).
+create temporary sequence dias;
+grant usage on sequence dias to authenticated;
+create or replace function pg_temp.insertar(tabla text, fila uuid, habito uuid default null,
+  extra_cols text default '', extra_vals text default '') returns void language plpgsql as $$
+begin
+  execute case tabla
+    when 'habitos' then format('insert into public.habitos (id, nombre %s) values (%L, ''h'' %s)', extra_cols, fila, extra_vals)
+    when 'habito_marcas' then format('insert into public.habito_marcas (id, habito_id, fecha %s) values (%L, %L, date ''2001-01-01'' + nextval(''dias'')::int %s)', extra_cols, fila, habito, extra_vals)
+    when 'tareas' then format('insert into public.tareas (id, texto %s) values (%L, ''t'' %s)', extra_cols, fila, extra_vals)
+    when 'movimientos' then format('insert into public.movimientos (id, tipo, concepto, importe_centimos, fecha %s) values (%L, ''gasto'', ''m'', 1, ''2026-01-01'' %s)', extra_cols, fila, extra_vals)
+    when 'clientes_web' then format('insert into public.clientes_web (id, nombre %s) values (%L, ''c'' %s)', extra_cols, fila, extra_vals)
+  end;
+end;
+$$;
 
 -- @caso: todas las tablas de public tienen RLS activado
 reset role;
@@ -297,12 +332,490 @@ select pg_temp.debe_fallar($q$select public.sumar_uso_ia('aaaaaaaa-0000-4000-800
   array['42501'], 'anon ejecuta sumar_uso_ia');
 
 -- -----------------------------------------------------------------------------
+-- Mi Panel (fase 2): hábitos, marcas, tareas, movimientos y clientes web
+-- -----------------------------------------------------------------------------
+
+-- @caso: mi panel: B no ve, edita ni borra las filas de A en las 5 tablas nuevas
+reset role;
+do $$
+declare
+  tablas text[] := array['habitos', 'habito_marcas', 'tareas', 'movimientos', 'clientes_web'];
+  id_a uuid;
+  n bigint;
+  propias bigint;
+begin
+  for i in 1..5 loop
+    id_a := ('a0000000-0000-4000-8000-000000000d0' || i)::uuid;
+    perform pg_temp.como('bbbbbbbb-0000-4000-8000-000000000002');
+    execute format('select count(*) from public.%I where user_id <> %L', tablas[i], 'bbbbbbbb-0000-4000-8000-000000000002') into n;
+    perform pg_temp.comprobar(n = 0, 'B puede LEER filas ajenas de ' || tablas[i]);
+    execute format('select count(*) from public.%I where id = %L', tablas[i], id_a) into n;
+    perform pg_temp.comprobar(n = 0, 'B puede LEER por id la fila de A en ' || tablas[i]);
+    execute format('select count(*) from public.%I', tablas[i]) into n;
+    perform pg_temp.comprobar(n >= 1, 'B no ve su propia fila de ' || tablas[i]);
+    execute format('with c as (update public.%I set updated_at = now() + interval ''1 day'' where id = %L returning 1)
+                    select count(*) from c', tablas[i], id_a) into n;
+    perform pg_temp.comprobar(n = 0, 'B puede EDITAR la fila de A en ' || tablas[i]);
+    execute format('with c as (delete from public.%I where id = %L returning 1) select count(*) from c', tablas[i], id_a) into n;
+    perform pg_temp.comprobar(n = 0, 'B puede BORRAR la fila de A en ' || tablas[i]);
+    -- Sin filtro tampoco se lleva nada de A por delante. (Un UPDATE/DELETE sin WHERE
+    -- ni RETURNING no lee columnas, así que NO pasa por la política de SELECT: solo
+    -- lo paran las políticas de UPDATE y DELETE.)
+    execute format('update public.%I set updated_at = now() + interval ''1 day''', tablas[i]);
+    execute format('select count(*) from public.%I', tablas[i]) into propias;
+    begin
+      execute format('delete from public.%I', tablas[i]);
+      get diagnostics n = row_count;
+      raise exception 'deshacer' using errcode = 'P0999'; -- B conserva sus filas
+    exception when sqlstate 'P0999' then
+      null;
+    end;
+    perform pg_temp.comprobar(n = propias, format('un DELETE sin filtro de B borra %s filas de %s y solo %s son suyas', n, tablas[i], propias));
+
+    -- A sigue viendo lo suyo, intacto, y nada de B
+    perform pg_temp.como('aaaaaaaa-0000-4000-8000-000000000001');
+    execute format('select count(*) from public.%I where id = %L and updated_at <= now()', tablas[i], id_a) into n;
+    perform pg_temp.comprobar(n = 1, 'la fila de A ha cambiado o ha desaparecido en ' || tablas[i]);
+    execute format('select count(*) from public.%I where user_id <> %L', tablas[i], 'aaaaaaaa-0000-4000-8000-000000000001') into n;
+    perform pg_temp.comprobar(n = 0, 'A puede LEER filas de B en ' || tablas[i]);
+  end loop;
+end;
+$$;
+
+-- @caso: mi panel: no se pueden crear filas a nombre de otro ni pisarlas con upsert
+reset role;
+select pg_temp.como('bbbbbbbb-0000-4000-8000-000000000002');
+-- Con el user_id de A
+select pg_temp.debe_fallar($q$insert into public.habitos (user_id, nombre)
+  values ('aaaaaaaa-0000-4000-8000-000000000001', 'x')$q$, array['42501'], 'B crea un hábito a nombre de A');
+select pg_temp.debe_fallar($q$insert into public.habito_marcas (user_id, habito_id, fecha)
+  values ('aaaaaaaa-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000d01', '2026-01-01')$q$,
+  array['42501'], 'B crea una marca a nombre de A en el hábito de A');
+select pg_temp.debe_fallar($q$insert into public.tareas (user_id, texto)
+  values ('aaaaaaaa-0000-4000-8000-000000000001', 'x')$q$, array['42501'], 'B crea una tarea a nombre de A');
+select pg_temp.debe_fallar($q$insert into public.movimientos (user_id, tipo, concepto, importe_centimos, fecha)
+  values ('aaaaaaaa-0000-4000-8000-000000000001', 'gasto', 'x', 1, '2026-01-01')$q$, array['42501'], 'B crea un movimiento a nombre de A');
+select pg_temp.debe_fallar($q$insert into public.clientes_web (user_id, nombre)
+  values ('aaaaaaaa-0000-4000-8000-000000000001', 'x')$q$, array['42501'], 'B crea un cliente a nombre de A');
+-- La cola de cambios sube con upsert por id: con el id de una fila de A no debe pisarla
+select pg_temp.debe_fallar($q$insert into public.habitos (id, nombre)
+  values ('a0000000-0000-4000-8000-000000000d01', 'robado')
+  on conflict (id) do update set nombre = excluded.nombre$q$, array['42501'], 'B pisa con upsert el hábito de A');
+select pg_temp.debe_fallar($q$insert into public.habito_marcas (id, habito_id, fecha)
+  values ('a0000000-0000-4000-8000-000000000d02', 'b0000000-0000-4000-8000-000000000d01', '2026-01-02')
+  on conflict (id) do update set hecho = false$q$, array['42501'], 'B pisa con upsert la marca de A');
+select pg_temp.debe_fallar($q$insert into public.tareas (id, texto)
+  values ('a0000000-0000-4000-8000-000000000d03', 'robada')
+  on conflict (id) do update set texto = excluded.texto$q$, array['42501'], 'B pisa con upsert la tarea de A');
+select pg_temp.debe_fallar($q$insert into public.movimientos (id, tipo, concepto, importe_centimos, fecha)
+  values ('a0000000-0000-4000-8000-000000000d04', 'gasto', 'robado', 1, '2026-01-01')
+  on conflict (id) do update set importe_centimos = excluded.importe_centimos$q$, array['42501'], 'B pisa con upsert el movimiento de A');
+select pg_temp.debe_fallar($q$insert into public.clientes_web (id, nombre)
+  values ('a0000000-0000-4000-8000-000000000d05', 'robado')
+  on conflict (id) do update set nombre = excluded.nombre$q$, array['42501'], 'B pisa con upsert el cliente de A');
+reset role;
+select pg_temp.comprobar((select nombre from public.habitos where id = 'a0000000-0000-4000-8000-000000000d01') = 'Gimnasio de A', 'el hábito de A ha cambiado');
+select pg_temp.comprobar((select hecho from public.habito_marcas where id = 'a0000000-0000-4000-8000-000000000d02'), 'la marca de A ha cambiado');
+select pg_temp.comprobar((select importe_centimos from public.movimientos where id = 'a0000000-0000-4000-8000-000000000d04') = 125, 'el movimiento de A ha cambiado');
+select pg_temp.comprobar((select count(*) from public.habitos where user_id = 'aaaaaaaa-0000-4000-8000-000000000001' and nombre = 'x') = 0, 'hay hábitos de A creados por B');
+
+-- @caso: habito_marcas: no se puede marcar ni mover una marca a un hábito ajeno
+reset role;
+select pg_temp.como('bbbbbbbb-0000-4000-8000-000000000002');
+select pg_temp.debe_fallar($q$insert into public.habito_marcas (habito_id, fecha)
+  values ('a0000000-0000-4000-8000-000000000d01', '2026-01-03')$q$, array['23503'], 'B marca el hábito de A');
+select pg_temp.debe_fallar($q$update public.habito_marcas set habito_id = 'a0000000-0000-4000-8000-000000000d01', fecha = '2026-01-04'
+  where id = 'b0000000-0000-4000-8000-000000000d02'$q$, array['23503'], 'B mueve su marca al hábito de A');
+-- En un día que A ya tiene marcado salta antes el unique (habito_id, fecha); lo importante es que falle
+select pg_temp.debe_fallar($q$update public.habito_marcas set habito_id = 'a0000000-0000-4000-8000-000000000d01'
+  where id = 'b0000000-0000-4000-8000-000000000d02'$q$, array['23503', '23505'], 'B mueve su marca al hábito de A (mismo día)');
+-- Un hábito que no existe tampoco vale
+select pg_temp.debe_fallar($q$insert into public.habito_marcas (habito_id, fecha)
+  values ('cccccccc-0000-4000-8000-00000000dead', '2026-01-03')$q$, array['23503'], 'B marca un hábito que no existe');
+reset role;
+select pg_temp.comprobar((select count(*) from public.habito_marcas where habito_id = 'a0000000-0000-4000-8000-000000000d01') = 1,
+  'el hábito de A tiene marcas ajenas');
+
+-- @caso: habito_marcas: una marca por hábito y día, upsert por id y desmarcar sin borrar
+reset role;
+select pg_temp.como('aaaaaaaa-0000-4000-8000-000000000001');
+insert into public.habitos (id, nombre) values ('a0000000-0000-4000-8000-000000000d11', 'Leer');
+-- Cambio de hora (29/03 y 25/10), fin de mes y de año, 29 de febrero: son días normales
+insert into public.habito_marcas (id, habito_id, fecha) values
+  ('a0000000-0000-4000-8000-000000000d12', 'a0000000-0000-4000-8000-000000000d11', '2026-03-29'),
+  (gen_random_uuid(), 'a0000000-0000-4000-8000-000000000d11', '2026-10-25'),
+  (gen_random_uuid(), 'a0000000-0000-4000-8000-000000000d11', '2026-12-31'),
+  (gen_random_uuid(), 'a0000000-0000-4000-8000-000000000d11', '2027-01-01'),
+  (gen_random_uuid(), 'a0000000-0000-4000-8000-000000000d11', '2028-02-29');
+select pg_temp.comprobar((select count(*) from public.habito_marcas where habito_id = 'a0000000-0000-4000-8000-000000000d11') = 5,
+  'no se guardan las 5 marcas');
+select pg_temp.comprobar((select bool_and(hecho) from public.habito_marcas where habito_id = 'a0000000-0000-4000-8000-000000000d11'),
+  'hecho no es true por defecto');
+-- El mismo día en otro hábito del mismo usuario sí vale (la marca d02 del preámbulo es del 29/03)
+select pg_temp.comprobar((select count(*) from public.habito_marcas where fecha = '2026-03-29') = 2, 'el mismo día no vale en dos hábitos');
+-- Otra fila (otro id) para el mismo hábito y día: no
+select pg_temp.debe_fallar($q$insert into public.habito_marcas (habito_id, fecha)
+  values ('a0000000-0000-4000-8000-000000000d11', '2026-03-29')$q$, array['23505'], 'dos marcas del mismo hábito el mismo día');
+select pg_temp.debe_fallar($q$update public.habito_marcas set fecha = '2026-10-25'
+  where id = 'a0000000-0000-4000-8000-000000000d12'$q$, array['23505'], 'mover una marca a un día ya marcado');
+select pg_temp.debe_fallar($q$insert into public.habito_marcas (habito_id, fecha)
+  values ('a0000000-0000-4000-8000-000000000d11', '2026-02-30')$q$, array['22008'], 'se acepta el 30 de febrero');
+select pg_temp.debe_fallar($q$insert into public.habito_marcas (habito_id, fecha)
+  values ('a0000000-0000-4000-8000-000000000d11', null)$q$, array['23502'], 'se acepta una marca sin fecha');
+-- Segundo dispositivo: mismo id determinista, upsert → misma fila. Desmarcar = hecho false
+insert into public.habito_marcas (id, habito_id, fecha, hecho, updated_at)
+  values ('a0000000-0000-4000-8000-000000000d12', 'a0000000-0000-4000-8000-000000000d11', '2026-03-29', false, now() + interval '1 minute')
+  on conflict (id) do update set hecho = excluded.hecho, updated_at = excluded.updated_at;
+select pg_temp.comprobar((select count(*) from public.habito_marcas
+  where habito_id = 'a0000000-0000-4000-8000-000000000d11' and fecha = '2026-03-29') = 1, 'el upsert por id ha duplicado la marca');
+select pg_temp.comprobar(not (select hecho from public.habito_marcas where id = 'a0000000-0000-4000-8000-000000000d12'),
+  'el upsert por id no ha desmarcado el día');
+-- Un upsert con un updated_at más antiguo (dispositivo atrasado) no pisa al nuevo
+insert into public.habito_marcas (id, habito_id, fecha, hecho, updated_at)
+  values ('a0000000-0000-4000-8000-000000000d12', 'a0000000-0000-4000-8000-000000000d11', '2026-03-29', true, now() - interval '1 hour')
+  on conflict (id) do update set hecho = excluded.hecho, updated_at = excluded.updated_at;
+select pg_temp.comprobar(not (select hecho from public.habito_marcas where id = 'a0000000-0000-4000-8000-000000000d12'),
+  'un upsert antiguo ha pisado a la marca más reciente');
+-- Limpieza (por si se ejecuta el archivo entero)
+delete from public.habitos where id = 'a0000000-0000-4000-8000-000000000d11';
+select pg_temp.comprobar((select count(*) from public.habito_marcas where habito_id = 'a0000000-0000-4000-8000-000000000d11') = 0,
+  'borrar el hábito no borra sus marcas');
+
+-- @caso: movimientos: importes en céntimos enteros y positivos, tipo y concepto válidos
+reset role;
+select pg_temp.comprobar((
+  select count(*) from information_schema.columns
+  where table_schema = 'public' and data_type = 'bigint'
+    and (table_name, column_name) in (('movimientos', 'importe_centimos'), ('clientes_web', 'precio_centimos'), ('perfiles', 'meta_ahorro_centimos'))
+) = 3, 'algún importe no es un entero (bigint) de céntimos');
+select pg_temp.comprobar(not exists (
+  select 1 from information_schema.columns
+  where table_schema = 'public' and table_name in ('habitos', 'habito_marcas', 'tareas', 'movimientos', 'clientes_web')
+    and data_type in ('real', 'double precision', 'numeric', 'money')
+), 'hay columnas con decimales en las tablas de Mi Panel');
+select pg_temp.como('aaaaaaaa-0000-4000-8000-000000000001');
+-- Tal y como llega por la API (JSON): 12,5 céntimos no es un importe
+select pg_temp.debe_fallar($q$insert into public.movimientos (tipo, concepto, importe_centimos, fecha)
+  select tipo, concepto, importe_centimos, fecha from json_populate_record(null::public.movimientos,
+    '{"tipo":"gasto","concepto":"x","importe_centimos":12.5,"fecha":"2026-01-01"}')$q$,
+  array['22P02'], 'se acepta un importe con decimales');
+select pg_temp.debe_fallar($q$insert into public.movimientos (tipo, concepto, importe_centimos, fecha)
+  values ('gasto', 'x', '12.50', '2026-01-01')$q$, array['22P02'], 'se acepta un importe en euros con decimales');
+select pg_temp.debe_fallar($q$insert into public.movimientos (tipo, concepto, importe_centimos, fecha)
+  values ('gasto', 'x', 0, '2026-01-01')$q$, array['23514'], 'se acepta un importe 0');
+select pg_temp.debe_fallar($q$insert into public.movimientos (tipo, concepto, importe_centimos, fecha)
+  values ('gasto', 'x', -1, '2026-01-01')$q$, array['23514'], 'se acepta un importe negativo');
+select pg_temp.debe_fallar($q$insert into public.movimientos (tipo, concepto, importe_centimos, fecha)
+  values ('gasto', 'x', 100000000000, '2026-01-01')$q$, array['23514'], 'se acepta un importe por encima del máximo');
+select pg_temp.debe_fallar($q$insert into public.movimientos (tipo, concepto, importe_centimos, fecha)
+  values ('gasto', 'x', null, '2026-01-01')$q$, array['23502'], 'se acepta un movimiento sin importe');
+select pg_temp.debe_fallar($q$insert into public.movimientos (tipo, concepto, importe_centimos, fecha)
+  values ('transferencia', 'x', 1, '2026-01-01')$q$, array['23514'], 'se acepta un tipo que no es ingreso/gasto');
+select pg_temp.debe_fallar($q$insert into public.movimientos (tipo, concepto, importe_centimos, fecha)
+  values ('gasto', '', 1, '2026-01-01')$q$, array['23514'], 'se acepta un concepto vacío');
+select pg_temp.debe_fallar($q$insert into public.movimientos (tipo, concepto, importe_centimos, fecha)
+  values ('gasto', repeat('x', 121), 1, '2026-01-01')$q$, array['23514'], 'se acepta un concepto de 121 caracteres');
+select pg_temp.debe_fallar($q$insert into public.movimientos (tipo, concepto, importe_centimos)
+  values ('gasto', 'x', 1)$q$, array['23502'], 'se acepta un movimiento sin fecha');
+-- Los límites exactos sí valen: 1 céntimo, el máximo, 120 caracteres, 0,1 + 0,2 € = 30 céntimos
+insert into public.movimientos (id, tipo, concepto, importe_centimos, fecha) values
+  ('a0000000-0000-4000-8000-000000000d21', 'ingreso', 'mínimo', 1, '2026-12-31'),
+  ('a0000000-0000-4000-8000-000000000d22', 'ingreso', repeat('ñ', 120), 99999999999, '2027-01-01'),
+  ('a0000000-0000-4000-8000-000000000d23', 'gasto', 'diez', 10, '2026-12-31'),
+  ('a0000000-0000-4000-8000-000000000d24', 'gasto', 'veinte', 20, '2026-12-31');
+select pg_temp.comprobar((select sum(importe_centimos) from public.movimientos
+  where id in ('a0000000-0000-4000-8000-000000000d23', 'a0000000-0000-4000-8000-000000000d24')) = 30, '10 + 20 céntimos no suman 30');
+select pg_temp.comprobar((select importe_centimos from public.movimientos where id = 'a0000000-0000-4000-8000-000000000d22') = 99999999999,
+  'el importe máximo no se guarda exacto');
+select pg_temp.debe_fallar($q$update public.movimientos set importe_centimos = 0
+  where id = 'a0000000-0000-4000-8000-000000000d21'$q$, array['23514'], 'un UPDATE deja el importe a 0');
+delete from public.movimientos where id in ('a0000000-0000-4000-8000-000000000d21', 'a0000000-0000-4000-8000-000000000d22',
+  'a0000000-0000-4000-8000-000000000d23', 'a0000000-0000-4000-8000-000000000d24');
+
+-- @caso: clientes_web: estados válidos, precio en céntimos no negativo y valores por defecto
+reset role;
+select pg_temp.como('aaaaaaaa-0000-4000-8000-000000000001');
+insert into public.clientes_web (id, nombre) values ('a0000000-0000-4000-8000-000000000d31', 'Por defecto');
+select pg_temp.comprobar((select estado = 'contacto' and precio_centimos = 0 and notas = '' and orden = 0
+  from public.clientes_web where id = 'a0000000-0000-4000-8000-000000000d31'), 'valores por defecto de clientes_web incorrectos');
+-- Los 4 estados del tablero, de uno en uno
+update public.clientes_web set estado = 'propuesta' where id = 'a0000000-0000-4000-8000-000000000d31';
+update public.clientes_web set estado = 'en_curso' where id = 'a0000000-0000-4000-8000-000000000d31';
+update public.clientes_web set estado = 'entregado' where id = 'a0000000-0000-4000-8000-000000000d31';
+update public.clientes_web set estado = 'contacto' where id = 'a0000000-0000-4000-8000-000000000d31';
+select pg_temp.debe_fallar($q$update public.clientes_web set estado = 'cobrado' where id = 'a0000000-0000-4000-8000-000000000d31'$q$,
+  array['23514'], 'se acepta un estado que no existe (update)');
+select pg_temp.debe_fallar($q$insert into public.clientes_web (nombre, estado) values ('x', 'En curso')$q$,
+  array['23514'], 'se acepta un estado mal escrito');
+select pg_temp.debe_fallar($q$insert into public.clientes_web (nombre, estado) values ('x', '')$q$,
+  array['23514'], 'se acepta un estado vacío');
+select pg_temp.debe_fallar($q$insert into public.clientes_web (nombre, estado) values ('x', null)$q$,
+  array['23502'], 'se acepta un estado nulo');
+select pg_temp.debe_fallar($q$insert into public.clientes_web (nombre, precio_centimos) values ('x', -1)$q$,
+  array['23514'], 'se acepta un precio negativo');
+select pg_temp.debe_fallar($q$insert into public.clientes_web (nombre, precio_centimos) values ('x', 100000000000)$q$,
+  array['23514'], 'se acepta un precio por encima del máximo');
+select pg_temp.debe_fallar($q$insert into public.clientes_web (nombre, precio_centimos) values ('x', '499.99')$q$,
+  array['22P02'], 'se acepta un precio en euros con decimales');
+select pg_temp.debe_fallar($q$insert into public.clientes_web (nombre) values ('')$q$,
+  array['23514'], 'se acepta un cliente sin nombre');
+select pg_temp.debe_fallar($q$insert into public.clientes_web (nombre) values (repeat('x', 121))$q$,
+  array['23514'], 'se acepta un nombre de 121 caracteres');
+select pg_temp.debe_fallar($q$insert into public.clientes_web (nombre, notas) values ('x', repeat('x', 2001))$q$,
+  array['23514'], 'se aceptan notas de 2001 caracteres');
+update public.clientes_web set precio_centimos = 99999999999, notas = repeat('x', 2000), nombre = repeat('x', 120)
+  where id = 'a0000000-0000-4000-8000-000000000d31';
+delete from public.clientes_web where id = 'a0000000-0000-4000-8000-000000000d31';
+
+-- @caso: habitos y tareas: longitudes y valores por defecto
+reset role;
+select pg_temp.como('aaaaaaaa-0000-4000-8000-000000000001');
+select pg_temp.debe_fallar($q$insert into public.habitos (nombre) values ('')$q$, array['23514'], 'se acepta un hábito sin nombre');
+select pg_temp.debe_fallar($q$insert into public.habitos (nombre) values (repeat('x', 61))$q$, array['23514'], 'se acepta un hábito de 61 caracteres');
+select pg_temp.debe_fallar($q$insert into public.habitos (nombre) values (null)$q$, array['23502'], 'se acepta un hábito con nombre nulo');
+select pg_temp.debe_fallar($q$insert into public.tareas (texto) values ('')$q$, array['23514'], 'se acepta una tarea vacía');
+select pg_temp.debe_fallar($q$insert into public.tareas (texto) values (repeat('x', 201))$q$, array['23514'], 'se acepta una tarea de 201 caracteres');
+insert into public.habitos (id, nombre) values ('a0000000-0000-4000-8000-000000000d41', repeat('ñ', 60));
+insert into public.tareas (id, texto) values ('a0000000-0000-4000-8000-000000000d42', repeat('ñ', 200));
+select pg_temp.comprobar((select not archivado and orden = 0 and user_id = 'aaaaaaaa-0000-4000-8000-000000000001'
+  from public.habitos where id = 'a0000000-0000-4000-8000-000000000d41'), 'valores por defecto de habitos incorrectos');
+select pg_temp.comprobar((select not hecha and hecha_en is null and fecha_limite is null and user_id = 'aaaaaaaa-0000-4000-8000-000000000001'
+  from public.tareas where id = 'a0000000-0000-4000-8000-000000000d42'), 'valores por defecto de tareas incorrectos');
+-- Dos hábitos con el mismo nombre sí valen (no hay unicidad por nombre)
+insert into public.habitos (id, nombre) values ('a0000000-0000-4000-8000-000000000d43', repeat('ñ', 60));
+delete from public.habitos where id in ('a0000000-0000-4000-8000-000000000d41', 'a0000000-0000-4000-8000-000000000d43');
+delete from public.tareas where id = 'a0000000-0000-4000-8000-000000000d42';
+
+-- @caso: perfiles y modulos: columnas nuevas de la fase 2 (meta de ahorro, semanas, límite de faltas)
+reset role;
+select pg_temp.como('aaaaaaaa-0000-4000-8000-000000000001');
+select pg_temp.comprobar((select semanas_curso = 30 and meta_ahorro_centimos is null and not mi_panel_inicializado
+  from public.perfiles), 'valores por defecto de las columnas nuevas de perfiles incorrectos');
+select pg_temp.comprobar((select con_examenes and limite_faltas is null
+  from public.modulos where id = 'a0000000-0000-4000-8000-0000000000a1'), 'valores por defecto de las columnas nuevas de modulos incorrectos');
+select pg_temp.debe_fallar($q$update public.perfiles set semanas_curso = 0$q$, array['23514'], 'se aceptan 0 semanas de curso');
+select pg_temp.debe_fallar($q$update public.perfiles set semanas_curso = 53$q$, array['23514'], 'se aceptan 53 semanas de curso');
+select pg_temp.debe_fallar($q$update public.perfiles set meta_ahorro_centimos = -1$q$, array['23514'], 'se acepta una meta de ahorro negativa');
+select pg_temp.debe_fallar($q$update public.perfiles set meta_ahorro_centimos = 100000000000$q$, array['23514'], 'se acepta una meta de ahorro por encima del máximo');
+select pg_temp.debe_fallar($q$update public.modulos set limite_faltas = 100.01 where id = 'a0000000-0000-4000-8000-0000000000a1'$q$,
+  array['23514'], 'se acepta un límite de faltas mayor que 100');
+select pg_temp.debe_fallar($q$update public.modulos set limite_faltas = -0.01 where id = 'a0000000-0000-4000-8000-0000000000a1'$q$,
+  array['23514'], 'se acepta un límite de faltas negativo');
+-- Los límites exactos sí valen
+do $$
+begin
+  update public.perfiles set semanas_curso = 1, meta_ahorro_centimos = 0;
+  update public.perfiles set semanas_curso = 52, meta_ahorro_centimos = 99999999999;
+  update public.modulos set limite_faltas = 0 where id = 'a0000000-0000-4000-8000-0000000000a1';
+  update public.modulos set limite_faltas = 100 where id = 'a0000000-0000-4000-8000-0000000000a1';
+  update public.modulos set limite_faltas = 12.5 where id = 'a0000000-0000-4000-8000-0000000000a1';
+  perform pg_temp.comprobar((select limite_faltas from public.modulos where id = 'a0000000-0000-4000-8000-0000000000a1') = 12.5,
+    'el límite de faltas del módulo no guarda decimales');
+  -- Se deja como estaba
+  update public.perfiles set semanas_curso = 30, meta_ahorro_centimos = null;
+  update public.modulos set limite_faltas = null where id = 'a0000000-0000-4000-8000-0000000000a1';
+end;
+$$;
+-- Un perfil nuevo sigue al sistema (tema 'auto')
+reset role;
+select pg_temp.comprobar((select column_default from information_schema.columns
+  where table_schema = 'public' and table_name = 'perfiles' and column_name = 'tema') like '%auto%', 'el tema por defecto no es auto');
+
+-- @caso: mi panel: updated_at, sync_at y user_id los controla el trigger antes_de_guardar
+reset role;
+do $$
+declare
+  t text;
+  f uuid;
+  r record;
+  sync_antes timestamptz;
+begin
+  perform pg_temp.como('aaaaaaaa-0000-4000-8000-000000000001');
+  foreach t in array array['habitos', 'habito_marcas', 'tareas', 'movimientos', 'clientes_web'] loop
+    f := gen_random_uuid();
+    -- El dispositivo creó la fila sin conexión hace tiempo e intenta colar su sync_at
+    perform pg_temp.insertar(t, f, 'a0000000-0000-4000-8000-000000000d01',
+      ', updated_at, sync_at', ', ''2020-01-01 10:00+00'', ''2000-01-01 00:00+00''');
+    execute format('select user_id, created_at, updated_at, sync_at from public.%I where id = %L', t, f) into r;
+    perform pg_temp.comprobar(r.user_id = 'aaaaaaaa-0000-4000-8000-000000000001', t || ': user_id no se rellena con auth.uid()');
+    perform pg_temp.comprobar(r.updated_at = '2020-01-01 10:00+00', t || ': el INSERT no respeta el updated_at del dispositivo');
+    perform pg_temp.comprobar(r.sync_at >= now(), t || ': el INSERT deja que el cliente fije sync_at');
+    sync_antes := r.sync_at;
+
+    -- UPDATE sin updated_at: se pone la hora del servidor; user_id y created_at no cambian
+    execute format('update public.%I set user_id = %L, created_at = ''1999-01-01'' where id = %L',
+      t, 'bbbbbbbb-0000-4000-8000-000000000002', f);
+    execute format('select user_id, created_at, updated_at, sync_at from public.%I where id = %L', t, f) into r;
+    perform pg_temp.comprobar(r.user_id = 'aaaaaaaa-0000-4000-8000-000000000001', t || ': un UPDATE ha cambiado user_id');
+    perform pg_temp.comprobar(r.created_at = now(), t || ': un UPDATE ha cambiado created_at');
+    perform pg_temp.comprobar(r.updated_at = now(), t || ': un UPDATE no actualiza updated_at');
+    -- (>= y no >: el reloj de PGlite puede dar el mismo instante en dos sentencias seguidas)
+    perform pg_temp.comprobar(r.sync_at >= sync_antes and r.sync_at >= now(), t || ': un UPDATE retrasa sync_at');
+    sync_antes := r.sync_at;
+
+    -- Versión antigua (otro dispositivo atrasado): no se aplica y no se vuelve a anunciar
+    execute format('update public.%I set updated_at = ''2019-01-01'' where id = %L', t, f);
+    execute format('select updated_at, sync_at from public.%I where id = %L', t, f) into r;
+    perform pg_temp.comprobar(r.updated_at = now(), t || ': una versión antigua ha pisado a la nueva');
+    perform pg_temp.comprobar(r.sync_at = sync_antes, t || ': una versión antigua descartada cambia sync_at');
+
+    -- Versión más nueva: gana y avanza sync_at
+    execute format('update public.%I set updated_at = now() + interval ''1 hour'', sync_at = ''2000-01-01'' where id = %L', t, f);
+    execute format('select updated_at, sync_at from public.%I where id = %L', t, f) into r;
+    perform pg_temp.comprobar(r.updated_at = now() + interval '1 hour', t || ': una versión más nueva no se aplica');
+    perform pg_temp.comprobar(r.sync_at >= sync_antes, t || ': el cliente puede fijar sync_at en un UPDATE');
+
+    execute format('delete from public.%I where id = %L', t, f);
+  end loop;
+  -- B no ha recibido nada
+  perform pg_temp.como('bbbbbbbb-0000-4000-8000-000000000002');
+  perform pg_temp.comprobar((select count(*) from public.habitos) = 1 and (select count(*) from public.tareas) = 1
+    and (select count(*) from public.movimientos) = 1 and (select count(*) from public.clientes_web) = 1
+    and (select count(*) from public.habito_marcas) = 1, 'B ha recibido filas que A intentó pasarle');
+end;
+$$;
+
+-- @caso: mi panel: los borrados quedan apuntados en `borrados` (también en cascada) y solo los ve su dueño
+reset role;
+do $$
+declare
+  t text;
+  f uuid;
+  h uuid := gen_random_uuid();
+  m1 uuid := gen_random_uuid();
+  m2 uuid := gen_random_uuid();
+  antes bigint;
+begin
+  perform pg_temp.como('aaaaaaaa-0000-4000-8000-000000000001');
+  foreach t in array array['habitos', 'habito_marcas', 'tareas', 'movimientos', 'clientes_web'] loop
+    f := gen_random_uuid();
+    perform pg_temp.insertar(t, f, 'a0000000-0000-4000-8000-000000000d01');
+    perform pg_temp.comprobar((select count(*) from public.borrados where fila_id = f) = 0, t || ': crear una fila apunta un borrado');
+    execute format('delete from public.%I where id = %L', t, f);
+    perform pg_temp.comprobar((select count(*) from public.borrados
+      where fila_id = f and tabla = t and user_id = 'aaaaaaaa-0000-4000-8000-000000000001' and sync_at >= now()) = 1,
+      t || ': el borrado no queda apuntado (una vez) en borrados');
+  end loop;
+
+  -- Borrar un hábito se lleva sus marcas, y las tres filas quedan apuntadas
+  perform pg_temp.insertar('habitos', h);
+  perform pg_temp.insertar('habito_marcas', m1, h);
+  perform pg_temp.insertar('habito_marcas', m2, h);
+  delete from public.habitos where id = h;
+  perform pg_temp.comprobar((select count(*) from public.habito_marcas where id in (m1, m2)) = 0, 'borrar un hábito no borra sus marcas');
+  perform pg_temp.comprobar((select count(*) from public.borrados where tabla = 'habitos' and fila_id = h) = 1
+    and (select count(*) from public.borrados where tabla = 'habito_marcas' and fila_id in (m1, m2)) = 2,
+    'el borrado en cascada hábito → marcas no queda apuntado');
+  -- Desmarcar (hecho = false) no es un borrado
+  select count(*) into antes from public.borrados;
+  update public.habito_marcas set hecho = false where id = 'a0000000-0000-4000-8000-000000000d02';
+  perform pg_temp.comprobar((select count(*) from public.borrados) = antes, 'desmarcar un día apunta un borrado');
+  update public.habito_marcas set hecho = true where id = 'a0000000-0000-4000-8000-000000000d02';
+
+  -- B no ve los borrados de A ni puede apuntar los suyos a mano
+  perform pg_temp.como('bbbbbbbb-0000-4000-8000-000000000002');
+  perform pg_temp.comprobar((select count(*) from public.borrados) = 0, 'B ve los borrados de Mi Panel de A');
+end;
+$$;
+
+-- @caso: inicializar_cuenta: en una cuenta nueva crea perfil, 3 hábitos y los 8 módulos de 2º SMR, una sola vez
+reset role;
+insert into public.emails_permitidos (email) values ('prueba-c@rls.test');
+insert into auth.users (id, email) values ('cccccccc-0000-4000-8000-000000000003', 'prueba-c@rls.test');
+select pg_temp.como('cccccccc-0000-4000-8000-000000000003');
+select pg_temp.comprobar((select count(*) from public.perfiles) = 0, 'C ya tenía perfil');
+select pg_temp.comprobar(public.inicializar_cuenta(), 'la primera llamada no devuelve true');
+select pg_temp.comprobar((select count(*) from public.perfiles
+  where id = 'cccccccc-0000-4000-8000-000000000003' and user_id = id and mi_panel_inicializado
+    and tema = 'auto' and semanas_curso = 30 and meta_ahorro_centimos is null) = 1, 'no se crea bien el perfil de C');
+select pg_temp.comprobar((select array_agg(nombre order by orden) from public.habitos)
+  = array['Gimnasio', 'Leer 20 min', 'Dormir 8 h'], 'los hábitos iniciales no son Gimnasio, Leer 20 min y Dormir 8 h (en ese orden)');
+select pg_temp.comprobar((select bool_and(not archivado and user_id = 'cccccccc-0000-4000-8000-000000000003') from public.habitos),
+  'los hábitos iniciales están archivados o no son de C');
+select pg_temp.comprobar((select array_agg(abreviatura order by orden) from public.modulos)
+  = array['SOR', 'SI', 'SR', 'AO', 'CNV', 'IPE2', 'PI', 'FE'], 'los módulos iniciales no son los 8 de 2º SMR (en su orden)');
+select pg_temp.comprobar((select array_agg(abreviatura) from public.modulos where not con_examenes) = array['FE'],
+  'solo FE debe quedar sin exámenes');
+select pg_temp.comprobar((select bool_and(user_id = 'cccccccc-0000-4000-8000-000000000003' and color ~ '^#[0-9a-f]{6}$'
+  and length(nombre) > 0 and limite_faltas is null) from public.modulos), 'módulos iniciales con datos incorrectos');
+select pg_temp.comprobar((select count(distinct color) from public.modulos) = 8, 'hay módulos iniciales con el mismo color');
+select pg_temp.comprobar((select count(*) from public.habito_marcas) = 0 and (select count(*) from public.tareas) = 0
+  and (select count(*) from public.movimientos) = 0 and (select count(*) from public.clientes_web) = 0,
+  'inicializar_cuenta crea datos que no debe');
+-- Idempotente: las siguientes llamadas no hacen nada
+select pg_temp.comprobar(not public.inicializar_cuenta(), 'la segunda llamada no devuelve false');
+select pg_temp.comprobar(not public.inicializar_cuenta(), 'la tercera llamada no devuelve false');
+select pg_temp.comprobar((select count(*) from public.habitos) = 3 and (select count(*) from public.modulos) = 8
+  and (select count(*) from public.perfiles) = 1, 'llamar otra vez a inicializar_cuenta duplica datos');
+-- Si el usuario borra un hábito o un módulo iniciales, no vuelven
+delete from public.habitos where nombre = 'Gimnasio';
+delete from public.modulos where abreviatura = 'CNV';
+select pg_temp.comprobar(not public.inicializar_cuenta(), 'tras borrar datos iniciales, la llamada no devuelve false');
+select pg_temp.comprobar((select count(*) from public.habitos) = 2 and (select count(*) from public.modulos) = 7,
+  'inicializar_cuenta resucita datos iniciales borrados');
+-- No ha tocado a nadie más
+reset role;
+select pg_temp.comprobar((select count(*) from public.habitos
+  where nombre in ('Gimnasio', 'Leer 20 min', 'Dormir 8 h') and user_id <> 'cccccccc-0000-4000-8000-000000000003') = 0,
+  'inicializar_cuenta ha creado hábitos a otros usuarios');
+select pg_temp.comprobar((select count(*) from public.modulos where user_id = 'bbbbbbbb-0000-4000-8000-000000000002') = 1
+  and not (select mi_panel_inicializado from public.perfiles where id = 'aaaaaaaa-0000-4000-8000-000000000001'),
+  'inicializar_cuenta de C ha tocado datos de A o B');
+
+-- @caso: inicializar_cuenta: una cuenta que ya tenía módulos (app vieja) recibe los hábitos pero no módulos nuevos
+reset role;
+insert into public.emails_permitidos (email) values ('prueba-d@rls.test');
+insert into auth.users (id, email) values ('dddddddd-0000-4000-8000-000000000004', 'prueba-d@rls.test');
+select pg_temp.como('dddddddd-0000-4000-8000-000000000004');
+insert into public.perfiles (nombre, tema, limite_faltas) values ('D', 'oscuro', 20);
+insert into public.modulos (nombre, abreviatura) values ('Mi SOR de siempre', 'SOR');
+select pg_temp.comprobar(public.inicializar_cuenta(), 'la primera llamada no devuelve true');
+select pg_temp.comprobar((select count(*) from public.habitos) = 3, 'una cuenta antigua no recibe los 3 hábitos');
+select pg_temp.comprobar((select count(*) from public.modulos) = 1 and (select nombre from public.modulos) = 'Mi SOR de siempre',
+  'una cuenta antigua recibe módulos duplicados');
+select pg_temp.comprobar((select nombre = 'D' and tema = 'oscuro' and limite_faltas = 20 and mi_panel_inicializado from public.perfiles),
+  'inicializar_cuenta pisa el perfil que ya existía');
+select pg_temp.comprobar(not public.inicializar_cuenta(), 'la segunda llamada no devuelve false');
+select pg_temp.comprobar((select count(*) from public.habitos) = 3 and (select count(*) from public.modulos) = 1,
+  'la segunda llamada duplica datos');
+
+-- @caso: inicializar_cuenta: sin sesión no se puede ejecutar
+reset role;
+select pg_temp.como('anon');
+select pg_temp.debe_fallar($q$select public.inicializar_cuenta()$q$, array['42501'], 'anon ejecuta inicializar_cuenta');
+-- Con rol authenticated pero sin usuario en el JWT
+reset role;
+select set_config('role', 'authenticated', true);
+select set_config('request.jwt.claims', '{"role":"authenticated"}', true);
+select pg_temp.debe_fallar($q$select public.inicializar_cuenta()$q$, array['42501'], 'se inicializa una cuenta sin usuario');
+reset role;
+select pg_temp.comprobar(not has_function_privilege('anon', 'public.inicializar_cuenta()', 'execute')
+  and not has_function_privilege('public', 'public.inicializar_cuenta()', 'execute')
+  and has_function_privilege('authenticated', 'public.inicializar_cuenta()', 'execute'),
+  'permisos de inicializar_cuenta incorrectos');
+select pg_temp.comprobar((select not prosecdef from pg_proc where oid = 'public.inicializar_cuenta()'::regprocedure),
+  'inicializar_cuenta no debe ser SECURITY DEFINER');
+
+-- -----------------------------------------------------------------------------
 -- Casos destructivos: van al final
 -- -----------------------------------------------------------------------------
 
 -- @caso: borrar un usuario de auth.users borra en cascada todas sus filas
 reset role;
+-- A tiene filas en las tablas de Mi Panel (preámbulo) y un borrado apuntado:
+-- el borrado de la cuenta no debe fallar (20261113000500) ni dejar restos.
+select pg_temp.comprobar((select count(*) from public.habito_marcas where user_id = 'aaaaaaaa-0000-4000-8000-000000000001') >= 1
+  and (select count(*) from public.borrados where user_id = 'aaaaaaaa-0000-4000-8000-000000000001') >= 1,
+  'A no tiene datos que borrar: el caso no probaría nada');
 delete from auth.users where id = 'aaaaaaaa-0000-4000-8000-000000000001';
+select pg_temp.comprobar((select count(*) from public.borrados b
+  where not exists (select 1 from auth.users u where u.id = b.user_id)) = 0, 'quedan borrados de un usuario que ya no existe');
+select pg_temp.comprobar((select count(*) from public.habitos where user_id = 'bbbbbbbb-0000-4000-8000-000000000002') = 1
+  and (select count(*) from public.habito_marcas where user_id = 'bbbbbbbb-0000-4000-8000-000000000002') = 1
+  and (select count(*) from public.tareas where user_id = 'bbbbbbbb-0000-4000-8000-000000000002') = 1
+  and (select count(*) from public.movimientos where user_id = 'bbbbbbbb-0000-4000-8000-000000000002') = 1
+  and (select count(*) from public.clientes_web where user_id = 'bbbbbbbb-0000-4000-8000-000000000002') = 1,
+  'borrar a A se ha llevado datos de Mi Panel de B');
 do $$
 declare
   t text;
