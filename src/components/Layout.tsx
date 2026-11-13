@@ -6,6 +6,7 @@ import {
   IconoCuenta,
   IconoDinero,
   IconoEstudios,
+  IconoExterno,
   IconoHabitos,
   IconoInicio,
   IconoMas,
@@ -86,18 +87,34 @@ export function Layout() {
   )
 }
 
-function EnlaceExterno({ destino, className }: { destino: Destino; className: string }) {
+// Sale de la app: lleva la flecha de salida (visible) y el aviso de pestaña
+// nueva (para el lector de pantalla).
+function EnlaceExterno({ destino, lugar }: { destino: Destino; lugar: 'lateral' | 'inferior' }) {
+  const marca = <IconoExterno className="enlace-externo__marca" />
+  if (lugar === 'inferior') {
+    return (
+      <a href={destino.ruta} target="_blank" rel="noopener noreferrer" className="nav-bottom__item">
+        <span className="nav-bottom__icon">
+          {destino.icono}
+          {marca}
+        </span>
+        <span>{destino.texto}</span>
+        <span className="visually-hidden"> (se abre en otra pestaña)</span>
+      </a>
+    )
+  }
   return (
-    <a href={destino.ruta} target="_blank" rel="noopener noreferrer" className={className}>
-      {className === 'nav-bottom__item' ? <span className="nav-bottom__icon">{destino.icono}</span> : destino.icono}
+    <a href={destino.ruta} target="_blank" rel="noopener noreferrer" className="sidebar__item">
+      {destino.icono}
       <span className="truncate">{destino.texto}</span>
+      {marca}
       <span className="visually-hidden"> (se abre en otra pestaña)</span>
     </a>
   )
 }
 
 function EnlaceLateral({ destino }: { destino: Destino }) {
-  if (destino.externo) return <EnlaceExterno destino={destino} className="sidebar__item" />
+  if (destino.externo) return <EnlaceExterno destino={destino} lugar="lateral" />
   return (
     <NavLink to={destino.ruta} end className="sidebar__item">
       {destino.icono}
@@ -107,7 +124,7 @@ function EnlaceLateral({ destino }: { destino: Destino }) {
 }
 
 function EnlaceInferior({ destino, activo }: { destino: Destino; activo?: boolean }) {
-  if (destino.externo) return <EnlaceExterno destino={destino} className="nav-bottom__item" />
+  if (destino.externo) return <EnlaceExterno destino={destino} lugar="inferior" />
   const contenido = (
     <>
       <span className="nav-bottom__icon">{destino.icono}</span>

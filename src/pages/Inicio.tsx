@@ -211,16 +211,16 @@ function TarjetaExamen({ hoy }: { hoy: FechaDia }) {
           <IconoEstudios />
           Próximo examen
         </h2>
-        {examen && (
-          <span className={`num num--xl${examen.dias <= 1 ? ' text-warn' : ''}`}>
-            {examen.dias <= 1 ? textoCuentaAtras(examen.dias) : (
-              <>
-                {examen.dias}
-                <span className="num--unit">días</span>
-              </>
-            )}
-          </span>
-        )}
+        {examen &&
+          (examen.dias <= 1 ? (
+            // "Hoy" / "Mañana": la palabra es la señal; el ámbar solo la refuerza
+            <span className="cuenta-atras text-warn">{textoCuentaAtras(examen.dias)}</span>
+          ) : (
+            <span className="num num--xl">
+              {examen.dias}
+              <span className="num--unit">días</span>
+            </span>
+          ))}
       </div>
 
       {cargando && !examen ? (
@@ -229,7 +229,7 @@ function TarjetaExamen({ hoy }: { hoy: FechaDia }) {
         <p className="muted">No tienes exámenes pendientes apuntados.</p>
       ) : (
         <div className="stack" style={{ '--gap': 'var(--sp-2)' } as CSSProperties}>
-          <p className="break" style={{ fontWeight: 'var(--fw-medium)' }}>
+          <p className="examen__titulo" title={examen.titulo}>
             {examen.titulo}
           </p>
           <p className="row">
@@ -249,7 +249,6 @@ function TarjetaExamen({ hoy }: { hoy: FechaDia }) {
                 <span className="num">{examen.hora}</span>
               </>
             )}
-            {examen.dias > 1 && <span className="visually-hidden"> ({textoCuentaAtras(examen.dias)})</span>}
           </p>
         </div>
       )}

@@ -285,6 +285,7 @@ Clases `.mod-sor`, `.mod-si`, `.mod-sr`, `.mod-ao`, `.mod-cnv`, `.mod-ipe2`, `.m
 ### Navigation
 - **Barra inferior móvil (`.nav-bottom`, < 900 px):** fija abajo, 64 px + safe-area, fondo hoja, línea superior. 5 `.nav-bottom__item` con icono de 22 px dentro de `.nav-bottom__icon` y etiqueta de 12 px. Activo (`aria-current="page"`): píldora `--accent-soft` de 56 × 30 detrás del icono y texto `--accent-ink` semibold. "Más" abre la lista de Dinero, Negocio y Cuenta.
 - **Barra lateral PC (`.sidebar`, ≥ 900 px):** 240 px, fija en altura (`sticky`), fondo hundido, borde derecho. `.sidebar__brand` (icono + "Mi Panel"), `.sidebar__item` de 40 px con icono de 20 px, `.sidebar__group` para el segundo bloque y `.sidebar__foot` para Cuenta. Activo igual que en móvil.
+- **Destino externo** (Estudios, que abre la web de exámenes): flecha de salida (`IconoExterno` con `.enlace-externo__marca`, trazo 2.25). En la barra inferior, 12 px en la esquina superior derecha de la píldora, para no mover la etiqueta. En la lateral, 14 px en `--text-3` al final de la fila. Siempre con el texto oculto «(se abre en otra pestaña)». Nunca se marca como activo.
 - **Iconos:** SVG propios en línea, trazo 1.75 sobre 24 px, extremos redondeados, `currentColor`. Nada de emojis ni fuentes de iconos.
 
 ### Estados vacío, carga y error

@@ -318,6 +318,7 @@ h1[tabindex="-1"]:focus-visible {
 }
 
 .nav-bottom__icon {  /* indicador en píldora detrás del icono (patrón Android) */
+  position: relative; /* para la marca de enlace externo */
   display: grid;
   place-items: center;
   width: 56px;
@@ -549,6 +550,7 @@ button.card:active {
 .btn svg {
   width: 20px;
   height: 20px;
+  flex-shrink: 0;
 }
 
 .btn:active:not(:disabled, [aria-disabled="true"]) {
@@ -870,6 +872,10 @@ input.input[type="number"] {
   white-space: nowrap;
 }
 
+.tag {              /* lo que no cabe se corta con «…» (p. ej. abreviaturas largas de otra app) */
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .tag--mod {          /* etiqueta de módulo: usar con .mod-<módulo> */
   background: var(--mod-soft);
   color: var(--mod-ink);
@@ -990,7 +996,7 @@ a.list__item:focus-visible {
   color: var(--text-2);
 }
 
-.empty svg {
+.empty > svg {       /* solo el icono del estado, no los de su botón */
   width: 40px;
   height: 40px;
   color: var(--text-3);
@@ -1035,7 +1041,7 @@ a.list__item:focus-visible {
   line-height: var(--lh-snug);
 }
 
-.alert svg {
+.alert > svg {
   width: 20px;
   height: 20px;
   margin-top: 1px;
@@ -1206,7 +1212,57 @@ a.list__item:focus-visible {
 .card__titulo svg {
   width: 20px;
   height: 20px;
+  flex-shrink: 0;
   color: var(--text-2);
+}
+/* Con el texto del sistema agrandado (Android), el botón del pie de tarjeta
+   parte en dos líneas en vez de salirse a 360 px */
+.card__foot .btn {
+  min-width: 0;
+  white-space: normal;
+  text-align: start;
+}
+/* Próximo examen: título largo, como mucho 3 líneas (el completo, en la web
+   de exámenes y para el lector de pantalla) */
+.examen__titulo {
+  font-weight: var(--fw-medium);
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
+}
+/* "Hoy" / "Mañana": son palabras, no cifras, así que van en la fuente de
+   interfaz (la monoespaciada es solo para números y fechas) */
+.cuenta-atras {
+  flex-shrink: 0;
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-semibold);
+  line-height: 1.1;
+  letter-spacing: var(--tracking-title);
+  white-space: nowrap;
+}
+
+/* Destino que sale de la app (Estudios → web de exámenes): flecha de salida.
+   En la barra inferior va en la esquina de la píldora para no mover la
+   etiqueta; en la lateral, al final de la fila. */
+.enlace-externo__marca {
+  flex-shrink: 0;
+  stroke-width: 2.25;
+}
+.nav-bottom__icon .enlace-externo__marca {
+  position: absolute;
+  top: 3px;
+  right: 5px;
+  width: 12px;
+  height: 12px;
+}
+.sidebar__item .enlace-externo__marca {
+  width: 14px;
+  height: 14px;
+  margin-inline-start: auto;
+  color: var(--text-3);
 }
 .card .list__item {
   min-height: 52px;

@@ -76,7 +76,6 @@ export function Cuenta() {
           {avisado && pendientes > 0 ? 'Cerrar sesión igualmente' : 'Cerrar sesión'}
         </button>
         <p className="t-small muted">Se borrará la copia de tus datos guardada en este dispositivo. En la nube siguen a salvo.</p>
-
       </div>
     </Pagina>
   )
