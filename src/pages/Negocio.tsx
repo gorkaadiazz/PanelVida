@@ -3,7 +3,7 @@ import { AvisoError } from '../components/AvisoError'
 import { Pagina } from '../components/Pagina'
 import { Vacio } from '../components/Vacio'
 import { prepararFoco } from '../components/foco'
-import { IconoBorrar, IconoEditar, IconoFlecha, IconoNegocio } from '../components/iconos'
+import { IconoBorrar, IconoEditar, IconoNegocio } from '../components/iconos'
 import { useAccion } from '../components/useAccion'
 import { centimosATexto, formatearEuros } from '../lib/dinero'
 import {
@@ -13,7 +13,6 @@ import {
   NOTAS_MAX,
   clientesDe,
   esEstado,
-  estadoVecino,
   resumenNegocio,
   type EstadoCliente,
 } from '../lib/negocio'
@@ -233,8 +232,6 @@ function FilaCliente({ cliente: c, ejecutar }: { cliente: Cliente; ejecutar: Eje
   }
 
   const estado = esEstado(c.estado) ? c.estado : null
-  const anterior = estado && estadoVecino(estado, -1)
-  const siguiente = estado && estadoVecino(estado, 1)
 
   if (modo === 'editar') {
     return (
@@ -283,24 +280,27 @@ function FilaCliente({ cliente: c, ejecutar }: { cliente: Cliente; ejecutar: Eje
         {c.notas && <p className="t-small muted cliente__notas">{c.notas}</p>}
       </div>
       <div className="acciones">
-        <button
-          type="button"
-          className="icon-btn"
-          aria-label={anterior ? `Devolver a ${NOMBRE_ESTADO[anterior]}: ${c.nombre}` : `${c.nombre} ya está en el primer estado`}
-          disabled={!anterior}
-          onClick={() => anterior && void sacar(() => moverCliente(c.id, anterior))}
+        <label htmlFor={`${id}-estado`} className="visually-hidden">
+          Mover a {c.nombre} a otro estado
+        </label>
+        {/* Lista nativa: en el móvil abre el selector del sistema y deja saltar
+            de Contacto a Entregado de una vez, sin ir paso a paso */}
+        <select
+          id={`${id}-estado`}
+          className="input mover"
+          value={estado ?? ''}
+          onChange={(e) => {
+            const nuevo = e.target.value
+            if (esEstado(nuevo) && nuevo !== estado) void sacar(() => moverCliente(c.id, nuevo))
+          }}
         >
-          <IconoFlecha style={{ transform: 'rotate(180deg)' }} />
-        </button>
-        <button
-          type="button"
-          className="icon-btn"
-          aria-label={siguiente ? `Pasar a ${NOMBRE_ESTADO[siguiente]}: ${c.nombre}` : `${c.nombre} ya está entregado`}
-          disabled={!siguiente}
-          onClick={() => siguiente && void sacar(() => moverCliente(c.id, siguiente))}
-        >
-          <IconoFlecha />
-        </button>
+          {!estado && <option value="">Estado desconocido</option>}
+          {ESTADOS.map((e) => (
+            <option key={e} value={e}>
+              {NOMBRE_ESTADO[e]}
+            </option>
+          ))}
+        </select>
         <button
           type="button"
           ref={botonEditar}

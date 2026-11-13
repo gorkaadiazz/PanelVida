@@ -57,12 +57,6 @@ export function validarEstado(estado: string): EstadoCliente {
   return estado
 }
 
-/** Estado anterior y siguiente en el camino Contacto → Propuesta → En curso → Entregado. */
-export function estadoVecino(estado: EstadoCliente, paso: -1 | 1): EstadoCliente | null {
-  const i = ESTADOS.indexOf(estado) + paso
-  return i >= 0 && i < ESTADOS.length ? ESTADOS[i] : null
-}
-
 export function resumenNegocio(clientes: readonly ClienteBasico[]): ResumenNegocio {
   const porEstado = { contacto: 0, propuesta: 0, en_curso: 0, entregado: 0 }
   let facturado = 0

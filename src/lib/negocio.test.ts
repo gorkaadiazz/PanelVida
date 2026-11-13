@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   clientesDe,
+  ESTADOS,
   ErrorDeValidacion,
-  estadoVecino,
   ordenAlFinal,
   resumenNegocio,
   validarEstado,
@@ -44,12 +44,8 @@ describe('resumenNegocio', () => {
 })
 
 describe('estados', () => {
-  it('camino Contacto → Propuesta → En curso → Entregado', () => {
-    expect(estadoVecino('contacto', 1)).toBe('propuesta')
-    expect(estadoVecino('en_curso', 1)).toBe('entregado')
-    expect(estadoVecino('entregado', 1)).toBeNull()
-    expect(estadoVecino('contacto', -1)).toBeNull()
-    expect(estadoVecino('propuesta', -1)).toBe('contacto')
+  it('camino Contacto → Propuesta → En curso → Entregado, en ese orden', () => {
+    expect(ESTADOS).toEqual(['contacto', 'propuesta', 'en_curso', 'entregado'])
   })
 
   it('valida el estado', () => {
@@ -89,18 +85,6 @@ describe('validación', () => {
 // ---------------------------------------------------------------------------
 
 describe('estados: casos límite', () => {
-  it('el camino completo hacia delante y hacia atrás recorre los 4 estados sin saltarse ninguno', () => {
-    const adelante: string[] = ['contacto']
-    let e: ReturnType<typeof estadoVecino> = 'contacto'
-    while ((e = estadoVecino(e, 1))) adelante.push(e)
-    expect(adelante).toEqual(['contacto', 'propuesta', 'en_curso', 'entregado'])
-
-    const atras: string[] = ['entregado']
-    e = 'entregado'
-    while ((e = estadoVecino(e, -1))) atras.push(e)
-    expect(atras).toEqual([...adelante].reverse())
-  })
-
   it.each(['', 'Contacto', 'EN_CURSO', 'en curso', ' entregado', 'toString', '__proto__'])('rechaza el estado "%s"', (estado) => {
     expect(() => validarEstado(estado)).toThrow(ErrorDeValidacion)
   })
