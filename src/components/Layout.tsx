@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from 'react'
+import { Suspense, useEffect, useRef, type ReactNode } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { URL_EXAMENES } from '../lib/enlaces'
 import { EstadoSincronizacion } from './EstadoSincronizacion'
@@ -73,7 +73,16 @@ export function Layout() {
       </nav>
 
       <main className="app-main" ref={mainRef}>
-        <Outlet />
+        {/* Las pantallas se cargan aparte (App.tsx): mientras llega una, solo un aviso para lectores de pantalla */}
+        <Suspense
+          fallback={
+            <p role="status" className="visually-hidden">
+              Cargando…
+            </p>
+          }
+        >
+          <Outlet />
+        </Suspense>
       </main>
 
       <nav className="nav-bottom" aria-label="Navegación inferior">

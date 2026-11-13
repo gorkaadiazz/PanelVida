@@ -12,6 +12,20 @@ export default defineConfig({
     include: ['src/**/*.test.ts', 'tests/**/*.test.ts'],
     environment: 'node',
   },
+  build: {
+    rolldownOptions: {
+      output: {
+        // React y supabase-js aparte: cambian poco, así que tras publicar una
+        // versión nueva el navegador solo vuelve a bajar el código de la app.
+        codeSplitting: {
+          groups: [
+            { name: 'react', test: /node_modules[\\/](react|react-dom|react-router|react-router-dom|scheduler)[\\/]/ },
+            { name: 'supabase', test: /node_modules[\\/]@supabase[\\/]/ },
+          ],
+        },
+      },
+    },
+  },
   plugins: [
     react(),
     !enTests &&

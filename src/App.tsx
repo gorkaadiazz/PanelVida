@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { lazy, useState } from 'react'
 import { Route, Routes } from 'react-router-dom'
 import { Login } from './auth/Login'
 import { useSesion } from './auth/useSesion'
@@ -6,15 +6,21 @@ import { AvisoActualizacion } from './components/AvisoActualizacion'
 import { AvisoConexion } from './components/AvisoConexion'
 import { AvisoSync } from './components/AvisoSync'
 import { Layout } from './components/Layout'
-import { Cuenta } from './pages/Cuenta'
-import { Dinero } from './pages/Dinero'
-import { Estudios } from './pages/Estudios'
-import { Habitos } from './pages/Habitos'
 import { Inicio } from './pages/Inicio'
-import { Mas } from './pages/Mas'
-import { Negocio } from './pages/Negocio'
-import { NoEncontrada } from './pages/NoEncontrada'
-import { Tareas } from './pages/Tareas'
+
+// Inicio va en el paquete principal (es lo primero que se ve). El resto de
+// pantallas se descargan aparte al entrar en ellas; el service worker las
+// guarda todas igualmente, así que sin conexión siguen abriendo.
+const pagina = <N extends string>(carga: () => Promise<Record<N, () => React.JSX.Element>>, nombre: N) =>
+  lazy(async () => ({ default: (await carga())[nombre] }))
+const Habitos = pagina(() => import('./pages/Habitos'), 'Habitos')
+const Tareas = pagina(() => import('./pages/Tareas'), 'Tareas')
+const Estudios = pagina(() => import('./pages/Estudios'), 'Estudios')
+const Dinero = pagina(() => import('./pages/Dinero'), 'Dinero')
+const Negocio = pagina(() => import('./pages/Negocio'), 'Negocio')
+const Mas = pagina(() => import('./pages/Mas'), 'Mas')
+const Cuenta = pagina(() => import('./pages/Cuenta'), 'Cuenta')
+const NoEncontrada = pagina(() => import('./pages/NoEncontrada'), 'NoEncontrada')
 
 export default function App({ errorInicial }: { errorInicial: string | null }) {
   return (
