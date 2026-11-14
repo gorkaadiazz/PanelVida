@@ -52,9 +52,16 @@ export const TABLAS = [
     padre: { tabla: 'habitos', columna: 'habito_id' },
   },
   { nombre: 'tareas', columnas: ['texto', 'fecha_limite', 'hecha', 'hecha_en'] },
-  { nombre: 'movimientos', columnas: ['tipo', 'concepto', 'importe_centimos', 'fecha', 'categoria'], indices: ['fecha'] },
-  // Fijos de cada mes. No es madre de movimientos: borrar un fijo deja los ya apuntados.
-  { nombre: 'movimientos_fijos', columnas: ['tipo', 'concepto', 'importe_centimos', 'categoria', 'dia', 'desde', 'ultimo_mes', 'activo'] },
+  // fijo_id: el fijo que lo apuntó (sin clave foránea: borrar el fijo deja lo apuntado)
+  { nombre: 'movimientos', columnas: ['tipo', 'concepto', 'importe_centimos', 'fecha', 'categoria', 'necesidad', 'fijo_id'], indices: ['fecha'] },
+  // Fijos (cada día, semana, mes o año). No es madre de movimientos: borrar un fijo deja los ya apuntados.
+  // `desde` y `ultimo_mes` se siguen subiendo para la app antigua (ver lib/fijos.ts).
+  {
+    nombre: 'movimientos_fijos',
+    columnas: ['tipo', 'concepto', 'importe_centimos', 'categoria', 'necesidad', 'frecuencia', 'dia', 'mes', 'inicio', 'ultimo_apunte', 'desde', 'ultimo_mes', 'activo'],
+  },
+  // Revisiones semanales y mensuales de ahorro (las calcula la app: lib/revision.ts)
+  { nombre: 'revisiones', columnas: ['tipo', 'inicio', 'fin', 'datos', 'vista'] },
   // Fase 8: bandeja de ideas
   { nombre: 'ideas', columnas: ['texto', 'archivada'] },
   { nombre: 'cumpleanos', columnas: ['nombre', 'dia', 'mes', 'anio', 'notas'] },

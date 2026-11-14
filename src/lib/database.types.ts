@@ -727,8 +727,10 @@ export type Database = {
           concepto: string
           created_at: string
           fecha: string
+          fijo_id: string | null
           id: string
           importe_centimos: number
+          necesidad: string | null
           sync_at: string
           tipo: string
           updated_at: string
@@ -739,8 +741,10 @@ export type Database = {
           concepto: string
           created_at?: string
           fecha: string
+          fijo_id?: string | null
           id?: string
           importe_centimos: number
+          necesidad?: string | null
           sync_at?: string
           tipo: string
           updated_at?: string
@@ -751,8 +755,10 @@ export type Database = {
           concepto?: string
           created_at?: string
           fecha?: string
+          fijo_id?: string | null
           id?: string
           importe_centimos?: number
+          necesidad?: string | null
           sync_at?: string
           tipo?: string
           updated_at?: string
@@ -768,10 +774,15 @@ export type Database = {
           created_at: string
           desde: string
           dia: number
+          frecuencia: string
           id: string
           importe_centimos: number
+          inicio: string
+          mes: number | null
+          necesidad: string | null
           sync_at: string
           tipo: string
+          ultimo_apunte: string | null
           ultimo_mes: string | null
           updated_at: string
           user_id: string
@@ -783,10 +794,15 @@ export type Database = {
           created_at?: string
           desde: string
           dia: number
+          frecuencia?: string
           id?: string
           importe_centimos: number
+          inicio?: string
+          mes?: number | null
+          necesidad?: string | null
           sync_at?: string
           tipo: string
+          ultimo_apunte?: string | null
           ultimo_mes?: string | null
           updated_at?: string
           user_id?: string
@@ -798,10 +814,15 @@ export type Database = {
           created_at?: string
           desde?: string
           dia?: number
+          frecuencia?: string
           id?: string
           importe_centimos?: number
+          inicio?: string
+          mes?: number | null
+          necesidad?: string | null
           sync_at?: string
           tipo?: string
+          ultimo_apunte?: string | null
           ultimo_mes?: string | null
           updated_at?: string
           user_id?: string
@@ -995,6 +1016,45 @@ export type Database = {
           },
         ]
       }
+      revisiones: {
+        Row: {
+          created_at: string
+          datos: Json
+          fin: string
+          id: string
+          inicio: string
+          sync_at: string
+          tipo: string
+          updated_at: string
+          user_id: string
+          vista: boolean
+        }
+        Insert: {
+          created_at?: string
+          datos: Json
+          fin: string
+          id?: string
+          inicio: string
+          sync_at?: string
+          tipo: string
+          updated_at?: string
+          user_id?: string
+          vista?: boolean
+        }
+        Update: {
+          created_at?: string
+          datos?: Json
+          fin?: string
+          id?: string
+          inicio?: string
+          sync_at?: string
+          tipo?: string
+          updated_at?: string
+          user_id?: string
+          vista?: boolean
+        }
+        Relationships: []
+      }
       suscripciones_push: {
         Row: {
           auth: string
@@ -1146,6 +1206,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      fecha_en_mes: {
+        Args: { dia: number; mes: string }
+        Returns: string
+      }
       inicializar_cuenta: {
         Args: never
         Returns: boolean

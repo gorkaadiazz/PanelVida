@@ -913,7 +913,7 @@ select pg_temp.debe_fallar($q$insert into public.movimientos_fijos (tipo, concep
 select pg_temp.debe_fallar($q$insert into public.movimientos_fijos (tipo, concepto, importe_centimos, dia, desde)
   values ('gasto', 'x', 1, 32, '2026-11')$q$, array['23514'], 'un fijo el día 32');
 select pg_temp.debe_fallar($q$insert into public.movimientos_fijos (tipo, concepto, importe_centimos, dia, desde)
-  values ('gasto', 'x', 1, 1, '2026-13')$q$, array['23514'], 'un mes 13');
+  values ('gasto', 'x', 1, 1, '2026-13')$q$, array['23514', '23502'], 'un mes 13');
 select pg_temp.debe_fallar($q$insert into public.movimientos_fijos (tipo, concepto, importe_centimos, dia, desde, ultimo_mes)
   values ('gasto', 'x', 1, 1, '2026-11', '2026-11-01')$q$, array['23514'], 'ultimo_mes con día');
 select pg_temp.debe_fallar($q$insert into public.movimientos_fijos (tipo, concepto, importe_centimos, dia, desde)
@@ -988,7 +988,8 @@ declare
     array['ideas', $i$insert into public.ideas (id, texto) values ('a0000000-0000-4000-8000-000000000a81', 'Idea de A')$i$],
     array['cumpleanos', $i$insert into public.cumpleanos (nombre, dia, mes) values ('Cumple de A', 5, 3)$i$],
     array['planes', $i$insert into public.planes (titulo) values ('Plan de A')$i$],
-    array['deseos', $i$insert into public.deseos (articulo, precio_centimos) values ('Deseo de A', 100)$i$]
+    array['deseos', $i$insert into public.deseos (articulo, precio_centimos) values ('Deseo de A', 100)$i$],
+    array['revisiones', $i$insert into public.revisiones (tipo, inicio, fin, datos) values ('semanal', '2026-11-09', '2026-11-15', '{"v": 1}')$i$]
   ];
   t text;
   filas bigint;
@@ -1102,7 +1103,7 @@ select pg_temp.comprobar(not exists (select 1 from public.ideas where id = 'a000
   'una fila borrada ha vuelto a aparecer');
 -- Y las tablas de Mi Panel lo tienen todas
 select pg_temp.comprobar((select count(distinct event_object_table) from information_schema.triggers
-  where trigger_schema = 'public' and trigger_name = 'no_revivir_borrado') = 10, 'falta no_revivir_borrado en alguna tabla');
+  where trigger_schema = 'public' and trigger_name = 'no_revivir_borrado') = 11, 'falta no_revivir_borrado en alguna tabla');
 
 -- @caso: borrar un usuario de auth.users borra en cascada todas sus filas
 reset role;
@@ -1137,6 +1138,81 @@ $$;
 select pg_temp.comprobar((select count(*) from public.modulos where user_id = 'bbbbbbbb-0000-4000-8000-000000000002') = 1,
   'borrar a A se ha llevado datos de B');
 
+-- @caso: fijos con frecuencia: día de la semana en semanales, mes solo en anuales, necesidad solo en gastos
+reset role;
+select pg_temp.como('aaaaaaaa-0000-4000-8000-000000000001');
+insert into public.movimientos_fijos (tipo, concepto, importe_centimos, dia, desde, frecuencia, inicio)
+  values ('gasto', 'Café', 150, 7, '9999-12', 'diaria', '2026-11-14'),
+         ('gasto', 'Clase', 2000, 3, '9999-12', 'semanal', '2026-11-14');
+insert into public.movimientos_fijos (tipo, concepto, importe_centimos, dia, mes, desde, frecuencia, inicio, necesidad)
+  values ('gasto', 'Seguro', 12000, 29, 2, '9999-12', 'anual', '2026-11-14', 'esencial');
+select pg_temp.debe_fallar($q$insert into public.movimientos_fijos (tipo, concepto, importe_centimos, dia, desde, frecuencia, inicio)
+  values ('gasto', 'x', 1, 8, '9999-12', 'semanal', '2026-11-14')$q$, array['23514'], 'un semanal el día 8');
+select pg_temp.debe_fallar($q$insert into public.movimientos_fijos (tipo, concepto, importe_centimos, dia, desde, frecuencia, inicio)
+  values ('gasto', 'x', 1, 1, '9999-12', 'anual', '2026-11-14')$q$, array['23514'], 'un anual sin mes');
+select pg_temp.debe_fallar($q$insert into public.movimientos_fijos (tipo, concepto, importe_centimos, dia, mes, desde, inicio)
+  values ('gasto', 'x', 1, 1, 5, '2026-11', '2026-11-14')$q$, array['23514'], 'un mensual con mes');
+select pg_temp.debe_fallar($q$insert into public.movimientos_fijos (tipo, concepto, importe_centimos, dia, mes, desde, frecuencia, inicio)
+  values ('gasto', 'x', 1, 31, 4, '9999-12', 'anual', '2026-11-14')$q$, array['23514'], 'un anual el 31 de abril');
+select pg_temp.debe_fallar($q$insert into public.movimientos_fijos (tipo, concepto, importe_centimos, dia, desde, frecuencia, inicio)
+  values ('gasto', 'x', 1, 1, '2026-11', 'quincenal', '2026-11-14')$q$, array['23514'], 'una frecuencia fuera de la lista');
+select pg_temp.debe_fallar($q$insert into public.movimientos_fijos (tipo, concepto, importe_centimos, dia, desde, necesidad)
+  values ('ingreso', 'x', 1, 1, '2026-11', 'esencial')$q$, array['23514'], 'un ingreso fijo esencial');
+select pg_temp.debe_fallar($q$insert into public.movimientos_fijos (tipo, concepto, importe_centimos, dia, desde, necesidad)
+  values ('gasto', 'x', 1, 1, '2026-11', 'caprichoso')$q$, array['23514'], 'una necesidad fuera de la lista');
+select pg_temp.debe_fallar($q$insert into public.movimientos (tipo, concepto, importe_centimos, fecha, necesidad)
+  values ('ingreso', 'x', 1, '2026-11-14', 'prescindible')$q$, array['23514'], 'un ingreso prescindible');
+select pg_temp.debe_fallar($q$insert into public.movimientos (tipo, concepto, importe_centimos, fecha, necesidad)
+  values ('gasto', 'x', 1, '2026-11-14', 'caprichoso')$q$, array['23514'], 'un movimiento con necesidad fuera de la lista');
+insert into public.movimientos (tipo, concepto, importe_centimos, fecha, necesidad, fijo_id)
+  values ('gasto', 'Netflix', 999, '2026-11-14', 'prescindible', 'a0000000-0000-4000-8000-0000000000f1');
+
+-- @caso: compatibilidad con la app antigua: rellena inicio y ultimo_apunte desde los meses
+reset role;
+select pg_temp.como('aaaaaaaa-0000-4000-8000-000000000001');
+-- La app antigua crea un fijo sin inicio
+insert into public.movimientos_fijos (id, tipo, concepto, importe_centimos, dia, desde)
+  values ('a0000000-0000-4000-8000-000000000c01', 'gasto', 'Gimnasio', 3000, 31, '2026-02');
+select pg_temp.comprobar((select frecuencia = 'mensual' and inicio = '2026-02-01' and ultimo_apunte is null
+  from public.movimientos_fijos where id = 'a0000000-0000-4000-8000-000000000c01'), 'un fijo de la app antigua no tiene inicio');
+-- La app antigua apunta febrero (solo cambia ultimo_mes): el 31 cae el 28
+update public.movimientos_fijos set ultimo_mes = '2026-02', updated_at = now() + interval '1 second'
+  where id = 'a0000000-0000-4000-8000-000000000c01';
+select pg_temp.comprobar((select ultimo_apunte = '2026-02-28' from public.movimientos_fijos
+  where id = 'a0000000-0000-4000-8000-000000000c01'), 'ultimo_apunte no sigue a ultimo_mes');
+-- La app antigua reanuda (solo cambia desde)
+update public.movimientos_fijos set desde = '2026-05', updated_at = now() + interval '2 second'
+  where id = 'a0000000-0000-4000-8000-000000000c01';
+select pg_temp.comprobar((select inicio = '2026-05-01' from public.movimientos_fijos
+  where id = 'a0000000-0000-4000-8000-000000000c01'), 'inicio no sigue a desde');
+-- La app nueva cambia las dos cosas a la vez: se respeta lo que manda
+update public.movimientos_fijos set desde = '2026-07', inicio = '2026-06-20', ultimo_mes = '2026-06', ultimo_apunte = '2026-06-30',
+  updated_at = now() + interval '3 second' where id = 'a0000000-0000-4000-8000-000000000c01';
+select pg_temp.comprobar((select inicio = '2026-06-20' and ultimo_apunte = '2026-06-30' from public.movimientos_fijos
+  where id = 'a0000000-0000-4000-8000-000000000c01'), 'el trigger pisa lo que manda la app nueva');
+
+-- @caso: revisiones: semana de lunes a domingo, mes completo, una por periodo y datos pequeños
+reset role;
+select pg_temp.como('aaaaaaaa-0000-4000-8000-000000000001');
+insert into public.revisiones (tipo, inicio, fin, datos) values ('semanal', '2026-11-09', '2026-11-15', '{"v": 1}');
+insert into public.revisiones (tipo, inicio, fin, datos) values ('mensual', '2026-02-01', '2026-02-28', '{"v": 1}');
+select pg_temp.comprobar((select not vista from public.revisiones where inicio = '2026-11-09'), 'una revisión nueva nace vista');
+select pg_temp.debe_fallar($q$insert into public.revisiones (tipo, inicio, fin, datos) values ('semanal', '2026-11-09', '2026-11-15', '{"v": 1}')$q$,
+  array['23505'], 'dos revisiones de la misma semana');
+select pg_temp.debe_fallar($q$insert into public.revisiones (tipo, inicio, fin, datos) values ('semanal', '2026-11-10', '2026-11-16', '{"v": 1}')$q$,
+  array['23514'], 'una semana que no empieza en lunes');
+select pg_temp.debe_fallar($q$insert into public.revisiones (tipo, inicio, fin, datos) values ('semanal', '2026-11-16', '2026-11-30', '{"v": 1}')$q$,
+  array['23514'], 'una semana de 15 días');
+select pg_temp.debe_fallar($q$insert into public.revisiones (tipo, inicio, fin, datos) values ('mensual', '2026-02-01', '2026-02-27', '{"v": 1}')$q$,
+  array['23514'], 'un mes incompleto');
+select pg_temp.debe_fallar($q$insert into public.revisiones (tipo, inicio, fin, datos) values ('anual', '2026-01-01', '2026-12-31', '{"v": 1}')$q$,
+  array['23514'], 'un tipo fuera de la lista');
+select pg_temp.debe_fallar($q$insert into public.revisiones (tipo, inicio, fin, datos) values ('mensual', '2026-03-01', '2026-03-31', '[1, 2]')$q$,
+  array['23514'], 'datos que no son un objeto');
+select pg_temp.debe_fallar($q$insert into public.revisiones (tipo, inicio, fin, datos)
+  values ('mensual', '2026-03-01', '2026-03-31', jsonb_build_object('relleno', repeat(md5(random()::text), 2000)))$q$,
+  array['23514'], 'datos de más de 32 KB');
+
 -- @fin
 do $$
 begin
@@ -1145,3 +1221,4 @@ end;
 $$;
 
 rollback;
+
