@@ -15,12 +15,19 @@ supabase/migrations/20261114000400_cumpleanos.sql
 supabase/migrations/20261114000500_planes.sql
 supabase/migrations/20261114000600_deseos.sql
 supabase/migrations/20261114000700_no_revivir_borrados.sql
+supabase/migrations/20261114000800_frecuencia_y_revisiones.sql
 ```
 
 De la 000300 a la 000600 son de la fase 8 (ideas, cumpleaños, planes y lista de
 deseos): sin ellas esas pantallas abren pero no pueden guardar en la nube.
 La 000700 impide que una fila borrada en un dispositivo vuelva a aparecer
 si otro la edita sin conexión.
+
+La 000800 es de las secciones 5 y 6 de la fase 8 (fijos cada día, semana, mes o
+año; esencial/prescindible; revisiones de ahorro). **Aplícala ANTES de subir la
+web nueva**: la app nueva guarda columnas que solo existen con ella y, sin la
+migración, no sincroniza (no pierde nada: lo reintenta hasta que la apliques).
+Los fijos que ya tenías se convierten solos en «cada mes» y siguen igual.
 
 Igual que en `docs/MIGRAR.md`: o pegando cada archivo en **SQL Editor → New
 query → Run**, o con la CLI:

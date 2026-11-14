@@ -97,6 +97,16 @@ Comprobaciones ahora mismo: `npm test -- --run` 473/473, `npm run test:sql` 41/4
 - Migraciones 20261114000300 a 20261114000700 (ver `docs/RECORDATORIOS.md`). La 000700 extiende `no_revivir_borrado` a todas las tablas de Mi Panel (una fila borrada en un dispositivo no vuelve aunque otro la edite sin conexión).
 - Revisión: seguridad, tester y diseño APROBADO. Pendiente de decidir: deshacer «hecho» en un plan que no tenía fecha lo deja como «planeado» con la fecha del día en que se marcó.
 
+### Fase 8, secciones 5 y 6: gastos fijos, revisión y previsión de ahorro (14/11/2026)
+- Dinero en pestañas: Movimientos · Fijos · Revisiones · Previsión (`/dinero?ver=…`).
+- Fijos cada día, semana, mes o año. Los diarios se apuntan una vez por semana (el domingo) con el importe de los días de esa semana. Cada uno dice lo que cuesta al día, a la semana, al mes y al año; arriba, el total fijo al mes. Pausar o dar de baja.
+- Esencial / prescindible (opcional) en fijos y movimientos. Los apuntes de un fijo llevan `fijo_id`.
+- Revisión semanal (el lunes, de la semana anterior) y mensual (el día 1, del mes anterior), sin IA: gasto por categoría frente al periodo anterior, fijos, prescindibles, meta y deseos, y sugerencias por reglas (prescindibles, fijos caros, categorías que suben, suscripciones solapadas) con el ahorro al mes y cuánto antes llegas a la meta. Se guarda en `revisiones` (una por periodo: unique por usuario, tipo e inicio; se generan solo con conexión y recién sincronizado). Tarjeta «Revisión nueva» en Inicio.
+- Previsión: ritmo real (media de lo apuntado a mano en 1, 3 o 6 meses + fijos activos), «¿cuánto tendré en…?», «¿cuándo llego a…?» (meta, deseo o cantidad), escenarios actual / con recortes / a mano y gráfica real + prevista. Con ritmo cero o negativo no da fecha: dice cuánto habría que ahorrar al mes para llegar en 3, 6 o 12 meses. Línea «A este ritmo llegas a tu meta el …» en Inicio.
+- Cambiar la frecuencia de un fijo cuenta desde hoy con la nueva (el tester encontró que se saltaba el siguiente apunte).
+- Revisión: seguridad, tester y diseño APROBADO. Seguridad: id de la revisión aleatorio (uno calculable con el id del usuario se podía «ocupar»). Pendientes sin arreglar: un fijo diario pausado a mitad de semana pierde los días activos de esa semana (haría falta guardar la fecha de la pausa); el escenario «con recortes» puede contar dos veces un gasto prescindible que también está en «categoría que sube».
+- Migración 20261114000800 (antes de desplegar; ver `docs/RECORDATORIOS.md`). Compatibilidad: la app sin actualizar sigue apuntando bien los mensuales (trigger `compatibilidad_fijos`) y nunca apunta los demás (`desde = '9999-12'`).
+
 ### Fases siguientes
 - **Fase 7, despliegue:** en Netlify (origen propio), no en GitHub Pages. Pasos en `docs/DESPLEGAR.md`.
 
