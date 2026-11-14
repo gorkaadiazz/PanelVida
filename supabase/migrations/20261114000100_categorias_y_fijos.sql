@@ -62,3 +62,32 @@ create policy "solo_mis_filas_delete" on public.movimientos_fijos
 revoke all on public.movimientos_fijos from anon;
 -- Por si los privilegios por defecto no se aplicaron (mínimo privilegio, B2)
 revoke truncate, references, trigger on public.movimientos_fijos from authenticated;
+
+-- 3. Un movimiento borrado no vuelve. El apunte de un fijo tiene un id fijo
+--    (fijo + mes): si un dispositivo sin conexión lo apunta después de que
+--    otro lo haya apuntado y el usuario lo haya borrado, al subirlo lo
+--    volvería a crear. Este trigger lo ignora en silencio (no es un error:
+--    el dispositivo baja el borrado justo después y quita su copia).
+--    Los ids aleatorios (v4) nunca se repiten, así que no afecta a nada más.
+create index borrados_user_tabla_fila_idx on public.borrados (user_id, tabla, fila_id);
+
+create or replace function public.no_revivir_borrado()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if exists (
+    select 1 from public.borrados b
+    where b.user_id = new.user_id and b.tabla = tg_table_name and b.fila_id = new.id
+  ) then
+    return null;
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.no_revivir_borrado() from public, anon, authenticated;
+
+create trigger no_revivir_borrado before insert on public.movimientos
+  for each row execute function public.no_revivir_borrado();

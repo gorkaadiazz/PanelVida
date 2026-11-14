@@ -16,11 +16,23 @@ import { createClient } from 'npm:@supabase/supabase-js@2'
 import { contarPendientes, diaSiguiente, enMadrid, textoRecordatorio } from '../_shared/recordatorio.ts'
 import { enviar, type ClavesVapid } from '../_shared/webpush.ts'
 
+/** Dispositivos a los que se envía como mucho por usuario y ejecución (la base admite 10). */
+const MAX_POR_USUARIO = 10
+
 const responder = (estado: number, datos: unknown) =>
   new Response(JSON.stringify(datos), { status: estado, headers: { 'content-type': 'application/json; charset=utf-8' } })
 
 Deno.serve(async (req) => {
   if (req.method !== 'POST') return responder(405, { mensaje: 'Método no permitido.' })
+
+  // 1. Solo el cron (secreto de Vault). Primero lo barato: sin cabecera, fuera.
+  const secreto = req.headers.get('x-cron-secret') ?? ''
+  if (secreto.length < 32 || secreto.length > 256) return responder(401, { mensaje: 'No autorizado.' })
+  const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  })
+  const { data: valido, error: errorSecreto } = await admin.rpc('secreto_cron_valido', { secreto })
+  if (errorSecreto || valido !== true) return responder(401, { mensaje: 'No autorizado.' })
 
   const vapid: ClavesVapid = {
     publica: Deno.env.get('VAPID_PUBLIC_KEY') ?? '',
@@ -31,14 +43,6 @@ Deno.serve(async (req) => {
     console.error('Faltan los secretos VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY o VAPID_SUBJECT')
     return responder(500, { mensaje: 'Recordatorios sin configurar.' })
   }
-
-  const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  })
-
-  // 1. Solo el cron (secreto de Vault)
-  const { data: valido, error: errorSecreto } = await admin.rpc('secreto_cron_valido', { secreto: req.headers.get('x-cron-secret') ?? '' })
-  if (errorSecreto || valido !== true) return responder(401, { mensaje: 'No autorizado.' })
 
   try {
     const { dia, hora } = enMadrid(Date.now())
@@ -88,17 +92,21 @@ Deno.serve(async (req) => {
       )
       if (!texto) continue
 
-      // 5. Envío a cada dispositivo; las suscripciones caducadas se borran
-      for (const s of suyas.filter((s) => ids.has(s.id))) {
-        try {
-          const resultado = await enviar(s, { titulo: texto.titulo, cuerpo: texto.cuerpo, url: '/' }, vapid)
-          if (resultado === 'enviado') enviados++
-          else if (resultado === 'caducada') await admin.from('suscripciones_push').delete().eq('id', s.id)
-          else console.warn('El servicio de notificaciones ha rechazado un envío')
-        } catch {
-          console.warn('No se ha podido enviar una notificación')
-        }
-      }
+      // 5. Envío a sus dispositivos a la vez (como mucho MAX_POR_USUARIO, para
+      //    que nadie retrase a los demás); las suscripciones caducadas se borran
+      const destinos = suyas.filter((s) => ids.has(s.id)).slice(0, MAX_POR_USUARIO)
+      await Promise.all(
+        destinos.map(async (s) => {
+          try {
+            const resultado = await enviar(s, { titulo: texto.titulo, cuerpo: texto.cuerpo }, vapid)
+            if (resultado === 'enviado') enviados++
+            else if (resultado === 'caducada') await admin.from('suscripciones_push').delete().eq('id', s.id)
+            else console.warn('El servicio de notificaciones ha rechazado un envío')
+          } catch {
+            console.warn('No se ha podido enviar una notificación')
+          }
+        }),
+      )
     }
     return responder(200, { usuarios: porUsuario.size, enviados })
   } catch (error) {

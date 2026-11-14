@@ -2,6 +2,7 @@ import { useEffect, useId, useState, type CSSProperties } from 'react'
 import { HORA_POR_DEFECTO, HORAS, textoHora } from '../lib/recordatorios'
 import { activarRecordatorios, cambiarHora, desactivarRecordatorios, estadoRecordatorios, type EstadoRecordatorios } from '../repos/recordatorios'
 import { AvisoError } from './AvisoError'
+import { IconoAviso } from './iconos'
 import { useAccion } from './useAccion'
 
 /**
@@ -50,30 +51,56 @@ export function Recordatorios() {
       <AvisoError mensaje={error} onCerrar={limpiar} />
 
       {estado === 'cargando' ? (
-        <span className="skeleton" aria-hidden="true" style={{ '--h': '2.75rem' } as CSSProperties} />
+        <div role="status" aria-busy="true">
+          <span className="visually-hidden">Comprobando si están activados…</span>
+          <span className="skeleton" aria-hidden="true" style={{ '--h': '2.75rem' } as CSSProperties} />
+        </div>
       ) : estado === 'error' ? (
-        <p className="t-small">No se ha podido saber si están activados. Comprueba la conexión.</p>
+        <div className="stack" style={{ '--gap': 'var(--sp-2)' } as CSSProperties}>
+          <p className="t-small">No se ha podido saber si están activados. Comprueba la conexión.</p>
+          <div>
+            <button
+              type="button"
+              className="btn btn--ghost"
+              onClick={() => {
+                setEstado('cargando')
+                void leer()
+              }}
+            >
+              Reintentar
+            </button>
+          </div>
+        </div>
       ) : estado.tipo === 'sin-configurar' ? (
         <p className="t-small">Aún no están disponibles en esta app.</p>
       ) : estado.tipo === 'no-soportado' ? (
-        <p className="t-small">
-          Este navegador no permite notificaciones. En iPhone, primero añade Mi Panel a la pantalla de inicio (Compartir → Añadir a pantalla
-          de inicio) y ábrela desde ahí.
-        </p>
+        <div className="alert alert--warn">
+          <IconoAviso />
+          <p className="alert__body">
+            Este navegador no permite notificaciones. En iPhone, primero añade Mi Panel a la pantalla de inicio (Compartir → Añadir a
+            pantalla de inicio) y ábrela desde ahí.
+          </p>
+        </div>
       ) : estado.tipo === 'bloqueado' ? (
-        <p className="t-small">Has bloqueado las notificaciones de esta web. Actívalas en los ajustes del navegador y vuelve aquí.</p>
+        <div className="alert alert--warn">
+          <IconoAviso />
+          <p className="alert__body">Has bloqueado las notificaciones de esta web. Actívalas en los ajustes del navegador y vuelve aquí.</p>
+        </div>
       ) : (
         <>
           <div className="field" style={{ maxWidth: '12rem' }}>
             <label htmlFor={`${id}-hora`} className="field__label">
               Hora del aviso
             </label>
+            {/* aria-disabled y no disabled: al desactivarse con el foco dentro, el
+                navegador lo suelta al <body> (con teclado, cada flecha cambia la hora) */}
             <select
               id={`${id}-hora`}
               className="input"
               value={hora}
-              disabled={ocupado}
+              aria-disabled={ocupado || undefined}
               onChange={(e) => {
+                if (ocupado) return
                 const nueva = Number(e.target.value)
                 setHora(nueva)
                 if (activado) void hacer(() => cambiarHora(nueva))
@@ -87,15 +114,20 @@ export function Recordatorios() {
             </select>
           </div>
           <div>
-            {activado ? (
-              <button type="button" className="btn btn--secondary" disabled={ocupado} aria-busy={ocupado || undefined} onClick={() => void hacer(desactivarRecordatorios)}>
-                Desactivar recordatorios
-              </button>
-            ) : (
-              <button type="button" className="btn btn--primary" disabled={ocupado} aria-busy={ocupado || undefined} onClick={() => void hacer(() => activarRecordatorios(hora))}>
-                Activar recordatorios
-              </button>
-            )}
+            {/* Un solo botón (React lo reutiliza al cambiar de estado) y aria-disabled
+                en vez de disabled: tras activar o desactivar, el foco sigue en él */}
+            <button
+              type="button"
+              className={`btn ${activado ? 'btn--secondary' : 'btn--primary'}`}
+              aria-disabled={ocupado || undefined}
+              aria-busy={ocupado || undefined}
+              onClick={() => {
+                if (ocupado) return
+                void hacer(activado ? desactivarRecordatorios : () => activarRecordatorios(hora))
+              }}
+            >
+              {activado ? 'Desactivar recordatorios' : 'Activar recordatorios'}
+            </button>
           </div>
           <p className="t-small muted" role="status">
             {activado ? `Activados: te avisaremos sobre las ${textoHora(hora)}.` : 'Desactivados en este dispositivo.'}

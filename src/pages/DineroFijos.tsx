@@ -192,7 +192,7 @@ function FilaFijo({ fijo: f, hoy, ejecutar }: { fijo: Fijo; hoy: FechaDia; ejecu
   const categoria = esCategoria(f.categoria) ? NOMBRE_CATEGORIA[f.categoria] : null
 
   return (
-    <li className="list__item movimiento">
+    <li className="list__item movimiento fijo">
       <div className="list__main">
         <p className="break">{f.concepto}</p>
         <p className="t-small muted">
@@ -213,7 +213,7 @@ function FilaFijo({ fijo: f, hoy, ejecutar }: { fijo: Fijo; hoy: FechaDia; ejecu
         {formatearEuros(f.importe_centimos)}
       </span>
       <div className="acciones">
-        <button type="button" className="btn btn--ghost" aria-label={`${f.activo ? 'Pausar' : 'Reanudar'}: ${f.concepto}`} onClick={() => void ejecutar(() => pausarFijo(f.id, f.activo, hoy))}>
+        <button type="button" className="btn btn--ghost fijo__pausa" aria-label={`${f.activo ? 'Pausar' : 'Reanudar'}: ${f.concepto}`} onClick={() => void ejecutar(() => pausarFijo(f.id, f.activo, hoy))}>
           {f.activo ? 'Pausar' : 'Reanudar'}
         </button>
         <button
@@ -222,7 +222,7 @@ function FilaFijo({ fijo: f, hoy, ejecutar }: { fijo: Fijo; hoy: FechaDia; ejecu
           className="icon-btn"
           aria-label={`Editar: ${f.concepto}`}
           onClick={() => {
-            setDatos({ tipo: f.tipo, concepto: f.concepto, importe: centimosATexto(f.importe_centimos), dia: String(f.dia), categoria: f.categoria ?? '' })
+            setDatos({ tipo: f.tipo, concepto: f.concepto, importe: centimosATexto(f.importe_centimos), dia: String(f.dia), categoria: esCategoria(f.categoria) ? f.categoria : '' })
             setModo('editar')
           }}
         >

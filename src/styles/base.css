@@ -717,7 +717,8 @@ button.card:active {
   box-shadow: 0 0 0 3px var(--danger-soft);
 }
 
-.input:disabled {
+.input:disabled,
+.input[aria-disabled="true"] {   /* aria-disabled: conserva el foco mientras guarda */
   background: var(--surface-sunken);
   color: var(--text-2);
   cursor: not-allowed;
@@ -1374,6 +1375,15 @@ a.list__item:focus-visible {
   .movimiento > .importe { grid-area: importe; justify-self: end; align-self: end; }
   .movimiento > .acciones { grid-area: acciones; justify-self: end; }
 
+  /* Fijo: tres acciones (Pausar + dos iconos) en la columna del importe
+     dejaban ~120 px al texto y el subtítulo se partía en 4 líneas. Las
+     acciones bajan a su propia línea, a todo el ancho. */
+  .fijo {
+    grid-template-areas: "main importe" "acciones acciones";
+    align-items: start;
+  }
+  .fijo > .importe { align-self: start; }
+
   /* Cliente: la lista de estado y dos botones dejaban poco al nombre; bajan a su línea */
   .cliente {
     flex-wrap: wrap;
@@ -1670,7 +1680,7 @@ p.num--xl {
 }
 .categorias__fila {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: minmax(0, 1fr) auto;   /* importes enormes no empujan fuera de la tarjeta */
   gap: var(--sp-1) var(--sp-3);
   align-items: baseline;
 }
@@ -1698,6 +1708,9 @@ p.num--xl {
   transition: transform var(--dur-base) var(--ease-out);
 }
 .fijos[open] > summary::after { transform: rotate(-135deg); }
+.fijo__pausa {       /* acción de texto junto a iconos: un poco de aire para no leerse pegada */
+  margin-inline-end: var(--sp-1);
+}
 @media (prefers-reduced-motion: reduce) {
   .fijos > summary::after { transition: none; }
 }
@@ -1711,6 +1724,17 @@ p.num--xl {
 .semana > div {
   display: grid;
   gap: 2px;
+  min-width: 0;
+}
+/* Cada cifra es un bloque: un filete los separa para que la comparación
+   («igual que la semana pasada») se lea con su cifra y no con la siguiente */
+.semana > div + div {
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--border);
+}
+.semana dd > .num--lg {
+  white-space: normal;
+  overflow-wrap: anywhere;   /* ahorros de muchas cifras a 360 px */
 }
 .semana dt {
   color: var(--text-2);

@@ -29,6 +29,26 @@ create table public.suscripciones_push (
   unique (user_id, endpoint)
 );
 
+-- Como mucho 10 dispositivos por usuario: sin tope, alguien podría meter
+-- miles de suscripciones falsas y retrasar los avisos de los demás.
+create or replace function public.tope_suscripciones_push()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if (select count(*) from public.suscripciones_push where user_id = new.user_id) >= 10 then
+    raise exception 'Demasiados dispositivos con recordatorios' using errcode = 'check_violation';
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.tope_suscripciones_push() from public, anon, authenticated;
+
+create trigger tope_suscripciones before insert on public.suscripciones_push
+  for each row execute function public.tope_suscripciones_push();
+
 create index suscripciones_push_hora_idx on public.suscripciones_push (hora);
 
 alter table public.suscripciones_push enable row level security;

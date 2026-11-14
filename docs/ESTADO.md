@@ -79,6 +79,15 @@ Comprobaciones ahora mismo: `npm test -- --run` 473/473, `npm run test:sql` 41/4
 - Aprobado por seguridad y tester (321 tests).
 - La sincronización guarda ahora qué tablas ha bajado enteras: una tabla nueva (estas, y las de la fase 5) se baja completa aunque el dispositivo ya estuviera al día.
 
+### Mejoras tras el despliegue (14/11/2026)
+- Negocio: lista «Mover a…» en vez de flechas.
+- Carga más rápida: cada pantalla se descarga aparte; React y supabase-js en archivos propios.
+- Dinero: categorías de gastos con resumen «En qué gastas» y movimientos fijos que se apuntan solos cada mes (id determinista por fijo y mes; `ultimo_mes` evita que reaparezca un mes borrado).
+- Inicio: tarjeta «Esta semana» frente a los mismos días de la semana pasada.
+- Recordatorios diarios por notificación (Web Push), con cifrado y VAPID propios y cron en la base de datos. Pasos para activarlos: `docs/RECORDATORIOS.md`.
+- Un apunte de un fijo borrado no reaparece aunque otro dispositivo lo apunte sin conexión: el trigger `no_revivir_borrado` ignora en el servidor un movimiento cuyo id ya está en `borrados`.
+- Seguridad (14/11): tope de 10 dispositivos con recordatorios por usuario, el cron se comprueba antes que nada y cada activación crea una suscripción nueva (un navegador compartido no recibe avisos de otra cuenta).
+
 ### Fases siguientes
 - **Fase 7, despliegue:** en Netlify (origen propio), no en GitHub Pages. Pasos en `docs/DESPLEGAR.md`.
 

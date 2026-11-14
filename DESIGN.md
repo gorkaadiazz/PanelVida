@@ -326,6 +326,13 @@ Clases `.mod-sor`, `.mod-si`, `.mod-sr`, `.mod-ao`, `.mod-cnv`, `.mod-ipe2`, `.m
 - **Carga**: mientras llega la primera copia, las cifras de las tarjetas son `.skeleton` (nunca un «0,00 €» falso). Si falla la lectura, solo se muestra el `.alert`: no se enseña el vacío «Aún no has apuntado nada».
 - **Cifra destacada en bloque** (`p.num--xl`): puede partirse si no cabe, antes que desbordar la tarjeta.
 
+### Mejoras tras el despliegue
+- `.mover`: lista «Mover a…» del cliente dentro de `.acciones` (44 px, etiqueta oculta). Con teclado el cambio se aplica con Enter o al salir; con ratón o dedo, al momento.
+- `.categorias` / `.categorias__fila`: gastos por categoría; nombre e importe en una fila y barra `.progress--grafica` (token `--grafica`) debajo. La barra es decorativa: el porcentaje va escrito.
+- `details.fijos`: sección plegable de fijos (summary de 44 px con flecha que gira; sin animación con movimiento reducido). `.fijo`: por debajo de 480 px las acciones bajan a su propia línea.
+- `.semana`: cifras de la tarjeta «Esta semana», separadas por un filete; `.num--lg` es la cifra mediana (`--fs-xl`), entre el cuerpo y `.num--xl`.
+- Recordatorios (Cuenta): los casos «no soportado» y «bloqueado» son `.alert--warn` con icono; los controles ocupados usan `aria-disabled` (no `disabled`) para no perder el foco.
+
 ### Movimiento
 - Duraciones: `--dur-press` 120 ms (pulsar), `--dur-fast` 160 ms (color, casilla), `--dur-base` 220 ms (menús, avisos, progreso), `--dur-slow` 320 ms (hojas inferiores; tope).
 - Curvas: `--ease-out` cubic-bezier(0.23, 1, 0.32, 1) para casi todo; `--ease-in-out` para lo que se mueve dentro de la pantalla; `--ease-sheet` cubic-bezier(0.32, 0.72, 0, 1) para hojas. Nunca `ease-in`.

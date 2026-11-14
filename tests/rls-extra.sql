@@ -859,6 +859,27 @@ insert into public.movimientos (id, tipo, concepto, importe_centimos, fecha, upd
 select pg_temp.comprobar((select categoria from public.movimientos where id = 'a0000000-0000-4000-8000-000000000e21') = 'comida',
   'un upsert sin la columna categoria la ha borrado');
 
+-- @caso: movimientos: un movimiento borrado no se vuelve a crear con el mismo id (y los demás sí se crean)
+reset role;
+select pg_temp.como('aaaaaaaa-0000-4000-8000-000000000001');
+insert into public.movimientos (id, tipo, concepto, importe_centimos, fecha)
+  values ('a0000000-0000-4000-8000-000000000e31', 'gasto', 'Gimnasio', 3000, '2026-11-01');
+delete from public.movimientos where id = 'a0000000-0000-4000-8000-000000000e31';
+-- Un dispositivo sin conexión lo sube otra vez (upsert, como la app)
+insert into public.movimientos (id, tipo, concepto, importe_centimos, fecha)
+  values ('a0000000-0000-4000-8000-000000000e31', 'gasto', 'Gimnasio', 3000, '2026-11-01')
+  on conflict (id) do update set concepto = excluded.concepto;
+select pg_temp.comprobar(not exists (select 1 from public.movimientos where id = 'a0000000-0000-4000-8000-000000000e31'),
+  'un movimiento borrado ha vuelto a aparecer');
+-- El borrado de A no impide a B usar su propio id (no comparten nada)
+select pg_temp.como('bbbbbbbb-0000-4000-8000-000000000002');
+insert into public.movimientos (id, tipo, concepto, importe_centimos, fecha)
+  values ('b0000000-0000-4000-8000-000000000e31', 'gasto', 'Gimnasio B', 3000, '2026-11-01');
+select pg_temp.comprobar(exists (select 1 from public.movimientos where id = 'b0000000-0000-4000-8000-000000000e31'),
+  'no se puede crear un movimiento nuevo');
+select pg_temp.como('anon');
+select pg_temp.debe_fallar($q$select public.no_revivir_borrado()$q$, array['42501', '0A000'], 'anon ejecuta no_revivir_borrado');
+
 -- @caso: movimientos_fijos: B no ve, edita ni borra los de A, y no se pueden crear a nombre de otro
 reset role;
 select pg_temp.como('aaaaaaaa-0000-4000-8000-000000000001');
@@ -933,6 +954,20 @@ select pg_temp.debe_fallar($q$select count(*) from public.suscripciones_push$q$,
 select pg_temp.como('aaaaaaaa-0000-4000-8000-000000000001');
 select pg_temp.comprobar((select hora = 20 and p256dh = repeat('A', 87) from public.suscripciones_push
   where id = 'a0000000-0000-4000-8000-000000000f41'), 'B ha cambiado o borrado la suscripción de A');
+
+-- @caso: suscripciones_push: como mucho 10 dispositivos por usuario
+reset role;
+select pg_temp.como('aaaaaaaa-0000-4000-8000-000000000001');
+insert into public.suscripciones_push (endpoint, p256dh, auth)
+  select 'https://fcm.googleapis.com/fcm/send/tope' || i, repeat('A', 87), repeat('B', 22) from generate_series(1, 10) i;
+select pg_temp.debe_fallar($q$insert into public.suscripciones_push (endpoint, p256dh, auth)
+  values ('https://fcm.googleapis.com/fcm/send/tope11', repeat('A', 87), repeat('B', 22))$q$, array['23514'], 'una suscripción número 11');
+-- El tope es por usuario: B sí puede
+select pg_temp.como('bbbbbbbb-0000-4000-8000-000000000002');
+insert into public.suscripciones_push (endpoint, p256dh, auth)
+  values ('https://fcm.googleapis.com/fcm/send/tope-b', repeat('A', 87), repeat('B', 22));
+select pg_temp.como('anon');
+select pg_temp.debe_fallar($q$select public.tope_suscripciones_push()$q$, array['42501', '0A000'], 'anon ejecuta la función del tope');
 
 -- @caso: secreto_cron_valido: solo la service role puede preguntarlo, y sin Vault siempre es falso
 reset role;

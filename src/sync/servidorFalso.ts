@@ -62,6 +62,8 @@ export function crearServidorFalso(tablas: readonly DefTabla[] = TABLAS): Servid
     const t = tabla(nombre)
     const id = String(fila.id)
     const vieja = t.get(id)
+    // Como el trigger no_revivir_borrado: un movimiento borrado no se vuelve a crear
+    if (!vieja && nombre === 'movimientos' && borrados.some((b) => b.tabla === nombre && b.fila_id === id)) return
     const updated_at = typeof fila.updated_at === 'string' ? fila.updated_at : tic()
     if (vieja && Date.parse(updated_at) < Date.parse(vieja.updated_at)) return // versión antigua: se queda la que había
     t.set(id, {

@@ -121,7 +121,8 @@ export function Dinero() {
           <section className="card" aria-labelledby="dinero-categorias">
             <div className="card__head">
               <h2 id="dinero-categorias" className="card__titulo">
-                En qué gastas · {nombreMes(mes).replace(/ de \d+$/, '')}
+                {/* El mes ya está en la navegación de arriba: sin «· noviembre» en el título */}
+                {mes === mesActual ? 'En qué gastas este mes' : `En qué gastaste en ${nombreMes(mes).replace(/ de \d+$/, '')}`}
               </h2>
             </div>
             {sinDatos ? <EsqueletoCifra alto="6rem" /> : <GastosPorCategoria gastos={gastosPorCategoria(lista, mes)} />}
@@ -393,7 +394,7 @@ function FilaMovimiento({
   onCambioDeMes: (fecha: FechaDia) => void
 }) {
   const [modo, setModo] = useState<'ver' | 'editar' | 'borrar'>('ver')
-  const [datos, setDatos] = useState<DatosMovimiento>({ tipo: m.tipo, concepto: m.concepto, importe: '', fecha: m.fecha, categoria: m.categoria ?? '' })
+  const [datos, setDatos] = useState<DatosMovimiento>({ tipo: m.tipo, concepto: m.concepto, importe: '', fecha: m.fecha, categoria: esCategoria(m.categoria) ? m.categoria : '' })
   const id = useId()
   const fila = useRef<HTMLLIElement>(null)
   const botonEditar = useRef<HTMLButtonElement>(null)
@@ -481,7 +482,7 @@ function FilaMovimiento({
           className="icon-btn"
           aria-label={`Editar: ${m.concepto}`}
           onClick={() => {
-            setDatos({ tipo: m.tipo, concepto: m.concepto, importe: centimosATexto(m.importe_centimos), fecha: m.fecha, categoria: m.categoria ?? '' })
+            setDatos({ tipo: m.tipo, concepto: m.concepto, importe: centimosATexto(m.importe_centimos), fecha: m.fecha, categoria: esCategoria(m.categoria) ? m.categoria : '' })
             setModo('editar')
           }}
         >

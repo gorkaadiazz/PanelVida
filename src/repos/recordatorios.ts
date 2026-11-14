@@ -60,9 +60,16 @@ export async function activarRecordatorios(hora: number): Promise<void> {
   const permiso = await Notification.requestPermission()
   if (permiso !== 'granted') throw new ErrorDeValidacion('Sin permiso para enviar notificaciones. Puedes darlo en los ajustes del navegador.')
   const reg = await registro()
-  const sub =
-    (await reg.pushManager.getSubscription()) ??
-    (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: deBase64url(CLAVE_PUBLICA_VAPID) }))
+  // Siempre una suscripción NUEVA: si quedó una de otra cuenta en este
+  // navegador (cierre de sesión sin red), su dirección deja de valer y ese
+  // usuario ya no recibe aquí sus avisos.
+  const vieja = await reg.pushManager.getSubscription()
+  if (vieja) {
+    // Su fila (si es de esta cuenta; RLS no deja tocar otras) sobra: no cuenta para el tope de 10
+    await supabase.from('suscripciones_push').delete().eq('endpoint', vieja.endpoint)
+    await vieja.unsubscribe()
+  }
+  const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: deBase64url(CLAVE_PUBLICA_VAPID) })
   const { error } = await supabase
     .from('suscripciones_push')
     .upsert({ endpoint: sub.endpoint, ...claves(sub), hora }, { onConflict: 'user_id,endpoint' })

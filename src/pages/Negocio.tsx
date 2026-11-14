@@ -232,6 +232,19 @@ function FilaCliente({ cliente: c, ejecutar }: { cliente: Cliente; ejecutar: Eje
   }
 
   const estado = esEstado(c.estado) ? c.estado : null
+  // Estado elegido con el teclado que aún no se ha aplicado (ver el <select>)
+  const [elegido, setElegido] = useState<string | null>(null)
+  const porTeclado = useRef(false)
+  const yaAplicado = useRef<string | null>(null) // Enter y luego blur no lo mueven dos veces
+  function aplicarEstado(nuevo: string) {
+    setElegido(null)
+    if (!esEstado(nuevo) || nuevo === estado || yaAplicado.current === nuevo) return
+    yaAplicado.current = nuevo
+    // Si falla, se puede volver a intentar con el mismo estado
+    void sacar(() => moverCliente(c.id, nuevo)).finally(() => {
+      yaAplicado.current = null
+    })
+  }
 
   if (modo === 'editar') {
     return (
@@ -284,14 +297,25 @@ function FilaCliente({ cliente: c, ejecutar }: { cliente: Cliente; ejecutar: Eje
           Mover a {c.nombre} a otro estado
         </label>
         {/* Lista nativa: en el móvil abre el selector del sistema y deja saltar
-            de Contacto a Entregado de una vez, sin ir paso a paso */}
+            de Contacto a Entregado de una vez, sin ir paso a paso.
+            Con el teclado, en Windows cada flecha sobre la lista cerrada ya
+            dispara «change»: entonces el cambio espera a Enter o a salir de
+            la lista, para no mover el cliente un estado por pulsación. */}
         <select
           id={`${id}-estado`}
           className="input mover"
-          value={estado ?? ''}
+          value={elegido ?? estado ?? ''}
+          onKeyDown={(e) => {
+            porTeclado.current = true
+            if (e.key === 'Enter') aplicarEstado(e.currentTarget.value)
+          }}
+          onPointerDown={() => {
+            porTeclado.current = false
+          }}
+          onBlur={(e) => aplicarEstado(e.currentTarget.value)}
           onChange={(e) => {
-            const nuevo = e.target.value
-            if (esEstado(nuevo) && nuevo !== estado) void sacar(() => moverCliente(c.id, nuevo))
+            if (porTeclado.current) setElegido(e.target.value)
+            else aplicarEstado(e.target.value)
           }}
         >
           {!estado && <option value="">Estado desconocido</option>}

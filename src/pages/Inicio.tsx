@@ -402,7 +402,7 @@ function TarjetaSemana({ hoy }: { hoy: FechaDia }) {
         <h2 id="inicio-semana" className="card__titulo">
           Esta semana
         </h2>
-        <span className="t-small muted">{r.dias === 7 ? 'de lunes a domingo' : r.dias === 1 ? 'hoy lunes' : `${r.dias} días`}</span>
+        <span className="t-small muted">{r.dias === 7 ? 'De lunes a domingo' : r.dias === 1 ? 'Hoy lunes' : 'De lunes a hoy'}</span>
       </div>
       {cargando && !habitos.datos?.length && !movimientos.datos?.length ? (
         <Esqueleto />
@@ -411,7 +411,8 @@ function TarjetaSemana({ hoy }: { hoy: FechaDia }) {
           <div>
             <dt>Hábitos cumplidos</dt>
             <dd>
-              <span className="num num--lg">{r.actual.habitosPosibles ? `${pct} %` : '—'}</span>
+              {/* Sin hábitos no hay porcentaje: una frase en vez de una raya que no se entiende ni se lee */}
+              {r.actual.habitosPosibles > 0 ? <span className="num num--lg">{pct} %</span> : <span className="muted">Aún no hay hábitos que marcar</span>}
               {r.actual.habitosPosibles > 0 && (
                 <span className="t-small muted">
                   <span className="num">
