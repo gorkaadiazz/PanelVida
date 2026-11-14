@@ -2,6 +2,7 @@ import { useState, type CSSProperties } from 'react'
 import { nombreDeUsuario, useSesion } from '../auth/useSesion'
 import { EstadoSincronizacion } from '../components/EstadoSincronizacion'
 import { Pagina } from '../components/Pagina'
+import { Recordatorios } from '../components/Recordatorios'
 import { IconoAviso } from '../components/iconos'
 import { useEstadoSync } from '../sync/hooks'
 import { cerrarSesion as cerrarSesionYBorrarCopia } from '../sync/sesion'
@@ -47,6 +48,8 @@ export function Cuenta() {
             </div>
           </dl>
         </section>
+
+        <Recordatorios />
 
         {/* Región siempre montada: así el aviso se anuncia al aparecer */}
         <div role="alert">

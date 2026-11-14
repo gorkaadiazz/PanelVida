@@ -830,6 +830,42 @@ export type Database = {
           },
         ]
       }
+      suscripciones_push: {
+        Row: {
+          auth: string
+          created_at: string
+          endpoint: string
+          hora: number
+          id: string
+          p256dh: string
+          ultimo_envio: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          auth: string
+          created_at?: string
+          endpoint: string
+          hora?: number
+          id?: string
+          p256dh: string
+          ultimo_envio?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          auth?: string
+          created_at?: string
+          endpoint?: string
+          hora?: number
+          id?: string
+          p256dh?: string
+          ultimo_envio?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       tareas: {
         Row: {
           created_at: string
@@ -947,6 +983,10 @@ export type Database = {
     Functions: {
       inicializar_cuenta: {
         Args: never
+        Returns: boolean
+      }
+      secreto_cron_valido: {
+        Args: { secreto: string }
         Returns: boolean
       }
       sumar_uso_ia: {

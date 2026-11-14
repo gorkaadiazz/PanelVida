@@ -54,6 +54,8 @@ export default defineConfig({
         // de la API de Supabase (*.supabase.co) ni de ningún otro origen.
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
         navigateFallback: '/index.html',
+        // Avisos de los recordatorios (public/push-sw.js)
+        importScripts: ['push-sw.js'],
         cleanupOutdatedCaches: true,
       },
     }),

@@ -14,6 +14,7 @@ import { abrirBase, usarBase, type BaseLocal } from './bd'
 import { contarPendientes } from './cola'
 import { crearMotor, type Motor } from './motor'
 import { crearRemotoSupabase } from './remoto'
+import { olvidarEsteDispositivo } from '../repos/recordatorios'
 
 /** Los cambios seguidos se agrupan: se suben al poco de dejar de tocar. */
 const ESPERA_TRAS_CAMBIO_MS = 1500
@@ -175,6 +176,8 @@ export async function cerrarSesion(): Promise<ResultadoCierre> {
   } catch (error) {
     console.error('No se pudieron subir los últimos cambios', error)
   }
+  // Este navegador deja de recibir los recordatorios de esta cuenta
+  await olvidarEsteDispositivo()
   // Primero los datos (no dependen de la red) y después la sesión.
   await detenerSync()
   await salir()

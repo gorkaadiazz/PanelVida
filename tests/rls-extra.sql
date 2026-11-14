@@ -904,6 +904,46 @@ insert into public.movimientos_fijos (id, tipo, concepto, importe_centimos, dia,
 select pg_temp.comprobar((select activo and ultimo_mes is null from public.movimientos_fijos where id = 'a0000000-0000-4000-8000-000000000f32'),
   'un fijo nuevo no nace activo y sin meses apuntados');
 
+-- @caso: suscripciones_push: cada uno solo ve y toca las suyas, con claves bien formadas
+reset role;
+select pg_temp.como('aaaaaaaa-0000-4000-8000-000000000001');
+insert into public.suscripciones_push (id, endpoint, p256dh, auth)
+  values ('a0000000-0000-4000-8000-000000000f41', 'https://fcm.googleapis.com/fcm/send/aaa',
+          repeat('A', 87), repeat('B', 22));
+select pg_temp.comprobar((select hora = 20 and ultimo_envio is null from public.suscripciones_push
+  where id = 'a0000000-0000-4000-8000-000000000f41'), 'una suscripción nueva no nace a las 20 y sin envíos');
+select pg_temp.debe_fallar($q$insert into public.suscripciones_push (endpoint, p256dh, auth)
+  values ('http://inseguro.test/x', repeat('A', 87), repeat('B', 22))$q$, array['23514'], 'un endpoint sin https');
+select pg_temp.debe_fallar($q$insert into public.suscripciones_push (endpoint, p256dh, auth)
+  values ('https://fcm.googleapis.com/fcm/send/bbb', 'corta', repeat('B', 22))$q$, array['23514'], 'una clave p256dh mal formada');
+select pg_temp.debe_fallar($q$insert into public.suscripciones_push (endpoint, p256dh, auth, hora)
+  values ('https://fcm.googleapis.com/fcm/send/ccc', repeat('A', 87), repeat('B', 22), 24)$q$, array['23514'], 'la hora 24');
+select pg_temp.como('bbbbbbbb-0000-4000-8000-000000000002');
+select pg_temp.comprobar((select count(*) from public.suscripciones_push) = 0, 'B ve las suscripciones de A');
+update public.suscripciones_push set hora = 3;
+delete from public.suscripciones_push;
+select pg_temp.debe_fallar($q$insert into public.suscripciones_push (endpoint, p256dh, auth, user_id)
+  values ('https://fcm.googleapis.com/fcm/send/ddd', repeat('A', 87), repeat('B', 22), 'aaaaaaaa-0000-4000-8000-000000000001')$q$,
+  array['42501'], 'B crea una suscripción a nombre de A');
+-- El mismo navegador (endpoint) puede ser de B sin chocar con la de A
+insert into public.suscripciones_push (endpoint, p256dh, auth)
+  values ('https://fcm.googleapis.com/fcm/send/aaa', repeat('C', 87), repeat('D', 22));
+select pg_temp.como('anon');
+select pg_temp.debe_fallar($q$select count(*) from public.suscripciones_push$q$, array['42501'], 'anon lee suscripciones_push');
+select pg_temp.como('aaaaaaaa-0000-4000-8000-000000000001');
+select pg_temp.comprobar((select hora = 20 and p256dh = repeat('A', 87) from public.suscripciones_push
+  where id = 'a0000000-0000-4000-8000-000000000f41'), 'B ha cambiado o borrado la suscripción de A');
+
+-- @caso: secreto_cron_valido: solo la service role puede preguntarlo, y sin Vault siempre es falso
+reset role;
+select pg_temp.como('anon');
+select pg_temp.debe_fallar($q$select public.secreto_cron_valido(repeat('x', 64))$q$, array['42501'], 'anon pregunta el secreto del cron');
+select pg_temp.como('aaaaaaaa-0000-4000-8000-000000000001');
+select pg_temp.debe_fallar($q$select public.secreto_cron_valido(repeat('x', 64))$q$, array['42501'], 'un usuario pregunta el secreto del cron');
+select pg_temp.como('service');
+select pg_temp.comprobar(public.secreto_cron_valido(repeat('x', 64)) = false, 'un secreto cualquiera vale');
+select pg_temp.comprobar(public.secreto_cron_valido(null) = false and public.secreto_cron_valido('') = false, 'un secreto vacío vale');
+
 -- @caso: borrar un usuario de auth.users borra en cascada todas sus filas
 reset role;
 -- A tiene filas en las tablas de Mi Panel (preámbulo) y un borrado apuntado:
