@@ -328,7 +328,9 @@ function TarjetaAhorro({ hoy }: { hoy: FechaDia }) {
               </p>
               {linea && (
                 <p className="t-small">
-                  <Link to="/dinero?ver=prevision">{linea}</Link>
+                  <Link to="/dinero?ver=prevision" className="enlace-tap">
+                    {linea}
+                  </Link>
                 </p>
               )}
             </>

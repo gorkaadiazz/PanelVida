@@ -3,6 +3,8 @@
 // la gráfica con lo real y lo previsto. Todo sale de lib/prevision.ts.
 
 import { useId, useState, type CSSProperties } from 'react'
+import { Link } from 'react-router-dom'
+import { AvisoError } from '../components/AvisoError'
 import { GraficaPrevision } from '../components/GraficaPrevision'
 import { useHoy } from '../components/useHoy'
 import { guardarVentana, leerVentana } from '../components/ventanaPrevision'
@@ -56,6 +58,7 @@ export function DineroPrevision() {
 
   const lista = movimientos.datos ?? []
   const cargando = movimientos.cargando || (lista.length === 0 && !primeraDescargaHecha)
+  if (movimientos.error) return <AvisoError mensaje="No se han podido leer tus movimientos de este dispositivo. Recarga la página." />
   if (cargando && lista.length === 0) {
     return (
       <div className="stack" role="status" aria-busy="true" style={{ '--gap': 'var(--sp-2)' } as CSSProperties}>
@@ -129,7 +132,7 @@ export function DineroPrevision() {
         )}
         <fieldset className="grupo" style={{ marginTop: 'var(--sp-4)' }}>
           <legend className="t-label">Calcular con</legend>
-          <div className="segmentos">
+          <div className="segmentos prevision__ventana">
             {VENTANAS.map((v) => (
               <label key={v}>
                 <input
@@ -188,7 +191,7 @@ export function DineroPrevision() {
               max={AJUSTE_MAX}
               step={AJUSTE_PASO}
               value={ajuste}
-              aria-valuetext={`${ajuste > 0 ? 'más' : ajuste < 0 ? 'menos' : ''} ${formatearEuros(Math.abs(ajuste))} al mes`}
+              aria-valuetext={ajuste === 0 ? 'Sin cambio' : `${ajuste > 0 ? 'Más' : 'Menos'} ${formatearEuros(Math.abs(ajuste))} al mes`}
               onChange={(e) => setAjuste(Number(e.target.value))}
             />
           </div>
@@ -223,7 +226,7 @@ export function DineroPrevision() {
             <input id={`${id}-fecha`} type="date" className="input" min={hoy} value={fecha} onChange={(e) => setFecha(e.target.value)} />
           </div>
         )}
-        <p aria-live="polite">
+        <p>
           {fechaPlazo && tendras !== null ? (
             <>
               El {textoFecha(fechaPlazo, hoy)} tendrías <span className={`num${tendras < 0 ? ' text-danger' : ''}`}>{formatearEuros(tendras)}</span>{' '}
@@ -283,7 +286,9 @@ export function DineroPrevision() {
           {llegada ? (
             <span className={llegada.estado === 'no_llega' ? 'text-warn' : undefined}>{textoLlegada(llegada, hoy)}</span>
           ) : objetivo === 'meta' ? (
-            <span className="muted">Pon una meta de ahorro en Movimientos para saber cuándo llegas.</span>
+            <span className="muted">
+              <Link to="/dinero">Pon una meta de ahorro</Link> para saber cuándo llegas.
+            </span>
           ) : (
             <span className="muted">Escribe una cantidad.</span>
           )}

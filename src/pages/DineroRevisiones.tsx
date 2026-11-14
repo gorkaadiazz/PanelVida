@@ -3,6 +3,7 @@
 // como vista (deja de salir en Inicio).
 
 import { useEffect, useId, useState, type CSSProperties } from 'react'
+import { AvisoError } from '../components/AvisoError'
 import { Vacio } from '../components/Vacio'
 import { IconoDinero } from '../components/iconos'
 import { formatearEuros, NOMBRE_CATEGORIA } from '../lib/dinero'
@@ -15,7 +16,7 @@ type Ejecutar = (accion: () => Promise<unknown>) => Promise<boolean>
 const mayuscula = (texto: string) => texto.replace(/^./, (c) => c.toLocaleUpperCase('es-ES'))
 
 export function DineroRevisiones({ revisiones, ejecutar, cargando, error }: { revisiones: Revision[]; ejecutar: Ejecutar; cargando: boolean; error: boolean }) {
-  if (error) return null
+  if (error) return <AvisoError mensaje="No se han podido leer tus revisiones de este dispositivo. Recarga la página." />
   if (cargando && revisiones.length === 0) {
     return (
       <div className="stack" role="status" aria-busy="true" style={{ '--gap': 'var(--sp-2)' } as CSSProperties}>
@@ -42,7 +43,6 @@ export function DineroRevisiones({ revisiones, ejecutar, cargando, error }: { re
 }
 
 function TarjetaRevision({ revision: r, abierta: abrir, ejecutar }: { revision: Revision; abierta: boolean; ejecutar: Ejecutar }) {
-  const id = useId()
   // Abierta o no solo al entrar: al marcarla como vista no se cierra sola
   const [abierta] = useState(abrir)
   const periodo: Periodo = { tipo: r.tipo as TipoRevision, inicio: r.inicio, fin: r.fin }
@@ -61,9 +61,10 @@ function TarjetaRevision({ revision: r, abierta: abrir, ejecutar }: { revision: 
         if ((e.currentTarget as HTMLDetailsElement).open && !r.vista) void ejecutar(() => marcarVista(r.id))
       }}
     >
-      <summary aria-describedby={`${id}-tipo`}>
+      {/* Sin aria-describedby: las etiquetas ya forman parte del nombre del summary (se leían dos veces) */}
+      <summary>
         <span className="t-section">{mayuscula(nombrePeriodo(periodo))}</span>
-        <span id={`${id}-tipo`} className="row" style={{ '--gap': 'var(--sp-2)' } as CSSProperties}>
+        <span className="row" style={{ '--gap': 'var(--sp-2)' } as CSSProperties}>
           <span className="tag">{r.tipo === 'semanal' ? 'Semana' : 'Mes'}</span>
           {!r.vista && <span className="tag tag--info">Nueva</span>}
         </span>
@@ -109,7 +110,7 @@ function DetalleRevision({ datos: d, tipo }: { datos: DatosRevision; tipo: TipoR
               <li key={c.categoria ?? 'sin'} className="list__item revision__fila">
                 <span className="list__main">{c.categoria ? NOMBRE_CATEGORIA[c.categoria] : 'Sin categoría'}</span>
                 <span className="num">{formatearEuros(c.actual)}</span>
-                <span className={`t-small num revision__cambio${c.actual > c.anterior ? ' text-warn' : ' muted'}`}>{textoCambio(c.actual, c.anterior)}</span>
+                <span className={`t-small revision__cambio${c.actual !== c.anterior ? ' num' : ''}${c.actual > c.anterior ? ' text-warn' : ' muted'}`}>{textoCambio(c.actual, c.anterior)}</span>
               </li>
             ))}
           </ul>

@@ -3,6 +3,7 @@
 // uno dice lo que cuesta al día, a la semana, al mes y al año.
 
 import { useEffect, useId, useRef, useState, type CSSProperties, type FormEvent, type RefObject } from 'react'
+import { AvisoError } from '../components/AvisoError'
 import { CampoCategoria } from '../components/CampoCategoria'
 import { CampoNecesidad } from '../components/CampoNecesidad'
 import { prepararFoco } from '../components/foco'
@@ -58,6 +59,7 @@ export function DineroFijos({ fijos, hoy, ejecutar, cargando, error }: { fijos: 
 
   return (
     <div className="stack">
+      {error && <AvisoError mensaje="No se han podido leer tus fijos de este dispositivo. Recarga la página." />}
       <section className="card" aria-labelledby={`${id}-total`}>
         <div className="card__head">
           <h2 id={`${id}-total`} className="card__titulo">
@@ -169,6 +171,7 @@ function CamposFijo({ id, datos, cambiar, autoFocus }: { id: string; datos: Dato
             id={`${id}-frecuencia`}
             className="input"
             value={frecuencia}
+            aria-describedby={frecuencia === 'diaria' ? `${id}-diaria-ayuda` : undefined}
             onChange={(e) => cambiar({ frecuencia: e.target.value, dia: e.target.value === 'semanal' ? '1' : '', mes: '' })}
           >
             {FRECUENCIAS.map((f) => (
@@ -233,7 +236,7 @@ function CamposFijo({ id, datos, cambiar, autoFocus }: { id: string; datos: Dato
           Si el mes tiene menos días (31 en febrero), se apunta el último.
         </p>
       )}
-      {frecuencia === 'diaria' && <p className="field__hint">Para no llenar la lista, se apunta una vez por semana (el domingo) con lo de los 7 días.</p>}
+      {frecuencia === 'diaria' && <p id={`${id}-diaria-ayuda`} className="field__hint">Para no llenar la lista, se apunta una vez por semana (el domingo) con lo de los 7 días.</p>}
     </>
   )
 }
