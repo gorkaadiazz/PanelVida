@@ -58,6 +58,10 @@ export const TABLAS = [
   // Fase 8: bandeja de ideas
   { nombre: 'ideas', columnas: ['texto', 'archivada'] },
   { nombre: 'cumpleanos', columnas: ['nombre', 'dia', 'mes', 'anio', 'notas'] },
+  {
+    nombre: 'planes',
+    columnas: ['titulo', 'tipo', 'con_quien', 'fecha', 'coste_centimos', 'notas', 'estado', 'valoracion', 'comentario'],
+  },
   { nombre: 'clientes_web', columnas: ['nombre', 'precio_centimos', 'notas', 'estado', 'orden'] },
   // Fila del perfil (la comparte la web de exámenes): Mi Panel solo lee y
   // cambia la meta de ahorro. La fila la crea inicializar_cuenta.

@@ -10,6 +10,7 @@ import { listarFijos, type Fijo } from './fijos'
 import { listarIdeas, type Idea } from './ideas'
 import { listarMovimientos, type Movimiento } from './movimientos'
 import { obtenerPerfil, type Perfil } from './perfil'
+import { listarPlanes, type Plan } from './planes'
 import { listarHabitos, listarMarcas, type Habito, type Marca } from './habitos'
 import { listarTareas, type Tarea } from './tareas'
 
@@ -54,6 +55,11 @@ export function useIdeas(): Consulta<Idea[]> {
 /** Todos los cumpleaños (sin ordenar: lib/cumpleanos los ordena por el próximo). */
 export function useCumpleanos(): Consulta<Cumple[]> {
   return useConsulta(['cumpleanos'], listarCumpleanos)
+}
+
+/** Todos los planes (sin ordenar: lib/planes los filtra y ordena). */
+export function usePlanes(): Consulta<Plan[]> {
+  return useConsulta(['planes'], listarPlanes)
 }
 
 /** Todos los clientes del negocio. */

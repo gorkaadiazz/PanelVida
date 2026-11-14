@@ -814,6 +814,57 @@ export type Database = {
         }
         Relationships: []
       }
+      planes: {
+        Row: {
+          comentario: string
+          con_quien: string
+          coste_centimos: number | null
+          created_at: string
+          estado: string
+          fecha: string | null
+          id: string
+          notas: string
+          sync_at: string
+          tipo: string
+          titulo: string
+          updated_at: string
+          user_id: string
+          valoracion: number | null
+        }
+        Insert: {
+          comentario?: string
+          con_quien?: string
+          coste_centimos?: number | null
+          created_at?: string
+          estado?: string
+          fecha?: string | null
+          id?: string
+          notas?: string
+          sync_at?: string
+          tipo?: string
+          titulo: string
+          updated_at?: string
+          user_id?: string
+          valoracion?: number | null
+        }
+        Update: {
+          comentario?: string
+          con_quien?: string
+          coste_centimos?: number | null
+          created_at?: string
+          estado?: string
+          fecha?: string | null
+          id?: string
+          notas?: string
+          sync_at?: string
+          tipo?: string
+          titulo?: string
+          updated_at?: string
+          user_id?: string
+          valoracion?: number | null
+        }
+        Relationships: []
+      }
       pomodoro_sesiones: {
         Row: {
           created_at: string

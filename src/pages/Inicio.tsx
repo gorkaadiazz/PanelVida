@@ -6,10 +6,10 @@ import { EtiquetaFecha } from '../components/EtiquetaFecha'
 import { Pagina } from '../components/Pagina'
 import { prepararFoco } from '../components/foco'
 import { Racha } from '../components/Racha'
-import { IconoDinero, IconoEstudios, IconoCumple, IconoExterno, IconoFlecha, IconoHabitos, IconoIdea, IconoNegocio, IconoTareas } from '../components/iconos'
+import { IconoDinero, IconoEstudios, IconoCumple, IconoExterno, IconoFlecha, IconoHabitos, IconoIdea, IconoNegocio, IconoPlan, IconoTareas } from '../components/iconos'
 import { useAccion } from '../components/useAccion'
 import { useHoy } from '../components/useHoy'
-import type { FechaDia } from '../lib/fechas'
+import { diferenciaDias, formatearFecha, type FechaDia } from '../lib/fechas'
 import { formatearEuros, mesDe, progresoMeta, resumenMes, resumir } from '../lib/dinero'
 import { URL_EXAMENES } from '../lib/enlaces'
 import { proximoExamen, textoCuentaAtras } from '../lib/examenes'
@@ -17,10 +17,11 @@ import { cuadricula } from '../lib/habitos'
 import { resumenNegocio } from '../lib/negocio'
 import { porcentaje, resumenSemana, textoComparacion } from '../lib/semana'
 import { ideasSinProcesar } from '../lib/ideas'
+import { esTipoPlan, NOMBRE_TIPO_PLAN, proximoPlan } from '../lib/planes'
 import { DIAS_EN_INICIO, proximosDias, textoCuentaAtras as cuentaAtrasCumple, textoDiaMes } from '../lib/cumpleanos'
 import { recuentoTareas } from '../lib/tareas'
 import { alternarDia } from '../repos/habitos'
-import { useClientes, useCumpleanos, useExamenes, useHabitos, useIdeas, useMarcas, useMovimientos, usePerfil, useTareas } from '../repos/hooks'
+import { useClientes, useCumpleanos, useExamenes, useHabitos, useIdeas, useMarcas, useMovimientos, usePerfil, usePlanes, useTareas } from '../repos/hooks'
 import { marcarTarea } from '../repos/tareas'
 import { useEstadoSync } from '../sync/hooks'
 
@@ -57,6 +58,7 @@ export function Inicio() {
           <TarjetaTareas hoy={dia} ejecutar={ejecutar} />
           <TarjetaExamen hoy={dia} />
           <TarjetaCumples hoy={dia} />
+          <TarjetaPlan hoy={dia} />
           <TarjetaAhorro hoy={dia} />
           <TarjetaNegocio />
           <TarjetaSemana hoy={dia} />
@@ -523,6 +525,50 @@ function TarjetaCumples({ hoy }: { hoy: FechaDia }) {
       <div className="card__foot">
         <Link to="/cumpleanos" className="btn btn--ghost">
           {lista.length === 0 && !cargando ? 'Apuntar cumpleaños' : 'Ver todos'}
+          <IconoFlecha />
+        </Link>
+      </div>
+    </section>
+  )
+}
+
+/** El próximo plan con fecha. */
+function TarjetaPlan({ hoy }: { hoy: FechaDia }) {
+  const planes = usePlanes()
+  const { primeraDescargaHecha } = useEstadoSync()
+  const lista = planes.datos ?? []
+  const plan = proximoPlan(lista, hoy)
+  const cargando = planes.cargando || (lista.length === 0 && !primeraDescargaHecha)
+  const dias = plan?.fecha ? diferenciaDias(hoy, plan.fecha) : 0
+
+  return (
+    <section className="card" aria-labelledby="inicio-plan">
+      <div className="card__head">
+        <h2 id="inicio-plan" className="card__titulo">
+          <IconoPlan />
+          Próximo plan
+        </h2>
+      </div>
+      {cargando && lista.length === 0 ? (
+        <Esqueleto />
+      ) : !plan ? (
+        <p className="muted">{lista.length ? 'Ningún plan con fecha. Ponle fecha a alguna idea.' : 'Aún no tienes planes.'}</p>
+      ) : (
+        <div className="stack" style={{ '--gap': 'var(--sp-1)' } as CSSProperties}>
+          <p className="break" style={{ fontWeight: 'var(--fw-medium)' }}>
+            {plan.titulo}
+          </p>
+          <p className="t-small muted">
+            <span className="num">{formatearFecha(plan.fecha!)}</span> · {dias === 0 ? 'hoy' : dias === 1 ? 'mañana' : `en ${dias} días`}
+            {' · '}
+            {esTipoPlan(plan.tipo) ? NOMBRE_TIPO_PLAN[plan.tipo] : 'Otro'}
+            {plan.con_quien && ` · con ${plan.con_quien}`}
+          </p>
+        </div>
+      )}
+      <div className="card__foot">
+        <Link to="/planes" className="btn btn--ghost">
+          {lista.length === 0 && !cargando ? 'Apuntar un plan' : 'Ver planes'}
           <IconoFlecha />
         </Link>
       </div>

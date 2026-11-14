@@ -986,7 +986,8 @@ declare
   -- tabla → insert mínimo válido de A (se amplía con cada sección de la fase 8)
   inserts text[][] := array[
     array['ideas', $i$insert into public.ideas (id, texto) values ('a0000000-0000-4000-8000-000000000a81', 'Idea de A')$i$],
-    array['cumpleanos', $i$insert into public.cumpleanos (nombre, dia, mes) values ('Cumple de A', 5, 3)$i$]
+    array['cumpleanos', $i$insert into public.cumpleanos (nombre, dia, mes) values ('Cumple de A', 5, 3)$i$],
+    array['planes', $i$insert into public.planes (titulo) values ('Plan de A')$i$]
   ];
   t text;
   filas bigint;
@@ -1046,6 +1047,25 @@ select pg_temp.debe_fallar($q$insert into public.cumpleanos (nombre, dia, mes) v
 select pg_temp.debe_fallar($q$insert into public.cumpleanos (nombre, dia, mes) values ('x', 1, 13)$q$, array['23514'], 'el mes 13');
 select pg_temp.debe_fallar($q$insert into public.cumpleanos (nombre, dia, mes, anio) values ('x', 1, 1, 1899)$q$, array['23514'], 'el año 1899');
 select pg_temp.debe_fallar($q$insert into public.cumpleanos (nombre, dia, mes) values ('', 1, 1)$q$, array['23514'], 'sin nombre');
+
+-- @caso: planes: tipos y estados válidos, «planeado» con fecha, valoración 1-5 solo si está hecho
+reset role;
+select pg_temp.como('aaaaaaaa-0000-4000-8000-000000000001');
+insert into public.planes (id, titulo) values ('a0000000-0000-4000-8000-000000000b01', 'Idea');
+select pg_temp.comprobar((select estado = 'idea' and tipo = 'otro' and valoracion is null from public.planes
+  where id = 'a0000000-0000-4000-8000-000000000b01'), 'un plan nuevo no nace como idea de tipo otro');
+insert into public.planes (titulo, estado, fecha, coste_centimos) values ('Planeado', 'planeado', '2026-12-01', 0);
+insert into public.planes (titulo, estado, valoracion, comentario) values ('Hecho', 'hecho', 5, 'genial');
+select pg_temp.debe_fallar($q$insert into public.planes (titulo, estado) values ('x', 'planeado')$q$, array['23514'], 'planeado sin fecha');
+select pg_temp.debe_fallar($q$insert into public.planes (titulo, valoracion) values ('x', 3)$q$, array['23514'], 'valoración sin estar hecho');
+select pg_temp.debe_fallar($q$insert into public.planes (titulo, estado, valoracion) values ('x', 'hecho', 6)$q$, array['23514'], 'valoración 6');
+select pg_temp.debe_fallar($q$insert into public.planes (titulo, estado, valoracion) values ('x', 'hecho', 0)$q$, array['23514'], 'valoración 0');
+select pg_temp.debe_fallar($q$insert into public.planes (titulo, tipo) values ('x', 'fiesta')$q$, array['23514'], 'un tipo fuera de la lista');
+select pg_temp.debe_fallar($q$insert into public.planes (titulo, estado) values ('x', 'cancelado')$q$, array['23514'], 'un estado fuera de la lista');
+select pg_temp.debe_fallar($q$insert into public.planes (titulo, coste_centimos) values ('x', -1)$q$, array['23514'], 'un coste negativo');
+select pg_temp.debe_fallar($q$insert into public.planes (titulo) values ('')$q$, array['23514'], 'un plan sin título');
+select pg_temp.debe_fallar($q$update public.planes set estado = 'planeado' where id = 'a0000000-0000-4000-8000-000000000b01'$q$,
+  array['23514'], 'pasar a planeado sin fecha');
 
 -- @caso: borrar un usuario de auth.users borra en cascada todas sus filas
 reset role;

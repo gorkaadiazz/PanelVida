@@ -1868,3 +1868,27 @@ p.num--xl {
   .cumple > .list__main { flex: 1 1 calc(100% - 7rem); }
   .cumple > .acciones { margin-inline-start: auto; }
 }
+
+/* Planes */
+.filtros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin-block: var(--sp-2) var(--sp-3);
+}
+.filtros > .field { flex: 1 1 9rem; max-width: 14rem; }
+.plan { flex-wrap: wrap; row-gap: var(--sp-1); }
+.plan > .list__main { flex: 1 1 14rem; }
+.plan > .acciones { margin-inline-start: auto; }
+.plan__estado--idea     { background: var(--surface-sunken); color: var(--text-2); }
+.plan__estado--planeado { background: var(--info-soft);      color: var(--info-ink); }
+.plan__estado--hecho    { background: var(--ok-soft);        color: var(--ok-ink); }
+.plan__estrellas { color: var(--warn-ink); letter-spacing: 0.05em; }
+.valoracion { flex-wrap: wrap; }
+
+/* Al desplazarse a un campo (teclado, foco, anclas) no queda debajo de la
+   barra inferior ni del botón «+» */
+html { scroll-padding-bottom: calc(var(--nav-bottom-h) + var(--safe-bottom) + 72px); }
+@media (min-width: 900px) {
+  html { scroll-padding-bottom: 88px; }
+}

@@ -13,6 +13,7 @@ import {
   IconoHabitos,
   IconoIdea,
   IconoInicio,
+  IconoPlan,
   IconoMas,
   IconoNegocio,
   IconoTareas,
@@ -33,13 +34,14 @@ const TAREAS: Destino = { ruta: '/tareas', texto: 'Tareas', icono: <IconoTareas 
 const ESTUDIOS: Destino = { ruta: URL_EXAMENES, texto: 'Estudios', icono: <IconoEstudios />, externo: true }
 const IDEAS: Destino = { ruta: '/ideas', texto: 'Ideas', icono: <IconoIdea /> }
 const CUMPLEANOS: Destino = { ruta: '/cumpleanos', texto: 'Cumpleaños', icono: <IconoCumple /> }
+const PLANES: Destino = { ruta: '/planes', texto: 'Planes', icono: <IconoPlan /> }
 const DINERO: Destino = { ruta: '/dinero', texto: 'Dinero', icono: <IconoDinero /> }
 const NEGOCIO: Destino = { ruta: '/negocio', texto: 'Negocio', icono: <IconoNegocio /> }
 const CUENTA: Destino = { ruta: '/cuenta', texto: 'Cuenta', icono: <IconoCuenta /> }
 const MAS: Destino = { ruta: '/mas', texto: 'Más', icono: <IconoMas /> }
 
 const PRINCIPALES = [INICIO, HABITOS, TAREAS, ESTUDIOS]
-const EN_MAS = new Set([MAS.ruta, IDEAS.ruta, CUMPLEANOS.ruta, DINERO.ruta, NEGOCIO.ruta, CUENTA.ruta])
+const EN_MAS = new Set([MAS.ruta, IDEAS.ruta, CUMPLEANOS.ruta, PLANES.ruta, DINERO.ruta, NEGOCIO.ruta, CUENTA.ruta])
 
 export function Layout() {
   const { pathname } = useLocation()
@@ -69,6 +71,7 @@ export function Layout() {
         <div className="sidebar__group">
           <EnlaceLateral destino={IDEAS} />
           <EnlaceLateral destino={CUMPLEANOS} />
+          <EnlaceLateral destino={PLANES} />
           <EnlaceLateral destino={DINERO} />
           <EnlaceLateral destino={NEGOCIO} />
         </div>

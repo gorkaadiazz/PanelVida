@@ -96,7 +96,8 @@ export function IdeaRapida() {
       <p role="status" className={guardada ? 'idea-guardada float' : 'visually-hidden'}>
         {guardada && (
           <>
-            Idea guardada · <Link to="/ideas">Ver la bandeja</Link>
+            Idea guardada ·{' '}
+            <Link to="/ideas">Ver la bandeja</Link>
           </>
         )}
       </p>

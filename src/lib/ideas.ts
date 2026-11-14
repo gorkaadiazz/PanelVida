@@ -7,7 +7,10 @@ export { ErrorDeValidacion }
 export const TEXTO_IDEA_MAX = 500
 
 /** A qué se puede convertir una idea: la pantalla de destino lee ?idea=<id>. */
-export const DESTINOS_IDEA: readonly { ruta: string; texto: string }[] = [{ ruta: '/tareas', texto: 'Tarea' }]
+export const DESTINOS_IDEA: readonly { ruta: string; texto: string }[] = [
+  { ruta: '/tareas', texto: 'Tarea' },
+  { ruta: '/planes', texto: 'Plan' },
+]
 
 export interface IdeaBasica {
   id: string
