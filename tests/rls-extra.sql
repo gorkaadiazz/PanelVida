@@ -1081,6 +1081,29 @@ select pg_temp.debe_fallar($q$insert into public.deseos (articulo, precio_centim
 select pg_temp.debe_fallar($q$insert into public.deseos (articulo, precio_centimos, comprado_en) values ('x', 1, '2026-11-14')$q$, array['23514'], 'fecha de compra sin estar comprado');
 select pg_temp.debe_fallar($q$insert into public.deseos (articulo, precio_centimos) values ('', 1)$q$, array['23514'], 'un artículo sin nombre');
 
+-- @caso: ninguna tabla de Mi Panel deja revivir una fila borrada (upsert de un dispositivo sin conexión)
+reset role;
+select pg_temp.como('aaaaaaaa-0000-4000-8000-000000000001');
+insert into public.ideas (id, texto) values ('a0000000-0000-4000-8000-000000000c01', 'idea');
+insert into public.tareas (id, texto) values ('a0000000-0000-4000-8000-000000000c02', 'tarea');
+insert into public.cumpleanos (id, nombre, dia, mes) values ('a0000000-0000-4000-8000-000000000c03', 'x', 1, 1);
+delete from public.ideas where id = 'a0000000-0000-4000-8000-000000000c01';
+delete from public.tareas where id = 'a0000000-0000-4000-8000-000000000c02';
+delete from public.cumpleanos where id = 'a0000000-0000-4000-8000-000000000c03';
+insert into public.ideas (id, texto) values ('a0000000-0000-4000-8000-000000000c01', 'editada sin conexión')
+  on conflict (id) do update set texto = excluded.texto;
+insert into public.tareas (id, texto) values ('a0000000-0000-4000-8000-000000000c02', 'editada sin conexión')
+  on conflict (id) do update set texto = excluded.texto;
+insert into public.cumpleanos (id, nombre, dia, mes) values ('a0000000-0000-4000-8000-000000000c03', 'y', 1, 1)
+  on conflict (id) do update set nombre = excluded.nombre;
+select pg_temp.comprobar(not exists (select 1 from public.ideas where id = 'a0000000-0000-4000-8000-000000000c01')
+  and not exists (select 1 from public.tareas where id = 'a0000000-0000-4000-8000-000000000c02')
+  and not exists (select 1 from public.cumpleanos where id = 'a0000000-0000-4000-8000-000000000c03'),
+  'una fila borrada ha vuelto a aparecer');
+-- Y las tablas de Mi Panel lo tienen todas
+select pg_temp.comprobar((select count(distinct event_object_table) from information_schema.triggers
+  where trigger_schema = 'public' and trigger_name = 'no_revivir_borrado') = 10, 'falta no_revivir_borrado en alguna tabla');
+
 -- @caso: borrar un usuario de auth.users borra en cascada todas sus filas
 reset role;
 -- A tiene filas en las tablas de Mi Panel (preámbulo) y un borrado apuntado:

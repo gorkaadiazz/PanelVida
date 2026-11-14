@@ -400,7 +400,7 @@ h1[tabindex="-1"]:focus-visible {
   border-radius: 7px;
 }
 
-.sidebar__group {    /* separa Inicio/Hábitos/Tareas/Estudios de Dinero/Negocio/Cuenta */
+.sidebar__group {    /* bloques tras los principales: vida personal (Ideas…Deseos) y dinero (Dinero, Negocio) */
   margin-top: var(--sp-4);
   padding-top: var(--sp-4);
   border-top: 1px solid var(--border);
@@ -1361,6 +1361,11 @@ a.list__item:focus-visible {
   flex: 1 1 8rem;
   max-width: 11rem;
 }
+/* El campo de fecha nativo necesita ~150 px para «dd/mm/aaaa» y su icono:
+   con 8rem se cortaba el año a 360 px (Planes). Cede el importe, no la fecha. */
+.alta--tres > .field--fecha:has(> input[type="date"]) {
+  flex-basis: 9.5rem;
+}
 
 /* Fila de movimiento. En móvil, el importe sube a la derecha del concepto y
    los botones quedan debajo: el concepto no se queda en 70 px con importes grandes. */
@@ -1771,12 +1776,11 @@ p.num--xl {
   color: var(--on-accent);
   box-shadow: var(--shadow-float);
   cursor: pointer;
-  transition: transform var(--dur-fast, 120ms) var(--ease-out), background var(--dur-fast, 120ms) var(--ease-out);
+  transition: transform var(--dur-press) var(--ease-out), background-color var(--dur-fast) var(--ease-out);
 }
 .idea-boton svg { width: 26px; height: 26px; stroke-width: 2.25; }
-.idea-boton:hover { background: var(--accent-hover); }
 .idea-boton:active { transform: scale(0.94); }
-.idea-boton:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+.idea-boton:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
 
 /* El contenido no queda tapado por el botón al final de la página */
 .app-main { padding-bottom: calc(var(--nav-bottom-h) + var(--safe-bottom) + var(--sp-6) + 64px); }
@@ -1801,16 +1805,36 @@ p.num--xl {
   max-width: calc(100% - 2 * var(--gutter) - 64px);
   min-height: 56px;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  padding: var(--sp-2) var(--sp-4);
+  /* flex se come el espacio final de «Idea guardada ·»: lo pone el hueco */
+  column-gap: var(--sp-1);
+  padding: var(--sp-1) var(--sp-3) var(--sp-1) var(--sp-4);
   font-size: var(--fs-sm);
+  animation: aviso-entra var(--dur-base) var(--ease-out);
 }
+.idea-guardada a {  /* «Ver la bandeja»: 44 px de objetivo sin agrandar el aviso */
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+  padding-inline: var(--sp-1);
+  border-radius: var(--r-sm);
+}
+
+/* Los avisos de conexión y versión (App.tsx) suben por encima del botón «+»:
+   antes lo tapaban y el aviso «Idea guardada» quedaba debajo de ellos. */
+.app ~ .avisos { bottom: calc(var(--nav-bottom-h) + var(--safe-bottom) + var(--sp-4) + 56px + var(--sp-3)); }
 
 @media (min-width: 900px) {
   .idea-boton { bottom: calc(var(--safe-bottom) + var(--sp-6)); right: calc(var(--sp-6) + var(--safe-right)); }
   .idea-guardada { bottom: calc(var(--safe-bottom) + var(--sp-6)); right: calc(var(--sp-6) + var(--safe-right) + 64px); }
   .idea-dialogo { margin: auto; }
   .app-main { padding-bottom: calc(var(--sp-10) + 64px); }
+  .app ~ .avisos { bottom: calc(var(--safe-bottom) + var(--sp-6) + 56px + var(--sp-3)); }
+}
+@media (hover: hover) and (pointer: fine) {
+  .idea-boton:hover { background: var(--accent-hover); }
+  .menu__item:hover { background: var(--surface-sunken); }
 }
 @media (prefers-reduced-motion: reduce) {
   .idea-boton { transition: none; }
@@ -1822,7 +1846,20 @@ p.num--xl {
 .idea > .list__main { flex: 1 1 14rem; }
 .idea > .acciones { margin-inline-start: auto; }
 .idea__texto { white-space: pre-line; }
-.desde-idea { align-items: center; }
+/* Aviso «Convirtiendo una idea…»: a 360 px el texto conserva el ancho y
+   «Cancelar» baja a su línea, a la derecha */
+.desde-idea { flex-wrap: wrap; row-gap: var(--sp-2); }
+.desde-idea > .alert__body { flex: 1 1 12rem; }
+.desde-idea > .btn { margin-inline-start: auto; }
+.desde-idea__texto {  /* la idea completa ya se ve en el formulario: como mucho 3 líneas */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+}
 
 /* Menú desplegable sencillo con <details> (p. ej. «Convertir en…») */
 .menu { position: relative; }
@@ -1847,8 +1884,9 @@ p.num--xl {
   color: var(--text);
   text-decoration: none;
 }
-.menu__item:hover { background: var(--surface-sunken); }
-.menu__item:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.menu__item:active { background: var(--surface-sunken); }
+.menu__item:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.menu[open] > summary { background: var(--accent-soft); }   /* el botón se ve abierto */
 
 /* Cumpleaños: la cuenta atrás va delante, en una pastilla de ancho fijo */
 .cumple__cuenta {
@@ -1862,7 +1900,9 @@ p.num--xl {
   font-weight: var(--fw-medium);
   text-align: center;
 }
-.cumple__cuenta--hoy { background: var(--accent); color: var(--on-accent); }
+/* Hoy: ámbar de aviso (hay que felicitar), no la tinta azul, que es solo para
+   acción o selección. La palabra «Hoy» ya es la señal; el color, la segunda. */
+.cumple__cuenta--hoy { background: var(--warn-soft); color: var(--warn-ink); font-weight: var(--fw-semibold); }
 @media (max-width: 479.98px) {
   .cumple { flex-wrap: wrap; row-gap: var(--sp-1); }
   .cumple > .list__main { flex: 1 1 calc(100% - 7rem); }
@@ -1884,7 +1924,10 @@ p.num--xl {
 .plan__estado--planeado { background: var(--info-soft);      color: var(--info-ink); }
 .plan__estado--hecho    { background: var(--ok-soft);        color: var(--ok-ink); }
 .plan__estrellas { color: var(--warn-ink); letter-spacing: 0.05em; }
+/* Seis opciones («Sin nota» + 1–5): con menos relleno caben en una línea a
+   360 px; si el texto del sistema es grande, se parten en dos */
 .valoracion { flex-wrap: wrap; }
+.valoracion label { padding-inline: var(--sp-3); min-width: var(--tap); }
 
 /* Al desplazarse a un campo (teclado, foco, anclas) no queda debajo de la
    barra inferior ni del botón «+» */
@@ -1898,8 +1941,10 @@ html { scroll-padding-bottom: calc(var(--nav-bottom-h) + var(--safe-bottom) + 72
 .deseo > .list__main { flex: 1 1 14rem; }
 .deseo > .acciones { margin-inline-start: auto; }
 .deseo__prioridad { margin-inline-end: var(--sp-1); vertical-align: 1px; }
-.deseo__prioridad--alta  { background: var(--danger-soft); color: var(--danger-ink); }
-.deseo__prioridad--media { background: var(--warn-soft);   color: var(--warn-ink); }
+/* Regla del rojo escaso: una prioridad alta no es algo que haya ido mal.
+   Alta en ámbar; media y baja neutras (la palabra y el orden ya lo dicen). */
+.deseo__prioridad--alta  { background: var(--warn-soft);      color: var(--warn-ink); }
+.deseo__prioridad--media { background: var(--surface-sunken); color: var(--text); }
 .deseo__prioridad--baja  { background: var(--surface-sunken); color: var(--text-2); }
 .deseo__enlace { display: inline-flex; align-items: center; gap: 4px; min-height: var(--tap); }
 .deseo__enlace svg { width: 14px; height: 14px; }

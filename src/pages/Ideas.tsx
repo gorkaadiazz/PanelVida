@@ -4,6 +4,7 @@
 import { useEffect, useRef, useState, type CSSProperties, type RefObject } from 'react'
 import { Link } from 'react-router-dom'
 import { AvisoError } from '../components/AvisoError'
+import { MenuDesplegable } from '../components/MenuDesplegable'
 import { Pagina } from '../components/Pagina'
 import { Vacio } from '../components/Vacio'
 import { prepararFoco } from '../components/foco'
@@ -134,18 +135,15 @@ function FilaIdea({ idea: i, ejecutar }: { idea: Idea; ejecutar: Ejecutar }) {
       </div>
       <div className="acciones">
         {!i.archivada && (
-          <details className="menu">
-            <summary className="btn btn--ghost">Convertir en…</summary>
-            <ul className="menu__lista float" role="list">
-              {DESTINOS_IDEA.map((d) => (
-                <li key={d.ruta}>
-                  <Link to={`${d.ruta}?idea=${encodeURIComponent(i.id)}`} className="menu__item">
-                    {d.texto}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </details>
+          <MenuDesplegable texto="Convertir en…" etiqueta={`Convertir en…: ${i.texto}`}>
+            {DESTINOS_IDEA.map((d) => (
+              <li key={d.ruta}>
+                <Link to={`${d.ruta}?idea=${encodeURIComponent(i.id)}`} className="menu__item">
+                  {d.texto}
+                </Link>
+              </li>
+            ))}
+          </MenuDesplegable>
         )}
         <button
           type="button"

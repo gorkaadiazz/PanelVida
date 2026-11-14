@@ -179,9 +179,9 @@ Restrained con trabajo real: neutros fríos teñidos de azul, un acento de tinta
 ### Estados
 Apagados pero con contraste AA. Cada estado tiene tres tokens: base (gráficos, barras, bordes), `-soft` (fondo de aviso o etiqueta) e `-ink` (texto, ≥ 4.5:1 sobre `-soft` y sobre `--surface`).
 - **Correcto** (`--ok*`, verde hoja): RA aprobada, meta cumplida, guardado.
-- **Aviso** (`--warn*`, ámbar ocre): tarea para hoy o mañana, faltas cerca del límite.
+- **Aviso** (`--warn*`, ámbar ocre): tarea para hoy o mañana, faltas cerca del límite, cumpleaños hoy, deseo de prioridad alta, plan cuya fecha ya pasó.
 - **Peligro** (`--danger*`, rojo teja): tarea atrasada, RA por debajo de 5, borrar cuenta. Botón de peligro con `--on-danger`.
-- **Info** (`--info*`, azul petróleo): avisos neutros, sin conexión, sincronizando.
+- **Info** (`--info*`, azul petróleo): avisos neutros, sin conexión, sincronizando, plan «Planeado», «Convirtiendo una idea…».
 
 ### Módulos de 2º SMR
 Misma luminosidad y croma; tonos separados ≥ 40°. Cada uno tiene `--mod-x` (sólido, ≥ 3:1 sobre `--surface`: puntos, pestañas, barras), `--mod-x-soft` (fondo de etiqueta) y `--mod-x-ink` (texto, ≥ 6.4:1 sobre su fondo suave).
@@ -230,7 +230,7 @@ Escala fija en `rem` (razón ≈ 1.2), sin tamaños fluidos.
 
 - **Rejilla de 4 px** (`--sp-1` … `--sp-12`). Grupos apretados (8–12 px), separación generosa entre bloques (24–32 px).
 - **Margen lateral** `--gutter`: 16 px en móvil, 24 px en PC, más `env(safe-area-inset-*)`.
-- **Punto de corte: 900 px.** Por debajo, barra inferior fija (`.nav-bottom`, 64 px + safe-area) con 5 destinos: Inicio, Hábitos, Tareas, Estudios, Más. Desde 900 px, barra lateral fija (`.sidebar`, 240 px) con todos los destinos (Inicio, Hábitos, Tareas, Estudios · Dinero, Negocio · Cuenta al pie) y la barra inferior desaparece.
+- **Punto de corte: 900 px.** Por debajo, barra inferior fija (`.nav-bottom`, 64 px + safe-area) con 5 destinos: Inicio, Hábitos, Tareas, Estudios, Más. Desde 900 px, barra lateral fija (`.sidebar`, 240 px) con todos los destinos (Inicio, Hábitos, Tareas, Estudios · Ideas, Cumpleaños, Planes, Lista de deseos · Dinero, Negocio · Cuenta al pie) y la barra inferior desaparece.
 - **Contenido** centrado con `--content-max` (68rem). Formularios y textos largos a `--reading-max` (40rem).
 - **Inicio**: `.grid-cards` (columnas automáticas de 18rem mínimo: 1 en móvil, 2–3 en PC).
 - Nada desborda a 360 px: textos largos con `.truncate` o ajuste de línea, importes con `white-space: nowrap`.
@@ -286,8 +286,8 @@ Clases `.mod-sor`, `.mod-si`, `.mod-sr`, `.mod-ao`, `.mod-cnv`, `.mod-ipe2`, `.m
 - **`.progress`**: 8 px (12 px con `.progress--lg`), píldora, pista hundida, relleno en `--progress-color` (acento por defecto; `.progress--mod`, `--ok`, `--warn`, `--danger`). Valor con `style="--p: 60%"` y `role="progressbar"` + `aria-valuenow`. Siempre acompañada de la cifra en `.num`.
 
 ### Navigation
-- **Barra inferior móvil (`.nav-bottom`, < 900 px):** fija abajo, 64 px + safe-area, fondo hoja, línea superior. 5 `.nav-bottom__item` con icono de 22 px dentro de `.nav-bottom__icon` y etiqueta de 12 px. Activo (`aria-current="page"`): píldora `--accent-soft` de 56 × 30 detrás del icono y texto `--accent-ink` semibold. "Más" abre la lista de Dinero, Negocio y Cuenta.
-- **Barra lateral PC (`.sidebar`, ≥ 900 px):** 240 px, fija en altura (`sticky`), fondo hundido, borde derecho. `.sidebar__brand` (icono + "Mi Panel"), `.sidebar__item` de 40 px con icono de 20 px, `.sidebar__group` para el segundo bloque y `.sidebar__foot` para Cuenta. Activo igual que en móvil.
+- **Barra inferior móvil (`.nav-bottom`, < 900 px):** fija abajo, 64 px + safe-area, fondo hoja, línea superior. 5 `.nav-bottom__item` con icono de 22 px dentro de `.nav-bottom__icon` y etiqueta de 12 px. Activo (`aria-current="page"`): píldora `--accent-soft` de 56 × 30 detrás del icono y texto `--accent-ink` semibold. "Más" abre la lista de Ideas, Cumpleaños, Planes, Lista de deseos, Dinero, Negocio y Cuenta, y queda activo en todas ellas.
+- **Barra lateral PC (`.sidebar`, ≥ 900 px):** 240 px, fija en altura (`sticky`), fondo hundido, borde derecho. `.sidebar__brand` (icono + "Mi Panel"), `.sidebar__item` de 40 px con icono de 20 px, `.sidebar__group` para cada bloque tras los principales (vida personal; dinero) y `.sidebar__foot` para Cuenta. Activo igual que en móvil.
 - **Destino externo** (Estudios, que abre la web de exámenes): flecha de salida (`IconoExterno` con `.enlace-externo__marca`, trazo 2.25). En la barra inferior, 12 px en la esquina superior derecha de la píldora, para no mover la etiqueta. En la lateral, 14 px en `--text-3` al final de la fila. Siempre con el texto oculto «(se abre en otra pestaña)». Nunca se marca como activo.
 - **Iconos:** SVG propios en línea, trazo 1.75 sobre 24 px, extremos redondeados, `currentColor`. Nada de emojis ni fuentes de iconos.
 
@@ -332,6 +332,23 @@ Clases `.mod-sor`, `.mod-si`, `.mod-sr`, `.mod-ao`, `.mod-cnv`, `.mod-ipe2`, `.m
 - `details.fijos`: sección plegable de fijos (summary de 44 px con flecha que gira; sin animación con movimiento reducido). `.fijo`: por debajo de 480 px las acciones bajan a su propia línea.
 - `.semana`: cifras de la tarjeta «Esta semana», separadas por un filete; `.num--lg` es la cifra mediana (`--fs-xl`), entre el cuerpo y `.num--xl`.
 - Recordatorios (Cuenta): los casos «no soportado» y «bloqueado» son `.alert--warn` con icono; los controles ocupados usan `aria-disabled` (no `disabled`) para no perder el foco.
+
+### Extras personales (fase 8)
+- **Botón «+» global (`.idea-boton`, `IdeaRapida.tsx`)**: círculo de 56 px en tinta azul con `--shadow-float` (flota), fijo abajo a la derecha: en móvil encima de la barra inferior (`--nav-bottom-h` + safe-area + 16 px), en PC a 24 px de las esquinas. Al pulsar `scale(0.94)`; hover solo con ratón. Para que no tape el final de la página, `.app-main` lleva 64 px más de `padding-bottom` y `html` un `scroll-padding-bottom` que deja libres barra y botón al enfocar un campo. Los avisos flotantes (`.avisos`) suben por encima del botón.
+- **`.idea-dialogo`**: `<dialog>` modal nativo (atrapa el foco, Esc cierra y el foco vuelve al «+»; tocar el fondo también cierra y conserva lo escrito). En móvil se apoya abajo como una hoja; en PC, centrado. 32rem como máximo, `--surface-raised`, radio `--r-lg`. Fondo `rgb(10 14 20 / 0.45)`.
+- **`.idea-guardada`** (con `.float`): aviso breve «Idea guardada · Ver la bandeja» a la izquierda del botón, 56 px de alto, en una región `role="status"` siempre montada; el enlace mide 44 px. Se va solo a los 4 s.
+- **`.menu`** (`MenuDesplegable.tsx`): menú con `<details>`; el `summary` es un `.btn--ghost` (con `--accent-soft` mientras está abierto) y la lista `.menu__lista.float` cuelga a la derecha con `.menu__item` de 44 px. Se cierra al elegir, al tocar fuera, con Esc (el foco vuelve al botón) y al salir con Tab; al abrirse se desplaza a la vista respetando el `scroll-padding`. Si se repite por filas, `etiqueta` le da nombre completo («Convertir en…: Llamar al dentista»).
+- **Filas `.idea`, `.plan`, `.deseo`**: texto con `flex: 1 1 14rem`; a 360 px las acciones bajan a su línea, a la derecha.
+- **`.desde-idea`** (con `.alert--info`): aviso «Convirtiendo una idea en…» encima del formulario de Tareas, Planes o Deseos, con icono de idea, la idea en `.desde-idea__texto` (3 líneas como mucho) y «Cancelar», que a 360 px baja a su línea.
+- **`.cumple__cuenta`**: pastilla de 5.5rem de ancho mínimo con la cuenta atrás en palabras («Hoy», «Mañana», «En 5 días»), neutra; `--hoy` en ámbar (`--warn-soft` + `--warn-ink`, semibold), nunca en tinta azul. Por debajo de 480 px las acciones de la fila bajan.
+- **`.filtros`**: fila de `select` con etiqueta visible (`role="group"` + `aria-label`), cada uno de 9 a 14rem.
+- **`.plan__estado--idea|planeado|hecho`** (sobre `.tag`): neutro, info y correcto; siempre con la palabra. Una fecha planeada que ya pasó va en `.text-warn` con «· ya pasó».
+- **`.plan__estrellas`**: «★★★☆☆» en `--warn-ink`, `aria-hidden`, con «Valoración: 3 de 5» oculto al lado.
+- **`.grupo`**: `<fieldset>` sin marco con `<legend class="field__label">` visible encima de un `.segmentos` (Prioridad, Valoración). **`.valoracion`**: `.segmentos` de seis opciones con menos relleno lateral (12 px, mínimo 44 px de ancho) para caber a 360 px; si no caben, se parten.
+- **`.deseo__prioridad--alta|media|baja`** (sobre `.tag`): alta en ámbar, media y baja neutras (regla del rojo escaso: una prioridad no es un fallo). La barra de cada deseo es `.progress` (`--ok` cuando «Te llega», que también va escrito en `.text-ok`); si no llega, «Te faltan X € · N %».
+- **`.deseo__enlace`**: «Ver en la tienda» con flecha de salida de 14 px, 44 px de alto y «(se abre en otra pestaña)» oculto.
+- **Campo de fecha en `.alta--tres`**: base de 9.5rem (no 8) para que «dd/mm/aaaa» y su icono quepan a 360 px junto al importe.
+- **Inicio**: tarjetas de Cumpleaños (próximos 7 días, con `.cumple__cuenta`), Próximo plan e Ideas (contador en `.num--xl`), después de Hábitos, Tareas y Examen.
 
 ### Movimiento
 - Duraciones: `--dur-press` 120 ms (pulsar), `--dur-fast` 160 ms (color, casilla), `--dur-base` 220 ms (menús, avisos, progreso), `--dur-slow` 320 ms (hojas inferiores; tope).

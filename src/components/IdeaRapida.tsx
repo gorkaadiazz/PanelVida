@@ -21,7 +21,7 @@ export function IdeaRapida() {
   // El aviso «Idea guardada» desaparece solo
   useEffect(() => {
     if (!guardada) return
-    const t = setTimeout(() => setGuardada(false), 4000)
+    const t = setTimeout(() => setGuardada(false), 6000)
     return () => clearTimeout(t)
   }, [guardada])
 
@@ -50,7 +50,19 @@ export function IdeaRapida() {
         <IconoMasUno />
       </button>
 
-      <dialog ref={dialogo} className="idea-dialogo" aria-labelledby={`${id}-titulo`} onClose={() => setError(null)}>
+      <dialog
+        ref={dialogo}
+        className="idea-dialogo"
+        aria-labelledby={`${id}-titulo`}
+        onClose={() => setError(null)}
+        // Tocar el fondo oscuro (fuera de la caja) cierra, como en Android; lo escrito se conserva
+        onClick={(e) => {
+          if (e.target !== e.currentTarget) return
+          const caja = e.currentTarget.getBoundingClientRect()
+          const fuera = e.clientX < caja.left || e.clientX > caja.right || e.clientY < caja.top || e.clientY > caja.bottom
+          if (fuera) e.currentTarget.close()
+        }}
+      >
         <form className="stack" onSubmit={(e) => void guardar(e)}>
           <h2 id={`${id}-titulo`} className="t-section">
             Apuntar una idea

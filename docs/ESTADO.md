@@ -94,7 +94,8 @@ Comprobaciones ahora mismo: `npm test -- --run` 473/473, `npm run test:sql` 41/4
 - Planes: idea → planeado (con fecha) → hecho (valoración 1-5 y comentario), filtros por estado y tipo; próximo plan en Inicio.
 - Lista de deseos: el ahorro total de Dinero se reparte en orden de prioridad («te llega» / «te faltan X €»); al comprar se ofrece apuntar el gasto (misma operación) y pasa al historial.
 - En el menú, dentro de «Más» (y en la barra lateral en PC): Ideas, Cumpleaños, Planes y Lista de deseos.
-- Migraciones 20261114000300 a 20261114000600 (ver `docs/RECORDATORIOS.md`).
+- Migraciones 20261114000300 a 20261114000700 (ver `docs/RECORDATORIOS.md`). La 000700 extiende `no_revivir_borrado` a todas las tablas de Mi Panel (una fila borrada en un dispositivo no vuelve aunque otro la edite sin conexión).
+- Revisión: seguridad, tester y diseño APROBADO. Pendiente de decidir: deshacer «hecho» en un plan que no tenía fecha lo deja como «planeado» con la fecha del día en que se marcó.
 
 ### Fases siguientes
 - **Fase 7, despliegue:** en Netlify (origen propio), no en GitHub Pages. Pasos en `docs/DESPLEGAR.md`.

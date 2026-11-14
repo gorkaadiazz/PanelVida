@@ -75,3 +75,11 @@ describe('validar', () => {
     expect(() => v(cambios)).toThrow(ErrorDeValidacion)
   })
 })
+
+describe('nacidos este año', () => {
+  it('no «cumplen 0»: la edad sale a partir del primer cumpleaños', () => {
+    expect(proximo(c(20, 12, 2026), '2026-11-14').edad).toBeNull()
+    expect(proximo(c(14, 11, 2026), '2026-11-14').edad).toBeNull()
+    expect(proximo(c(1, 1, 2026), '2026-11-14')).toMatchObject({ fecha: '2027-01-01', edad: 1 })
+  })
+})

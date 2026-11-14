@@ -14,10 +14,13 @@ supabase/migrations/20261114000300_ideas.sql
 supabase/migrations/20261114000400_cumpleanos.sql
 supabase/migrations/20261114000500_planes.sql
 supabase/migrations/20261114000600_deseos.sql
+supabase/migrations/20261114000700_no_revivir_borrados.sql
 ```
 
-Las cuatro últimas son de la fase 8 (ideas, cumpleaños, planes y lista de
+De la 000300 a la 000600 son de la fase 8 (ideas, cumpleaños, planes y lista de
 deseos): sin ellas esas pantallas abren pero no pueden guardar en la nube.
+La 000700 impide que una fila borrada en un dispositivo vuelva a aparecer
+si otro la edita sin conexión.
 
 Igual que en `docs/MIGRAR.md`: o pegando cada archivo en **SQL Editor → New
 query → Run**, o con la CLI:

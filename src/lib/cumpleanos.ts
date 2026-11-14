@@ -53,7 +53,8 @@ export function proximo<C extends CumpleBasico>(cumple: C, hoy: FechaDia): Proxi
   let anio = anioHoy
   let fecha = fechaEnAnio(cumple.dia, cumple.mes, anio)
   if (fecha < hoy) fecha = fechaEnAnio(cumple.dia, cumple.mes, ++anio)
-  const edad = cumple.anio && cumple.anio <= anio ? anio - cumple.anio : null
+  // Solo a partir del primer cumpleaños (nadie «cumple 0»)
+  const edad = cumple.anio && cumple.anio < anio ? anio - cumple.anio : null
   return { cumple, fecha, dias: diferenciaDias(hoy, fecha), edad }
 }
 
@@ -102,6 +103,7 @@ export function validarCumple(datos: DatosCumpleTexto, hoy: FechaDia): { nombre:
     const anioHoy = Number(hoy.slice(0, 4))
     if (!Number.isInteger(anio) || anio < 1900 || anio > anioHoy) throw new ErrorDeValidacion(`El año tiene que estar entre 1900 y ${anioHoy}.`)
     if (mes === 2 && dia === 29 && !esBisiesto(anio)) throw new ErrorDeValidacion(`${anio} no fue bisiesto: no tuvo 29 de febrero.`)
+    if (fechaEnAnio(dia, mes, anio) > hoy) throw new ErrorDeValidacion('Esa fecha de nacimiento aún no ha llegado.')
   }
   const notas = datos.notas.trim()
   if (notas.length > NOTAS_CUMPLE_MAX) throw new ErrorDeValidacion(`Las notas no pueden tener más de ${NOTAS_CUMPLE_MAX} caracteres.`)

@@ -70,11 +70,14 @@ export function Layout() {
         {PRINCIPALES.map((d) => (
           <EnlaceLateral key={d.ruta} destino={d} />
         ))}
+        {/* Dos bloques para no leer una lista de seis: vida personal y dinero */}
         <div className="sidebar__group">
           <EnlaceLateral destino={IDEAS} />
           <EnlaceLateral destino={CUMPLEANOS} />
           <EnlaceLateral destino={PLANES} />
           <EnlaceLateral destino={DESEOS} />
+        </div>
+        <div className="sidebar__group">
           <EnlaceLateral destino={DINERO} />
           <EnlaceLateral destino={NEGOCIO} />
         </div>
@@ -105,7 +108,7 @@ export function Layout() {
         {PRINCIPALES.map((d) => (
           <EnlaceInferior key={d.ruta} destino={d} />
         ))}
-        {/* "Más" sigue marcado cuando estás en Dinero, Negocio o Cuenta. */}
+        {/* "Más" sigue marcado en todas las pantallas que cuelgan de él (EN_MAS). */}
         <EnlaceInferior destino={MAS} activo={EN_MAS.has(pathname)} />
       </nav>
     </div>

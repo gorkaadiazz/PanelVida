@@ -61,7 +61,9 @@ export function validarDeseo(datos: DatosDeseoTexto) {
   let enlace: string | null = null
   if (datos.enlace.trim()) {
     // Se acepta sin «https://» delante (lo normal al pegar «amazon.es/…»)
-    const conProtocolo = /^[a-z][a-z0-9+.-]*:/i.test(datos.enlace.trim()) ? datos.enlace.trim() : `https://${datos.enlace.trim()}`
+    // («//tienda.es/…» también: se le pone «https:» delante, no «https://»)
+    const texto = datos.enlace.trim()
+    const conProtocolo = /^[a-z][a-z0-9+.-]*:/i.test(texto) ? texto : texto.startsWith('//') ? `https:${texto}` : `https://${texto}`
     enlace = enlaceSeguro(conProtocolo)
     if (!enlace) throw new ErrorDeValidacion('El enlace no es válido: tiene que ser una dirección web (https://…).')
   }

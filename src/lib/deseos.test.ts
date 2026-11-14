@@ -12,6 +12,7 @@ describe('validar', () => {
   it('enlace: acepta http(s) y añade https:// si falta', () => {
     expect(validarDeseo({ ...base, enlace: 'https://tienda.es/x?y=1' }).enlace).toBe('https://tienda.es/x?y=1')
     expect(validarDeseo({ ...base, enlace: 'amazon.es/dp/123' }).enlace).toBe('https://amazon.es/dp/123')
+    expect(validarDeseo({ ...base, enlace: '//tienda.es/a' }).enlace).toBe('https://tienda.es/a')
   })
   it.each([
     [{ articulo: ' ' }],
