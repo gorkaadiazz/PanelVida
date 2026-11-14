@@ -1892,3 +1892,17 @@ html { scroll-padding-bottom: calc(var(--nav-bottom-h) + var(--safe-bottom) + 72
 @media (min-width: 900px) {
   html { scroll-padding-bottom: 88px; }
 }
+
+/* Lista de deseos */
+.deseo { flex-wrap: wrap; row-gap: var(--sp-1); }
+.deseo > .list__main { flex: 1 1 14rem; }
+.deseo > .acciones { margin-inline-start: auto; }
+.deseo__prioridad { margin-inline-end: var(--sp-1); vertical-align: 1px; }
+.deseo__prioridad--alta  { background: var(--danger-soft); color: var(--danger-ink); }
+.deseo__prioridad--media { background: var(--warn-soft);   color: var(--warn-ink); }
+.deseo__prioridad--baja  { background: var(--surface-sunken); color: var(--text-2); }
+.deseo__enlace { display: inline-flex; align-items: center; gap: 4px; min-height: var(--tap); }
+.deseo__enlace svg { width: 14px; height: 14px; }
+/* Grupo de opciones con leyenda visible encima (p. ej. Prioridad, Valoración) */
+.grupo { border: 0; padding: 0; margin: 0; min-width: 0; }
+.grupo > legend { padding: 0; margin-bottom: var(--sp-1); }

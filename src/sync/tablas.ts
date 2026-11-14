@@ -62,6 +62,7 @@ export const TABLAS = [
     nombre: 'planes',
     columnas: ['titulo', 'tipo', 'con_quien', 'fecha', 'coste_centimos', 'notas', 'estado', 'valoracion', 'comentario'],
   },
+  { nombre: 'deseos', columnas: ['articulo', 'precio_centimos', 'prioridad', 'enlace', 'notas', 'comprado', 'comprado_en'] },
   { nombre: 'clientes_web', columnas: ['nombre', 'precio_centimos', 'notas', 'estado', 'orden'] },
   // Fila del perfil (la comparte la web de exámenes): Mi Panel solo lee y
   // cambia la meta de ahorro. La fila la crea inicializar_cuenta.

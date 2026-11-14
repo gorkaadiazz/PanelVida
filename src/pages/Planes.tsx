@@ -312,10 +312,11 @@ function FilaPlan({ plan: p, hoy, ejecutar }: { plan: Plan; hoy: FechaDia; ejecu
           <p className="break" style={{ fontWeight: 'var(--fw-medium)' }}>
             ¿Qué tal «{p.titulo}»?
           </p>
-          <fieldset className="segmentos valoracion">
+          <fieldset className="grupo">
             <legend className="field__label">
               Valoración <span className="muted">(opcional)</span>
             </legend>
+            <div className="segmentos valoracion">
             {['', '1', '2', '3', '4', '5'].map((v) => (
               <label key={v || 'sin'}>
                 <input type="radio" name={`${id}-valoracion`} value={v} checked={valoracion === v} onChange={() => setValoracion(v)} />
@@ -329,6 +330,7 @@ function FilaPlan({ plan: p, hoy, ejecutar }: { plan: Plan; hoy: FechaDia; ejecu
                 )}
               </label>
             ))}
+            </div>
           </fieldset>
           <div className="field">
             <label htmlFor={`${id}-comentario`} className="field__label">

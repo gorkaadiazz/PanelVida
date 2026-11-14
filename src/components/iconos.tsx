@@ -265,3 +265,15 @@ export function IconoPlan(props: PropsIcono) {
     </Icono>
   )
 }
+
+export function IconoDeseo(props: PropsIcono) {
+  return (
+    <Icono {...props}>
+      <path d="M20 12v8a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-8" />
+      <rect x="3" y="7" width="18" height="5" rx="1" />
+      <path d="M12 7v14" />
+      <path d="M12 7c-1.5-2.5-5-3-5-.8C7 7 9 7 12 7Z" />
+      <path d="M12 7c1.5-2.5 5-3 5-.8C17 7 15 7 12 7Z" />
+    </Icono>
+  )
+}

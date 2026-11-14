@@ -108,7 +108,10 @@ export function GraficaAhorro({ meses }: { meses: BarraMes[] }) {
         {maxNeg > 0 && ' Las que bajan de la línea son meses en que gastaste más de lo que ingresaste.'}
       </figcaption>
 
-      <table className="visually-hidden">
+      {/* El contenedor oculto, y no la tabla: una tabla no encoge por debajo de
+          su contenido y se salía de la pantalla a 360 px (scroll horizontal) */}
+      <div className="visually-hidden">
+      <table>
         <caption>Ahorro de los últimos {meses.length} meses</caption>
         <thead>
           <tr>
@@ -129,6 +132,7 @@ export function GraficaAhorro({ meses }: { meses: BarraMes[] }) {
           ))}
         </tbody>
       </table>
+      </div>
     </figure>
   )
 }

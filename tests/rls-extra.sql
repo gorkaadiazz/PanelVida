@@ -987,7 +987,8 @@ declare
   inserts text[][] := array[
     array['ideas', $i$insert into public.ideas (id, texto) values ('a0000000-0000-4000-8000-000000000a81', 'Idea de A')$i$],
     array['cumpleanos', $i$insert into public.cumpleanos (nombre, dia, mes) values ('Cumple de A', 5, 3)$i$],
-    array['planes', $i$insert into public.planes (titulo) values ('Plan de A')$i$]
+    array['planes', $i$insert into public.planes (titulo) values ('Plan de A')$i$],
+    array['deseos', $i$insert into public.deseos (articulo, precio_centimos) values ('Deseo de A', 100)$i$]
   ];
   t text;
   filas bigint;
@@ -1066,6 +1067,19 @@ select pg_temp.debe_fallar($q$insert into public.planes (titulo, coste_centimos)
 select pg_temp.debe_fallar($q$insert into public.planes (titulo) values ('')$q$, array['23514'], 'un plan sin título');
 select pg_temp.debe_fallar($q$update public.planes set estado = 'planeado' where id = 'a0000000-0000-4000-8000-000000000b01'$q$,
   array['23514'], 'pasar a planeado sin fecha');
+
+-- @caso: deseos: precio en céntimos positivo, prioridad válida, enlace solo http(s) y fecha de compra solo si está comprado
+reset role;
+select pg_temp.como('aaaaaaaa-0000-4000-8000-000000000001');
+insert into public.deseos (articulo, precio_centimos, prioridad, enlace) values ('ok', 5999, 'alta', 'https://tienda.es/a?b=1');
+insert into public.deseos (articulo, precio_centimos, comprado, comprado_en) values ('comprado', 1, true, '2026-11-14');
+select pg_temp.debe_fallar($q$insert into public.deseos (articulo, precio_centimos) values ('x', 0)$q$, array['23514'], 'un precio 0');
+select pg_temp.debe_fallar($q$insert into public.deseos (articulo, precio_centimos) values ('x', 100000000000)$q$, array['23514'], 'un precio enorme');
+select pg_temp.debe_fallar($q$insert into public.deseos (articulo, precio_centimos, prioridad) values ('x', 1, 'urgente')$q$, array['23514'], 'una prioridad fuera de la lista');
+select pg_temp.debe_fallar($q$insert into public.deseos (articulo, precio_centimos, enlace) values ('x', 1, 'javascript:alert(1)')$q$, array['23514'], 'un enlace javascript:');
+select pg_temp.debe_fallar($q$insert into public.deseos (articulo, precio_centimos, enlace) values ('x', 1, 'https://con espacio.es')$q$, array['23514'], 'un enlace con espacios');
+select pg_temp.debe_fallar($q$insert into public.deseos (articulo, precio_centimos, comprado_en) values ('x', 1, '2026-11-14')$q$, array['23514'], 'fecha de compra sin estar comprado');
+select pg_temp.debe_fallar($q$insert into public.deseos (articulo, precio_centimos) values ('', 1)$q$, array['23514'], 'un artículo sin nombre');
 
 -- @caso: borrar un usuario de auth.users borra en cascada todas sus filas
 reset role;

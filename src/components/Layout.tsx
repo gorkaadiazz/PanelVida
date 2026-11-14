@@ -7,6 +7,7 @@ import { IdeaRapida } from './IdeaRapida'
 import {
   IconoCuenta,
   IconoCumple,
+  IconoDeseo,
   IconoDinero,
   IconoEstudios,
   IconoExterno,
@@ -35,13 +36,14 @@ const ESTUDIOS: Destino = { ruta: URL_EXAMENES, texto: 'Estudios', icono: <Icono
 const IDEAS: Destino = { ruta: '/ideas', texto: 'Ideas', icono: <IconoIdea /> }
 const CUMPLEANOS: Destino = { ruta: '/cumpleanos', texto: 'Cumpleaños', icono: <IconoCumple /> }
 const PLANES: Destino = { ruta: '/planes', texto: 'Planes', icono: <IconoPlan /> }
+const DESEOS: Destino = { ruta: '/deseos', texto: 'Lista de deseos', icono: <IconoDeseo /> }
 const DINERO: Destino = { ruta: '/dinero', texto: 'Dinero', icono: <IconoDinero /> }
 const NEGOCIO: Destino = { ruta: '/negocio', texto: 'Negocio', icono: <IconoNegocio /> }
 const CUENTA: Destino = { ruta: '/cuenta', texto: 'Cuenta', icono: <IconoCuenta /> }
 const MAS: Destino = { ruta: '/mas', texto: 'Más', icono: <IconoMas /> }
 
 const PRINCIPALES = [INICIO, HABITOS, TAREAS, ESTUDIOS]
-const EN_MAS = new Set([MAS.ruta, IDEAS.ruta, CUMPLEANOS.ruta, PLANES.ruta, DINERO.ruta, NEGOCIO.ruta, CUENTA.ruta])
+const EN_MAS = new Set([MAS.ruta, IDEAS.ruta, CUMPLEANOS.ruta, PLANES.ruta, DESEOS.ruta, DINERO.ruta, NEGOCIO.ruta, CUENTA.ruta])
 
 export function Layout() {
   const { pathname } = useLocation()
@@ -72,6 +74,7 @@ export function Layout() {
           <EnlaceLateral destino={IDEAS} />
           <EnlaceLateral destino={CUMPLEANOS} />
           <EnlaceLateral destino={PLANES} />
+          <EnlaceLateral destino={DESEOS} />
           <EnlaceLateral destino={DINERO} />
           <EnlaceLateral destino={NEGOCIO} />
         </div>

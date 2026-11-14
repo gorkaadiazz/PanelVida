@@ -22,6 +22,7 @@ const Mas = pagina(() => import('./pages/Mas'), 'Mas')
 const Cuenta = pagina(() => import('./pages/Cuenta'), 'Cuenta')
 const Cumpleanos = pagina(() => import('./pages/Cumpleanos'), 'Cumpleanos')
 const Planes = pagina(() => import('./pages/Planes'), 'Planes')
+const Deseos = pagina(() => import('./pages/Deseos'), 'Deseos')
 const Ideas = pagina(() => import('./pages/Ideas'), 'Ideas')
 const NoEncontrada = pagina(() => import('./pages/NoEncontrada'), 'NoEncontrada')
 
@@ -70,6 +71,7 @@ function Contenido({ errorInicial }: { errorInicial: string | null }) {
         <Route path="ideas" element={<Ideas />} />
         <Route path="cumpleanos" element={<Cumpleanos />} />
         <Route path="planes" element={<Planes />} />
+        <Route path="deseos" element={<Deseos />} />
         <Route path="cuenta" element={<Cuenta />} />
         <Route path="*" element={<NoEncontrada />} />
       </Route>

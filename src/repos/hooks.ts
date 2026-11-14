@@ -5,6 +5,7 @@ import type { FechaDia } from '../lib/fechas'
 import { useConsulta, type Consulta } from '../sync/hooks'
 import { listarClientes, type Cliente } from './clientes'
 import { listarCumpleanos, type Cumple } from './cumpleanos'
+import { listarDeseos, type Deseo } from './deseos'
 import { listarExamenes, type DatosExamenes } from './examenes'
 import { listarFijos, type Fijo } from './fijos'
 import { listarIdeas, type Idea } from './ideas'
@@ -60,6 +61,11 @@ export function useCumpleanos(): Consulta<Cumple[]> {
 /** Todos los planes (sin ordenar: lib/planes los filtra y ordena). */
 export function usePlanes(): Consulta<Plan[]> {
   return useConsulta(['planes'], listarPlanes)
+}
+
+/** La lista de deseos (pendientes y comprados). */
+export function useDeseos(): Consulta<Deseo[]> {
+  return useConsulta(['deseos'], listarDeseos)
 }
 
 /** Todos los clientes del negocio. */

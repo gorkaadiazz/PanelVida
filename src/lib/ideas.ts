@@ -10,6 +10,7 @@ export const TEXTO_IDEA_MAX = 500
 export const DESTINOS_IDEA: readonly { ruta: string; texto: string }[] = [
   { ruta: '/tareas', texto: 'Tarea' },
   { ruta: '/planes', texto: 'Plan' },
+  { ruta: '/deseos', texto: 'Algo que comprar' },
 ]
 
 export interface IdeaBasica {

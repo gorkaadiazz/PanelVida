@@ -219,6 +219,51 @@ export type Database = {
         }
         Relationships: []
       }
+      deseos: {
+        Row: {
+          articulo: string
+          comprado: boolean
+          comprado_en: string | null
+          created_at: string
+          enlace: string | null
+          id: string
+          notas: string
+          precio_centimos: number
+          prioridad: string
+          sync_at: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          articulo: string
+          comprado?: boolean
+          comprado_en?: string | null
+          created_at?: string
+          enlace?: string | null
+          id?: string
+          notas?: string
+          precio_centimos: number
+          prioridad?: string
+          sync_at?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          articulo?: string
+          comprado?: boolean
+          comprado_en?: string | null
+          created_at?: string
+          enlace?: string | null
+          id?: string
+          notas?: string
+          precio_centimos?: number
+          prioridad?: string
+          sync_at?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       emails_permitidos: {
         Row: {
           created_at: string
