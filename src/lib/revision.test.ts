@@ -8,7 +8,6 @@ import {
   calcularRevision,
   cambio,
   hayMovimientos,
-  idRevision,
   leerDatosRevision,
   nombrePeriodo,
   periodoAnterior,
@@ -21,7 +20,6 @@ import {
   type Sugerencia,
 } from './revision'
 
-const USUARIO = 'aaaaaaaa-0000-4000-8000-000000000001'
 const SEMANA = periodoTerminado('semanal', '2026-11-16')
 let n = 0
 const mov = (fecha: string, importe: number, c: Partial<MovimientoRevision> = {}): MovimientoRevision => ({
@@ -62,11 +60,6 @@ describe('periodos', () => {
   it('el periodo anterior', () => {
     expect(periodoAnterior(SEMANA)).toEqual({ tipo: 'semanal', inicio: '2026-11-02', fin: '2026-11-08' })
     expect(periodoAnterior({ tipo: 'mensual', inicio: '2026-03-01', fin: '2026-03-31' }, 2)).toEqual({ tipo: 'mensual', inicio: '2026-01-01', fin: '2026-01-31' })
-  })
-  it('id determinista por usuario, tipo y periodo', () => {
-    expect(idRevision(USUARIO, 'semanal', '2026-11-09')).toBe(idRevision(USUARIO.toUpperCase(), 'semanal', '2026-11-09'))
-    expect(idRevision(USUARIO, 'semanal', '2026-11-09')).not.toBe(idRevision(USUARIO, 'mensual', '2026-11-09'))
-    expect(idRevision(USUARIO, 'semanal', '2026-11-09')).not.toBe(idRevision('bbbbbbbb-0000-4000-8000-000000000002', 'semanal', '2026-11-09'))
   })
   it('solo hay revisión si hubo movimientos en el periodo', () => {
     expect(hayMovimientos([mov('2026-11-08', 1)], SEMANA)).toBe(false)

@@ -6,7 +6,7 @@ import 'fake-indexeddb/auto'
 import { IDBFactory } from 'fake-indexeddb'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { idApunteFijo } from '../lib/fijos'
-import { idRevision, leerDatosRevision } from '../lib/revision'
+import { leerDatosRevision } from '../lib/revision'
 import { ErrorDeValidacion } from '../lib/validacion'
 import { aplicarFijos, crearFijo, editarFijo, listarFijos, pausarFijo, type DatosFijo } from '../repos/fijos'
 import { crearMovimiento, editarMovimiento, listarMovimientos } from '../repos/movimientos'
@@ -129,7 +129,8 @@ describe('fijos con frecuencia', () => {
     const f = await crearFijo(base, '2026-11-09')
     expect(await aplicarFijos('2026-11-11')).toBe(1)
     const editado = await editarFijo(f.id, { ...base, frecuencia: 'mensual', dia: '1' }, '2026-11-12')
-    expect(editado).toMatchObject({ frecuencia: 'mensual', inicio: '2026-11-12', ultimo_apunte: '2026-11-11', desde: '2026-12', ultimo_mes: '2026-11' })
+    // Lo apuntado con la frecuencia vieja no cuenta para la nueva: empieza de cero desde hoy
+    expect(editado).toMatchObject({ frecuencia: 'mensual', inicio: '2026-11-12', ultimo_apunte: null, desde: '2026-12', ultimo_mes: null })
     expect(await aplicarFijos('2026-11-30')).toBe(0)
     expect(await aplicarFijos('2026-12-01')).toBe(1)
   })
@@ -204,7 +205,6 @@ describe('revisiones', () => {
       ['semanal', '2026-11-09', '2026-11-15', false],
       ['mensual', '2026-10-01', '2026-10-31', false],
     ])
-    expect(revisiones[0].id).toBe(idRevision(PERFIL, 'semanal', '2026-11-09'))
     const datos = leerDatosRevision(revisiones[0].datos)
     expect(datos).toMatchObject({ gastos: 900, prescindibles: 900, meta: 100000, ahorro_total: 4100 })
     expect(datos?.sugerencias[0]).toMatchObject({ regla: 'prescindible', titulo: 'Cine' })
@@ -226,22 +226,25 @@ describe('revisiones', () => {
     expect(faltaRevision([], [], '2026-11-16')).toBe(false)
   })
 
-  it('dos dispositivos sin conexión hacen la misma revisión: una sola fila (mismo id)', async () => {
+  it('si dos dispositivos hacen la misma revisión, el servidor acepta una y el otro se queda con esa', async () => {
     const { servidor, pc } = await conMovimientos()
+    // Como el unique (user_id, tipo, inicio) de la base de datos
+    servidor.rechazar = (tabla, fila) =>
+      tabla === 'revisiones' && servidor.filas('revisiones').some((r) => r.id !== fila.id && r.tipo === fila.tipo && r.inicio === fila.inicio) ? '23505' : null
     await sincronizar(pc)
     const movil = await dispositivo(servidor)
     await sincronizar(movil)
-    pc.red.conectada = false
-    movil.red.conectada = false
     pc.usar()
     expect(await generarRevisiones('2026-11-16')).toBe(2)
     movil.usar()
     expect(await generarRevisiones('2026-11-16')).toBe(2)
-    pc.red.conectada = true
-    movil.red.conectada = true
     expect(await sincronizar(pc)).toBe(true)
     expect(await sincronizar(movil)).toBe(true)
-    expect(servidor.filas('revisiones')).toHaveLength(2)
+    const buenas = servidor.filas('revisiones').map((r) => r.id).sort()
+    expect(buenas).toHaveLength(2)
+    movil.usar()
+    expect((await listarRevisiones()).map((r) => r.id).sort()).toEqual(buenas)
+    expect(await generarRevisiones('2026-11-16')).toBe(0)
   })
 
   it('el otro dispositivo baja la revisión hecha y no la repite; marcarla vista se sincroniza', async () => {

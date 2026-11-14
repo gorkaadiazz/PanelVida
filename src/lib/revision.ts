@@ -20,7 +20,6 @@ import { esFechaDia, sumarDias, type FechaDia } from './fechas'
 import { alMes, esDeFijo, fechaEnMes, totalFijoMensual } from './fijos'
 import { cuandoLlego, DIAS_POR_MES, impactoEnMeta, ritmoAhorro, textoImpacto, VENTANA_POR_DEFECTO, type Impacto } from './prevision'
 import { lunesDe } from './semana'
-import { uuidV5 } from './uuid'
 
 export const TIPOS_REVISION = ['semanal', 'mensual'] as const
 export type TipoRevision = (typeof TIPOS_REVISION)[number]
@@ -67,14 +66,6 @@ export function periodoAnterior(p: Periodo, n: number = 1): Periodo {
 }
 
 const enPeriodo = (fecha: FechaDia, p: Periodo) => fecha >= p.inicio && fecha <= p.fin
-
-/**
- * Id de una revisión: UUID v5 con el id del usuario como espacio. El mismo en
- * todos sus dispositivos (no se duplica). No cambiar la fórmula.
- */
-export function idRevision(usuarioId: string, tipo: TipoRevision, inicio: FechaDia): string {
-  return uuidV5(`revision:${tipo}:${inicio}`, usuarioId.toLowerCase())
-}
 
 /** Pasa un importe del periodo a «al mes» (una semana son 30,4 / 7 semanas). */
 function factorAlMes(tipo: TipoRevision): number {

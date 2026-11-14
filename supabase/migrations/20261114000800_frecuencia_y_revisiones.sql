@@ -27,9 +27,9 @@
 --      a nada: el fijo de otro usuario no se puede leer (RLS).
 -- 4. revisiones: la revisión semanal (lunes a domingo) y mensual que la app
 --    calcula sola al día siguiente de terminar el periodo (lib/revision.ts).
---    `datos` es la foto de ese momento (jsonb, tamaño limitado). El id es
---    determinista (usuario + tipo + inicio), así que dos dispositivos que la
---    calculan a la vez escriben la misma fila.
+--    `datos` es la foto de ese momento (jsonb, tamaño limitado). Una por
+--    usuario, tipo y periodo (unique): si dos dispositivos la hacen a la vez,
+--    se queda la primera. El id es aleatorio (no se puede adivinar).
 -- Igual que las demás tablas: user_id = auth.uid(), RLS con 4 políticas,
 -- triggers de sincronización, no_revivir_borrado y sin permisos para anon.
 -- =============================================================================

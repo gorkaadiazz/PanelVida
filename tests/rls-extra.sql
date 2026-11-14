@@ -1212,6 +1212,14 @@ select pg_temp.debe_fallar($q$insert into public.revisiones (tipo, inicio, fin, 
 select pg_temp.debe_fallar($q$insert into public.revisiones (tipo, inicio, fin, datos)
   values ('mensual', '2026-03-01', '2026-03-31', jsonb_build_object('relleno', repeat(md5(random()::text), 2000)))$q$,
   array['23514'], 'datos de más de 32 KB');
+-- El unique es por usuario: B puede tener la misma semana, y una fila de B no
+-- se ve ni se toca desde A (aunque B elija el id)
+select pg_temp.como('bbbbbbbb-0000-4000-8000-000000000002');
+insert into public.revisiones (id, tipo, inicio, fin, datos) values ('b0000000-0000-4000-8000-0000000000e1', 'semanal', '2026-11-09', '2026-11-15', '{"v": 1}');
+select pg_temp.como('aaaaaaaa-0000-4000-8000-000000000001');
+select pg_temp.comprobar((select count(*) from public.revisiones where id = 'b0000000-0000-4000-8000-0000000000e1') = 0, 'A ve la revisión de B');
+select pg_temp.debe_fallar($q$insert into public.revisiones (id, tipo, inicio, fin, datos) values ('b0000000-0000-4000-8000-0000000000e1', 'mensual', '2026-04-01', '2026-04-30', '{"v": 1}')
+  on conflict (id) do update set vista = true$q$, array['42501'], 'A pisa la revisión de B');
 
 -- @fin
 do $$

@@ -4,7 +4,7 @@
 
 import type { Json } from '../lib/database.types'
 import type { FechaDia } from '../lib/fechas'
-import { calcularRevision, hayMovimientos, idRevision, periodoTerminado, TIPOS_REVISION } from '../lib/revision'
+import { calcularRevision, hayMovimientos, periodoTerminado, TIPOS_REVISION } from '../lib/revision'
 import type { FilaLocal } from '../sync/tablas'
 import { ErrorNoEncontrado, listar, transaccion } from './base'
 
@@ -30,8 +30,14 @@ export function faltaRevision(
 /**
  * Crea la revisión de la semana pasada y la del mes pasado si faltan y hubo
  * movimientos. Solo la última de cada tipo (no recupera las de cuando la app
- * no se abrió). Necesita el perfil (su id es el del usuario, para el id de la
- * revisión): sin él no hace nada. Devuelve cuántas ha creado.
+ * no se abrió). Necesita el perfil (por la meta de ahorro): sin él no hace
+ * nada. Devuelve cuántas ha creado.
+ *
+ * El id es aleatorio (uno calculable a partir del id del usuario dejaría que
+ * otro usuario lo ocupara antes). Si dos dispositivos hacen la misma, el
+ * servidor solo acepta una (unique user_id, tipo, inicio): la otra se
+ * descarta y se baja la buena. Para que casi nunca pase, la app solo las
+ * genera con conexión y recién sincronizada (components/ApuntarFijos).
  */
 export async function generarRevisiones(hoy: FechaDia): Promise<number> {
   return transaccion(async (e) => {
@@ -42,10 +48,9 @@ export async function generarRevisiones(hoy: FechaDia): Promise<number> {
     for (const tipo of TIPOS_REVISION) {
       const periodo = periodoTerminado(tipo, hoy)
       if (!hayMovimientos(movimientos, periodo)) continue
-      const id = idRevision(perfil.id, tipo, periodo.inicio)
-      if (existentes.some((r) => r.id === id || (r.tipo === tipo && r.inicio === periodo.inicio))) continue
+      if (existentes.some((r) => r.tipo === tipo && r.inicio === periodo.inicio)) continue
       const datos = calcularRevision({ periodo, movimientos, fijos, deseos, meta: perfil.meta_ahorro_centimos ?? null, hoy })
-      e.crear('revisiones', { tipo, inicio: periodo.inicio, fin: periodo.fin, datos: datos as unknown as Json, vista: false }, id)
+      e.crear('revisiones', { tipo, inicio: periodo.inicio, fin: periodo.fin, datos: datos as unknown as Json, vista: false })
       creadas++
     }
     return creadas
