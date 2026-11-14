@@ -88,6 +88,14 @@ Comprobaciones ahora mismo: `npm test -- --run` 473/473, `npm run test:sql` 41/4
 - Un apunte de un fijo borrado no reaparece aunque otro dispositivo lo apunte sin conexión: el trigger `no_revivir_borrado` ignora en el servidor un movimiento cuyo id ya está en `borrados`.
 - Seguridad (14/11): tope de 10 dispositivos con recordatorios por usuario, el cron se comprueba antes que nada y cada activación crea una suscripción nueva (un navegador compartido no recibe avisos de otra cuenta).
 
+### Fase 8: extras personales (14/11/2026)
+- Bandeja rápida de ideas: botón «+» siempre visible (encima de la barra inferior en el móvil), bandeja, convertir en tarea, plan o deseo (se crea y la idea se borra en la misma operación), archivar y contador en Inicio.
+- Cumpleaños: lista por el próximo con cuenta atrás y edad; el 29 de febrero se celebra el 28 en años no bisiestos; tarjeta de los próximos 7 días en Inicio.
+- Planes: idea → planeado (con fecha) → hecho (valoración 1-5 y comentario), filtros por estado y tipo; próximo plan en Inicio.
+- Lista de deseos: el ahorro total de Dinero se reparte en orden de prioridad («te llega» / «te faltan X €»); al comprar se ofrece apuntar el gasto (misma operación) y pasa al historial.
+- En el menú, dentro de «Más» (y en la barra lateral en PC): Ideas, Cumpleaños, Planes y Lista de deseos.
+- Migraciones 20261114000300 a 20261114000600 (ver `docs/RECORDATORIOS.md`).
+
 ### Fases siguientes
 - **Fase 7, despliegue:** en Netlify (origen propio), no en GitHub Pages. Pasos en `docs/DESPLEGAR.md`.
 

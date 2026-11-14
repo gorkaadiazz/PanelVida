@@ -1,4 +1,4 @@
-# Activar las novedades en Supabase (categorías, fijos y recordatorios)
+# Activar las novedades en Supabase (categorías, fijos, recordatorios y fase 8)
 
 Las categorías, los gastos fijos y los recordatorios necesitan dos migraciones
 nuevas. Los recordatorios necesitan además una Edge Function y sus claves.
@@ -10,7 +10,14 @@ categoría o un fijo, y los recordatorios dirán que no se han podido guardar.
 ```
 supabase/migrations/20261114000100_categorias_y_fijos.sql
 supabase/migrations/20261114000200_recordatorios.sql
+supabase/migrations/20261114000300_ideas.sql
+supabase/migrations/20261114000400_cumpleanos.sql
+supabase/migrations/20261114000500_planes.sql
+supabase/migrations/20261114000600_deseos.sql
 ```
+
+Las cuatro últimas son de la fase 8 (ideas, cumpleaños, planes y lista de
+deseos): sin ellas esas pantallas abren pero no pueden guardar en la nube.
 
 Igual que en `docs/MIGRAR.md`: o pegando cada archivo en **SQL Editor → New
 query → Run**, o con la CLI:
