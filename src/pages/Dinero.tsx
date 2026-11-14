@@ -38,6 +38,7 @@ import { borrarMovimiento, crearMovimiento, editarMovimiento, type DatosMovimien
 import { guardarMetaAhorro, type Perfil } from '../repos/perfil'
 import { useEstadoSync } from '../sync/hooks'
 import { DineroFijos } from './DineroFijos'
+import { DineroPrevision } from './DineroPrevision'
 import { DineroRevisiones } from './DineroRevisiones'
 
 type Ejecutar = (accion: () => Promise<unknown>) => Promise<boolean>
@@ -47,6 +48,7 @@ const SECCIONES = [
   { id: 'movimientos', nombre: 'Movimientos' },
   { id: 'fijos', nombre: 'Fijos' },
   { id: 'revisiones', nombre: 'Revisiones' },
+  { id: 'prevision', nombre: 'Previsión' },
 ] as const
 type Seccion = (typeof SECCIONES)[number]['id']
 
@@ -71,6 +73,7 @@ export function Dinero() {
         {seccion === 'movimientos' && <DineroMovimientos ejecutar={ejecutar} />}
         {seccion === 'fijos' && <SeccionFijos ejecutar={ejecutar} />}
         {seccion === 'revisiones' && <SeccionRevisiones ejecutar={ejecutar} />}
+        {seccion === 'prevision' && <DineroPrevision />}
       </div>
     </Pagina>
   )

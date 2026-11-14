@@ -21,8 +21,10 @@ import { esTipoPlan, NOMBRE_TIPO_PLAN, proximoPlan } from '../lib/planes'
 import { DIAS_EN_INICIO, proximosDias, textoCuentaAtras as cuentaAtrasCumple, textoDiaMes } from '../lib/cumpleanos'
 import { recuentoTareas } from '../lib/tareas'
 import { alternarDia } from '../repos/habitos'
-import { useClientes, useCumpleanos, useExamenes, useHabitos, useIdeas, useMarcas, useMovimientos, usePerfil, usePlanes, useRevisiones, useTareas } from '../repos/hooks'
+import { useClientes, useCumpleanos, useExamenes, useFijos, useHabitos, useIdeas, useMarcas, useMovimientos, usePerfil, usePlanes, useRevisiones, useTareas } from '../repos/hooks'
 import { leerDatosRevision, nombrePeriodo, textoCambio, type TipoRevision } from '../lib/revision'
+import { ahorroTotal, cuandoLlego, lineaMeta, ritmoAhorro } from '../lib/prevision'
+import { leerVentana } from '../components/ventanaPrevision'
 import { marcarTarea } from '../repos/tareas'
 import { useEstadoSync } from '../sync/hooks'
 
@@ -285,8 +287,12 @@ function TarjetaAhorro({ hoy }: { hoy: FechaDia }) {
   const lista = movimientos.datos ?? []
   const cargando = movimientos.cargando || (lista.length === 0 && !primeraDescargaHecha)
   const delMes = resumenMes(lista, mesDe(hoy))
+  const fijos = useFijos()
   const meta = perfil.datos?.meta_ahorro_centimos ?? null
   const progreso = progresoMeta(resumir(lista).ahorro, meta)
+  // «A este ritmo llegas a tu meta el …» (sin datos aún, no se dice nada)
+  const ritmo = ritmoAhorro(lista, fijos.datos ?? [], leerVentana(), hoy)
+  const linea = meta !== null && ritmo.aviso !== 'sin_datos' ? lineaMeta(cuandoLlego(ahorroTotal(lista), meta, ritmo.mensual, hoy), hoy) : null
 
   return (
     <section className="card" aria-labelledby="inicio-ahorro">
@@ -320,6 +326,11 @@ function TarjetaAhorro({ hoy }: { hoy: FechaDia }) {
                 {progreso.conseguida ? 'Meta conseguida' : <><span className="num">{progreso.porcentaje} %</span> de la meta</>} ·{' '}
                 <span className="num">{formatearEuros(meta)}</span>
               </p>
+              {linea && (
+                <p className="t-small">
+                  <Link to="/dinero?ver=prevision">{linea}</Link>
+                </p>
+              )}
             </>
           )}
         </div>

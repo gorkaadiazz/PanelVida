@@ -2024,3 +2024,56 @@ html { scroll-padding-bottom: calc(var(--nav-bottom-h) + var(--safe-bottom) + 72
   margin: var(--sp-2) 0 0;
   padding-inline-start: 1.25rem;
 }
+
+/* Previsión de ahorro */
+.prevision__escenarios,
+.prevision__plazos { flex-wrap: wrap; }
+.prevision__escenarios label,
+.prevision__plazos label { padding-inline: var(--sp-3); }
+.segmentos label:has(input:disabled) { opacity: 0.5; cursor: not-allowed; }
+.prevision__ajuste {
+  width: 100%;
+  min-height: var(--tap);
+  accent-color: var(--accent);
+}
+.prevision-grafica__real,
+.prevision-grafica__prevista {
+  fill: none;
+  stroke: var(--grafica);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+.prevision-grafica__prevista { stroke-dasharray: 6 5; }
+.prevision-grafica__meta {
+  stroke: var(--ok);
+  stroke-width: 1.5;
+  stroke-dasharray: 2 4;
+  vector-effect: non-scaling-stroke;
+}
+.prevision-grafica__hoy {
+  stroke: var(--border-field);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+.prevision-grafica__ejes {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sp-2);
+}
+.prevision-grafica__leyenda {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-1) var(--sp-2);
+}
+.prevision-grafica__clave {
+  display: inline-block;
+  width: 1.5rem;
+  height: 0;
+  border-top: 2.5px solid var(--grafica);
+}
+.prevision-grafica__clave--prevista { border-top-style: dashed; }
+.prevision-grafica__clave--meta { border-top: 2px dotted var(--ok); }
+.prevision-grafica__clave:not(:first-child) { margin-inline-start: var(--sp-2); }

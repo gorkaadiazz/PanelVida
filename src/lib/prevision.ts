@@ -7,7 +7,8 @@
 // equivalente al mes). Los apuntes de los fijos no entran en la media: así no
 // se cuentan dos veces y un fijo dado de baja deja de restar.
 
-import { mesDe, resumir, sumarMeses, type MovimientoBasico } from './dinero'
+import { formatearEuros, mesDe, resumir, sumarMeses, type MovimientoBasico } from './dinero'
+import { ordenarDeseos, type DeseoBasico } from './deseos'
 import { diferenciaDias, formatearFecha, sumarDias, type FechaDia } from './fechas'
 import { esDeFijo, fechaEnMes, totalFijoMensual } from './fijos'
 
@@ -75,13 +76,13 @@ export function ritmoAhorro(movimientos: readonly MovimientoPrevision[], fijos: 
 
   let neto = 0
   for (const m of pasados) if (m.fecha >= desde && !esDeFijo(m, fijos)) neto += conSigno(m)
-  const variable = Math.round((neto * DIAS_POR_MES) / dias)
+  const variable = Math.round((neto * 365) / (12 * dias))
   return { mensual: variable + deFijos, variable, fijos: deFijos, dias, desde, aviso: dias < DIAS_MIN_DATOS ? 'pocos_datos' : null }
 }
 
 /** Ahorro total que tendrías dentro de `dias` días a este ritmo. */
 export function saldoDentroDe(saldo: number, ritmo: number, dias: number): number {
-  return saldo + Math.round((ritmo * Math.max(0, dias)) / DIAS_POR_MES)
+  return saldo + Math.round((ritmo * 12 * Math.max(0, dias)) / 365)
 }
 
 /** Ahorro total que tendrías en una fecha (hoy o después). */
@@ -99,7 +100,8 @@ export type Llegada =
 export function cuandoLlego(saldo: number, objetivo: number, ritmo: number, hoy: FechaDia): Llegada {
   const falta = objetivo - saldo
   if (falta <= 0) return { estado: 'ya' }
-  const dias = ritmo > 0 ? Math.ceil((falta * DIAS_POR_MES) / ritmo) : Infinity
+  // En enteros (× 365 ÷ 12) para que el redondeo sea exacto
+  const dias = ritmo > 0 ? Math.ceil((falta * 365) / (12 * ritmo)) : Infinity
   if (dias > DIAS_MAX_LLEGADA) {
     return {
       estado: 'no_llega',
@@ -188,4 +190,53 @@ export function serieProyeccion(saldo: number, ritmo: number, hoy: FechaDia, mes
 /** Ahorro total de hoy: lo mismo que la tarjeta «Ahorro total» de Dinero. */
 export function ahorroTotal(movimientos: readonly MovimientoBasico[]): number {
   return resumir(movimientos).ahorro
+}
+
+// --- Objetivos y textos ---------------------------------------------------------
+
+/**
+ * Cantidad a la que hay que llegar para un deseo: su precio más el de los
+ * pendientes que van antes por prioridad (el ahorro se reparte en ese orden,
+ * como en la lista de deseos). null si no está pendiente.
+ */
+export function objetivoDeseo(deseos: readonly DeseoBasico[], id: string): number | null {
+  const orden = ordenarDeseos(deseos)
+  const i = orden.findIndex((d) => d.id === id)
+  if (i < 0) return null
+  return orden.slice(0, i + 1).reduce((s, d) => s + d.precio_centimos, 0)
+}
+
+const formatoDiaMes = new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'long', timeZone: 'UTC' })
+const formatoDiaMesAnio = new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })
+
+/** "15 de mayo" (este año) o "15 de mayo de 2027". */
+export function textoFecha(fecha: FechaDia, hoy: FechaDia): string {
+  const instante = Date.parse(`${fecha}T00:00:00Z`)
+  return fecha.slice(0, 4) === hoy.slice(0, 4) ? formatoDiaMes.format(instante) : formatoDiaMesAnio.format(instante)
+}
+
+/** "+120,00 €/mes" / "−30,00 €/mes" / "0,00 €/mes". */
+export function textoRitmo(ritmo: number): string {
+  return `${ritmo > 0 ? '+' : ''}${formatearEuros(ritmo)}/mes`
+}
+
+/**
+ * Respuesta a «¿cuándo llego?», sin inventar fechas:
+ *  · "Ya lo tienes."
+ *  · "A este ritmo llegas el 15 de mayo de 2027 (en 6 meses)."
+ *  · "A este ritmo no llegas. Para llegar tendrías que ahorrar 300,00 €/mes en 3 meses, 150,00 € en 6 o 75,00 € en 12."
+ */
+export function textoLlegada(llegada: Llegada, hoy: FechaDia): string {
+  if (llegada.estado === 'ya') return 'Ya lo tienes.'
+  if (llegada.estado === 'llega') return `A este ritmo llegas el ${textoFecha(llegada.fecha, hoy)} (en ${textoDuracion(llegada.dias)}).`
+  const [a, b, c] = llegada.necesario
+  const motivo = llegada.motivo === 'lejos' ? 'A este ritmo tardarías más de 50 años.' : 'A este ritmo no llegas.'
+  return `${motivo} Para llegar tendrías que ahorrar ${formatearEuros(a.alMes)}/mes en ${a.meses} meses, ${formatearEuros(b.alMes)} en ${b.meses} o ${formatearEuros(c.alMes)} en ${c.meses}.`
+}
+
+/** Línea de Inicio: "A este ritmo llegas a tu meta el 15 de mayo" (null si no hay meta o ya está). */
+export function lineaMeta(llegada: Llegada | null, hoy: FechaDia): string | null {
+  if (!llegada || llegada.estado === 'ya') return null
+  if (llegada.estado === 'llega') return `A este ritmo llegas a tu meta el ${textoFecha(llegada.fecha, hoy)}`
+  return 'A este ritmo no llegas a tu meta'
 }
