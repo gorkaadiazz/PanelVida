@@ -1701,3 +1701,28 @@ p.num--xl {
 @media (prefers-reduced-motion: reduce) {
   .fijos > summary::after { transition: none; }
 }
+
+/* Resumen «Esta semana» de Inicio: tres cifras con su comparación debajo */
+.semana {
+  display: grid;
+  gap: var(--sp-3);
+  margin: 0;
+}
+.semana > div {
+  display: grid;
+  gap: 2px;
+}
+.semana dt {
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+}
+.semana dd {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+}
+.num--lg {           /* cifra mediana: entre el cuerpo y la destacada */
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-semibold);
+  line-height: 1.2;
+}

@@ -15,6 +15,7 @@ import { URL_EXAMENES } from '../lib/enlaces'
 import { proximoExamen, textoCuentaAtras } from '../lib/examenes'
 import { cuadricula } from '../lib/habitos'
 import { resumenNegocio } from '../lib/negocio'
+import { porcentaje, resumenSemana, textoComparacion } from '../lib/semana'
 import { recuentoTareas } from '../lib/tareas'
 import { alternarDia } from '../repos/habitos'
 import { useClientes, useExamenes, useHabitos, useMarcas, useMovimientos, usePerfil, useTareas } from '../repos/hooks'
@@ -55,6 +56,7 @@ export function Inicio() {
           <TarjetaExamen hoy={dia} />
           <TarjetaAhorro hoy={dia} />
           <TarjetaNegocio />
+          <TarjetaSemana hoy={dia} />
         </div>
       </div>
     </Pagina>
@@ -376,5 +378,66 @@ function Esqueleto() {
       <span className="skeleton" style={{ '--h': '2.5rem' } as CSSProperties} />
       <span className="skeleton" style={{ '--h': '2.5rem' } as CSSProperties} />
     </div>
+  )
+}
+
+/** Esta semana (lunes a hoy) frente a los mismos días de la semana pasada. */
+function TarjetaSemana({ hoy }: { hoy: FechaDia }) {
+  const habitos = useHabitos()
+  const marcas = useMarcas()
+  const tareas = useTareas()
+  const movimientos = useMovimientos()
+  const { primeraDescargaHecha } = useEstadoSync()
+  const cargando = habitos.cargando || marcas.cargando || tareas.cargando || movimientos.cargando || !primeraDescargaHecha
+  const r = resumenSemana(
+    { habitos: habitos.datos ?? [], marcas: marcas.datos ?? [], tareas: tareas.datos ?? [], movimientos: movimientos.datos ?? [] },
+    hoy,
+  )
+  const pct = porcentaje(r.actual.habitosHechos, r.actual.habitosPosibles)
+  const pctAntes = porcentaje(r.anterior.habitosHechos, r.anterior.habitosPosibles)
+
+  return (
+    <section className="card" aria-labelledby="inicio-semana">
+      <div className="card__head">
+        <h2 id="inicio-semana" className="card__titulo">
+          Esta semana
+        </h2>
+        <span className="t-small muted">{r.dias === 7 ? 'de lunes a domingo' : r.dias === 1 ? 'hoy lunes' : `${r.dias} días`}</span>
+      </div>
+      {cargando && !habitos.datos?.length && !movimientos.datos?.length ? (
+        <Esqueleto />
+      ) : (
+        <dl className="semana">
+          <div>
+            <dt>Hábitos cumplidos</dt>
+            <dd>
+              <span className="num num--lg">{r.actual.habitosPosibles ? `${pct} %` : '—'}</span>
+              {r.actual.habitosPosibles > 0 && (
+                <span className="t-small muted">
+                  <span className="num">
+                    {r.actual.habitosHechos}/{r.actual.habitosPosibles}
+                  </span>{' '}
+                  · {textoComparacion(pct, pctAntes, (n) => `${n} puntos`)}
+                </span>
+              )}
+            </dd>
+          </div>
+          <div>
+            <dt>Tareas hechas</dt>
+            <dd>
+              <span className="num num--lg">{r.actual.tareasHechas}</span>
+              <span className="t-small muted">{textoComparacion(r.actual.tareasHechas, r.anterior.tareasHechas)}</span>
+            </dd>
+          </div>
+          <div>
+            <dt>Ahorrado</dt>
+            <dd>
+              <span className={`num num--lg${r.actual.ahorro < 0 ? ' text-danger' : ''}`}>{formatearEuros(r.actual.ahorro)}</span>
+              <span className="t-small muted">{textoComparacion(r.actual.ahorro, r.anterior.ahorro, formatearEuros)}</span>
+            </dd>
+          </div>
+        </dl>
+      )}
+    </section>
   )
 }
