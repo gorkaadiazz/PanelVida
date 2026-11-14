@@ -550,6 +550,36 @@ export type Database = {
         }
         Relationships: []
       }
+      ideas: {
+        Row: {
+          archivada: boolean
+          created_at: string
+          id: string
+          sync_at: string
+          texto: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          archivada?: boolean
+          created_at?: string
+          id?: string
+          sync_at?: string
+          texto: string
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          archivada?: boolean
+          created_at?: string
+          id?: string
+          sync_at?: string
+          texto?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       modulos: {
         Row: {
           abreviatura: string

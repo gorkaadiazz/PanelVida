@@ -6,6 +6,7 @@ import { useConsulta, type Consulta } from '../sync/hooks'
 import { listarClientes, type Cliente } from './clientes'
 import { listarExamenes, type DatosExamenes } from './examenes'
 import { listarFijos, type Fijo } from './fijos'
+import { listarIdeas, type Idea } from './ideas'
 import { listarMovimientos, type Movimiento } from './movimientos'
 import { obtenerPerfil, type Perfil } from './perfil'
 import { listarHabitos, listarMarcas, type Habito, type Marca } from './habitos'
@@ -42,6 +43,11 @@ export function useMovimientos(): Consulta<Movimiento[]> {
 /** Los movimientos fijos de cada mes, por día. */
 export function useFijos(): Consulta<Fijo[]> {
   return useConsulta(['movimientos_fijos'], listarFijos)
+}
+
+/** Todas las ideas de la bandeja (también las archivadas). */
+export function useIdeas(): Consulta<Idea[]> {
+  return useConsulta(['ideas'], listarIdeas)
 }
 
 /** Todos los clientes del negocio. */

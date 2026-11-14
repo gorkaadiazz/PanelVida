@@ -234,3 +234,13 @@ export function IconoExterno(props: PropsIcono) {
     </Icono>
   )
 }
+
+export function IconoIdea(props: PropsIcono) {
+  return (
+    <Icono {...props}>
+      <path d="M9 18h6" />
+      <path d="M10 21h4" />
+      <path d="M12 3a6 6 0 0 0-3.6 10.8c.7.5 1.1 1.3 1.1 2.2h5c0-.9.4-1.7 1.1-2.2A6 6 0 0 0 12 3Z" />
+    </Icono>
+  )
+}

@@ -1060,6 +1060,7 @@ a.list__item:focus-visible {
 .alert--ok     { background: var(--ok-soft);     color: var(--ok-ink); }
 .alert--warn   { background: var(--warn-soft);   color: var(--warn-ink); }
 .alert--danger { background: var(--danger-soft); color: var(--danger-ink); }
+.alert--info   { background: var(--info-soft);   color: var(--info-ink); }
 
 .spinner {
   width: 20px;
@@ -1750,3 +1751,101 @@ p.num--xl {
   font-weight: var(--fw-semibold);
   line-height: 1.2;
 }
+
+/* =========================================================
+   Fase 8 · Idea rápida: botón «+» global y su diálogo
+   ========================================================= */
+.idea-boton {
+  position: fixed;
+  right: calc(var(--gutter) + var(--safe-right));
+  /* en el móvil, encima de la barra inferior */
+  bottom: calc(var(--nav-bottom-h) + var(--safe-bottom) + var(--sp-4));
+  z-index: 25;
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--accent);
+  color: var(--on-accent);
+  box-shadow: var(--shadow-float);
+  cursor: pointer;
+  transition: transform var(--dur-fast, 120ms) var(--ease-out), background var(--dur-fast, 120ms) var(--ease-out);
+}
+.idea-boton svg { width: 26px; height: 26px; stroke-width: 2.25; }
+.idea-boton:hover { background: var(--accent-hover); }
+.idea-boton:active { transform: scale(0.94); }
+.idea-boton:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+
+/* El contenido no queda tapado por el botón al final de la página */
+.app-main { padding-bottom: calc(var(--nav-bottom-h) + var(--safe-bottom) + var(--sp-6) + 64px); }
+
+.idea-dialogo {
+  width: min(100% - 2 * var(--gutter), 32rem);
+  margin: auto auto calc(var(--safe-bottom) + var(--sp-4));
+  padding: var(--sp-5);
+  border: 0;
+  border-radius: var(--r-lg);
+  background: var(--surface-raised);
+  color: var(--text);
+  box-shadow: var(--shadow-float);
+}
+.idea-dialogo::backdrop { background: rgb(10 14 20 / 0.45); }
+
+.idea-guardada {    /* aviso breve «Idea guardada», junto al botón */
+  position: fixed;
+  right: calc(var(--gutter) + var(--safe-right) + 64px);
+  bottom: calc(var(--nav-bottom-h) + var(--safe-bottom) + var(--sp-4));
+  z-index: 25;
+  max-width: calc(100% - 2 * var(--gutter) - 64px);
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  padding: var(--sp-2) var(--sp-4);
+  font-size: var(--fs-sm);
+}
+
+@media (min-width: 900px) {
+  .idea-boton { bottom: calc(var(--safe-bottom) + var(--sp-6)); right: calc(var(--sp-6) + var(--safe-right)); }
+  .idea-guardada { bottom: calc(var(--safe-bottom) + var(--sp-6)); right: calc(var(--sp-6) + var(--safe-right) + 64px); }
+  .idea-dialogo { margin: auto; }
+  .app-main { padding-bottom: calc(var(--sp-10) + 64px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .idea-boton { transition: none; }
+  .idea-boton:active { transform: none; }
+}
+
+/* Bandeja de ideas */
+.idea { flex-wrap: wrap; row-gap: var(--sp-1); }
+.idea > .list__main { flex: 1 1 14rem; }
+.idea > .acciones { margin-inline-start: auto; }
+.idea__texto { white-space: pre-line; }
+.desde-idea { align-items: center; }
+
+/* Menú desplegable sencillo con <details> (p. ej. «Convertir en…») */
+.menu { position: relative; }
+.menu > summary { list-style: none; cursor: pointer; }
+.menu > summary::-webkit-details-marker { display: none; }
+.menu__lista {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 15;
+  min-width: 11rem;
+  margin: 0;
+  padding: var(--sp-1);
+  list-style: none;
+}
+.menu__item {
+  display: flex;
+  align-items: center;
+  min-height: var(--tap);
+  padding: 0 var(--sp-3);
+  border-radius: var(--r-md);
+  color: var(--text);
+  text-decoration: none;
+}
+.menu__item:hover { background: var(--surface-sunken); }
+.menu__item:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }

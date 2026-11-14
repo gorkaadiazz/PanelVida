@@ -979,6 +979,59 @@ select pg_temp.como('service');
 select pg_temp.comprobar(public.secreto_cron_valido(repeat('x', 64)) = false, 'un secreto cualquiera vale');
 select pg_temp.comprobar(public.secreto_cron_valido(null) = false and public.secreto_cron_valido('') = false, 'un secreto vacío vale');
 
+-- @caso: fase 8: B no ve, edita ni borra las filas de A en las tablas nuevas, y anon no las lee
+reset role;
+do $$
+declare
+  -- tabla → insert mínimo válido de A (se amplía con cada sección de la fase 8)
+  inserts text[][] := array[
+    array['ideas', $i$insert into public.ideas (id, texto) values ('a0000000-0000-4000-8000-000000000a81', 'Idea de A')$i$]
+  ];
+  t text;
+  filas bigint;
+begin
+  for k in 1..array_length(inserts, 1) loop
+    t := inserts[k][1];
+    perform pg_temp.como('aaaaaaaa-0000-4000-8000-000000000001');
+    execute inserts[k][2];
+    execute format('select count(*) from public.%I where user_id = %L', t, 'aaaaaaaa-0000-4000-8000-000000000001') into filas;
+    perform pg_temp.comprobar(filas = 1, 'user_id no se rellena con auth.uid() en ' || t);
+
+    perform pg_temp.como('bbbbbbbb-0000-4000-8000-000000000002');
+    execute format('select count(*) from public.%I', t) into filas;
+    perform pg_temp.comprobar(filas = 0, 'B ve filas de A en ' || t);
+    execute format('update public.%I set updated_at = now() + interval %L', t, '1 day');
+    execute format('delete from public.%I', t);
+    begin
+      execute format('insert into public.%I (user_id) values (%L)', t, 'aaaaaaaa-0000-4000-8000-000000000001');
+      perform pg_temp.comprobar(false, 'B crea una fila a nombre de A en ' || t);
+    exception when insufficient_privilege or not_null_violation or check_violation then
+      update resultados set n = n + 1;
+    end;
+
+    perform pg_temp.como('anon');
+    begin
+      execute format('select count(*) from public.%I', t) into filas;
+      perform pg_temp.comprobar(false, 'anon lee ' || t);
+    exception when insufficient_privilege then
+      update resultados set n = n + 1;
+    end;
+
+    perform pg_temp.como('aaaaaaaa-0000-4000-8000-000000000001');
+    execute format('select count(*) from public.%I where updated_at <= now()', t) into filas;
+    perform pg_temp.comprobar(filas = 1, 'B ha cambiado o borrado la fila de A en ' || t);
+  end loop;
+end;
+$$;
+
+-- @caso: ideas: texto obligatorio de 1 a 500 caracteres y sin archivar al crearla
+reset role;
+select pg_temp.como('aaaaaaaa-0000-4000-8000-000000000001');
+select pg_temp.debe_fallar($q$insert into public.ideas (texto) values ('')$q$, array['23514'], 'una idea vacía');
+select pg_temp.debe_fallar($q$insert into public.ideas (texto) values (repeat('x', 501))$q$, array['23514'], 'una idea de 501 caracteres');
+insert into public.ideas (id, texto) values ('a0000000-0000-4000-8000-000000000a82', repeat('ñ', 500));
+select pg_temp.comprobar((select not archivada from public.ideas where id = 'a0000000-0000-4000-8000-000000000a82'), 'una idea nueva nace archivada');
+
 -- @caso: borrar un usuario de auth.users borra en cascada todas sus filas
 reset role;
 -- A tiene filas en las tablas de Mi Panel (preámbulo) y un borrado apuntado:

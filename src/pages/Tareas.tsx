@@ -1,5 +1,7 @@
 import { useEffect, useId, useRef, useState, type CSSProperties, type FormEvent, type RefObject } from 'react'
 import { AvisoError } from '../components/AvisoError'
+import { AvisoDesdeIdea } from '../components/DesdeIdea'
+import { useIdeaAConvertir } from '../components/useIdeaAConvertir'
 import { EtiquetaFecha } from '../components/EtiquetaFecha'
 import { Pagina } from '../components/Pagina'
 import { prepararFoco } from '../components/foco'
@@ -8,8 +10,10 @@ import { IconoBorrar, IconoEditar, IconoTareas } from '../components/iconos'
 import { useAccion } from '../components/useAccion'
 import { useHoy } from '../components/useHoy'
 import type { FechaDia } from '../lib/fechas'
+import { tituloDeIdea } from '../lib/ideas'
 import { TEXTO_TAREA_MAX, recuentoTareas } from '../lib/tareas'
 import { useTareas } from '../repos/hooks'
+import type { Idea } from '../repos/ideas'
 import { borrarTarea, crearTarea, editarTarea, marcarTarea, quitarHechas, type Tarea } from '../repos/tareas'
 import { useEstadoSync } from '../sync/hooks'
 
@@ -22,6 +26,7 @@ export function Tareas() {
   const { error, ejecutar, limpiar } = useAccion()
   const [aviso, setAviso] = useState<string | null>(null)
   const [confirmarQuitar, setConfirmarQuitar] = useState(false)
+  const desdeIdea = useIdeaAConvertir()
 
   // El aviso de "se han quitado…" se borra solo al poco
   useEffect(() => {
@@ -54,7 +59,8 @@ export function Tareas() {
         {tareas.error && <AvisoError mensaje="No se han podido leer tus tareas de este dispositivo. Recarga la página." />}
         <AvisoError mensaje={error} onCerrar={limpiar} />
 
-        <AltaTarea ejecutar={ejecutar} />
+        {desdeIdea.idea && <AvisoDesdeIdea idea={desdeIdea.idea} que="tarea" cancelar={desdeIdea.terminar} />}
+        <AltaTarea key={desdeIdea.idea?.id ?? 'nueva'} ejecutar={ejecutar} idea={desdeIdea.idea} alCrear={desdeIdea.terminar} />
 
         {cargando && lista.length === 0 ? (
           <div className="stack" role="status" aria-busy="true" style={{ '--gap': 'var(--sp-2)' } as CSSProperties}>
@@ -299,16 +305,18 @@ function EdicionTarea({ tarea, ejecutar, onTerminar }: { tarea: Tarea; ejecutar:
   )
 }
 
-function AltaTarea({ ejecutar }: { ejecutar: Ejecutar }) {
-  const [texto, setTexto] = useState('')
+function AltaTarea({ ejecutar, idea, alCrear }: { ejecutar: Ejecutar; idea: Idea | null; alCrear: () => void }) {
+  // Si viene de una idea de la bandeja, empieza con su texto
+  const [texto, setTexto] = useState(() => (idea ? tituloDeIdea(idea.texto, TEXTO_TAREA_MAX) : ''))
   const [fecha, setFecha] = useState('')
   const id = useId()
 
   async function enviar(evento: FormEvent) {
     evento.preventDefault()
-    if (await ejecutar(() => crearTarea({ texto, fecha_limite: fecha }))) {
+    if (await ejecutar(() => crearTarea({ texto, fecha_limite: fecha }, idea?.id))) {
       setTexto('')
       setFecha('')
+      if (idea) alCrear()
     }
   }
 
@@ -324,6 +332,7 @@ function AltaTarea({ ejecutar }: { ejecutar: Ejecutar }) {
           value={texto}
           maxLength={TEXTO_TAREA_MAX}
           placeholder="Ej.: Entregar la práctica de SOR"
+          autoFocus={idea !== null}
           onChange={(e) => setTexto(e.target.value)}
         />
       </div>

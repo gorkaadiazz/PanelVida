@@ -3,12 +3,14 @@ import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { URL_EXAMENES } from '../lib/enlaces'
 import { ApuntarFijos } from './ApuntarFijos'
 import { EstadoSincronizacion } from './EstadoSincronizacion'
+import { IdeaRapida } from './IdeaRapida'
 import {
   IconoCuenta,
   IconoDinero,
   IconoEstudios,
   IconoExterno,
   IconoHabitos,
+  IconoIdea,
   IconoInicio,
   IconoMas,
   IconoNegocio,
@@ -28,13 +30,14 @@ const HABITOS: Destino = { ruta: '/habitos', texto: 'Hábitos', icono: <IconoHab
 const TAREAS: Destino = { ruta: '/tareas', texto: 'Tareas', icono: <IconoTareas /> }
 // Los estudios se llevan en la web de exámenes (misma cuenta): es un enlace a ella
 const ESTUDIOS: Destino = { ruta: URL_EXAMENES, texto: 'Estudios', icono: <IconoEstudios />, externo: true }
+const IDEAS: Destino = { ruta: '/ideas', texto: 'Ideas', icono: <IconoIdea /> }
 const DINERO: Destino = { ruta: '/dinero', texto: 'Dinero', icono: <IconoDinero /> }
 const NEGOCIO: Destino = { ruta: '/negocio', texto: 'Negocio', icono: <IconoNegocio /> }
 const CUENTA: Destino = { ruta: '/cuenta', texto: 'Cuenta', icono: <IconoCuenta /> }
 const MAS: Destino = { ruta: '/mas', texto: 'Más', icono: <IconoMas /> }
 
 const PRINCIPALES = [INICIO, HABITOS, TAREAS, ESTUDIOS]
-const EN_MAS = new Set([MAS.ruta, DINERO.ruta, NEGOCIO.ruta, CUENTA.ruta])
+const EN_MAS = new Set([MAS.ruta, IDEAS.ruta, DINERO.ruta, NEGOCIO.ruta, CUENTA.ruta])
 
 export function Layout() {
   const { pathname } = useLocation()
@@ -62,6 +65,7 @@ export function Layout() {
           <EnlaceLateral key={d.ruta} destino={d} />
         ))}
         <div className="sidebar__group">
+          <EnlaceLateral destino={IDEAS} />
           <EnlaceLateral destino={DINERO} />
           <EnlaceLateral destino={NEGOCIO} />
         </div>
@@ -74,6 +78,7 @@ export function Layout() {
       </nav>
 
       <ApuntarFijos />
+      <IdeaRapida />
       <main className="app-main" ref={mainRef}>
         {/* Las pantallas se cargan aparte (App.tsx): mientras llega una, solo un aviso para lectores de pantalla */}
         <Suspense

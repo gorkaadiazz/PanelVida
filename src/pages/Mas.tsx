@@ -1,8 +1,9 @@
 import { Link } from 'react-router-dom'
 import { Pagina } from '../components/Pagina'
-import { IconoCuenta, IconoDinero, IconoFlecha, IconoNegocio } from '../components/iconos'
+import { IconoCuenta, IconoDinero, IconoFlecha, IconoIdea, IconoNegocio } from '../components/iconos'
 
 const ENLACES = [
+  { ruta: '/ideas', texto: 'Ideas', icono: <IconoIdea /> },
   { ruta: '/dinero', texto: 'Dinero', icono: <IconoDinero /> },
   { ruta: '/negocio', texto: 'Negocio', icono: <IconoNegocio /> },
   { ruta: '/cuenta', texto: 'Cuenta', icono: <IconoCuenta /> },

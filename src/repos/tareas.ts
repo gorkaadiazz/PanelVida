@@ -4,6 +4,7 @@
 import { ordenarTareas, validarFechaLimite, validarTextoTarea } from '../lib/tareas'
 import type { FilaLocal } from '../sync/tablas'
 import { ErrorNoEncontrado, listar, transaccion } from './base'
+import { quitarIdea } from './ideas'
 
 export type Tarea = FilaLocal<'tareas'>
 
@@ -18,11 +19,18 @@ export async function listarTareas(): Promise<Tarea[]> {
   return ordenarTareas(await listar('tareas'))
 }
 
-/** Crea una tarea pendiente. Lanza ErrorDeValidacion si el texto o la fecha no valen. */
-export async function crearTarea(datos: DatosTarea): Promise<Tarea> {
+/**
+ * Crea una tarea pendiente. Lanza ErrorDeValidacion si el texto o la fecha no
+ * valen. Con `desdeIdea`, en la misma operación se borra esa idea de la bandeja.
+ */
+export async function crearTarea(datos: DatosTarea, desdeIdea?: string): Promise<Tarea> {
   const texto = validarTextoTarea(datos.texto)
   const fecha_limite = validarFechaLimite(datos.fecha_limite)
-  return transaccion((e) => e.crear('tareas', { texto, fecha_limite, hecha: false, hecha_en: null }))
+  return transaccion(async (e) => {
+    const tarea = e.crear('tareas', { texto, fecha_limite, hecha: false, hecha_en: null })
+    if (desdeIdea) await quitarIdea(e, desdeIdea)
+    return tarea
+  })
 }
 
 /** Cambia el texto y/o la fecha límite (lo que no se indique se queda igual). */

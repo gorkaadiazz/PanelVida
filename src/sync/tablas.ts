@@ -55,6 +55,8 @@ export const TABLAS = [
   { nombre: 'movimientos', columnas: ['tipo', 'concepto', 'importe_centimos', 'fecha', 'categoria'], indices: ['fecha'] },
   // Fijos de cada mes. No es madre de movimientos: borrar un fijo deja los ya apuntados.
   { nombre: 'movimientos_fijos', columnas: ['tipo', 'concepto', 'importe_centimos', 'categoria', 'dia', 'desde', 'ultimo_mes', 'activo'] },
+  // Fase 8: bandeja de ideas
+  { nombre: 'ideas', columnas: ['texto', 'archivada'] },
   { nombre: 'clientes_web', columnas: ['nombre', 'precio_centimos', 'notas', 'estado', 'orden'] },
   // Fila del perfil (la comparte la web de exámenes): Mi Panel solo lee y
   // cambia la meta de ahorro. La fila la crea inicializar_cuenta.

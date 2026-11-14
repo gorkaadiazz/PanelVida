@@ -6,7 +6,7 @@ import { EtiquetaFecha } from '../components/EtiquetaFecha'
 import { Pagina } from '../components/Pagina'
 import { prepararFoco } from '../components/foco'
 import { Racha } from '../components/Racha'
-import { IconoDinero, IconoEstudios, IconoExterno, IconoFlecha, IconoHabitos, IconoNegocio, IconoTareas } from '../components/iconos'
+import { IconoDinero, IconoEstudios, IconoExterno, IconoFlecha, IconoHabitos, IconoIdea, IconoNegocio, IconoTareas } from '../components/iconos'
 import { useAccion } from '../components/useAccion'
 import { useHoy } from '../components/useHoy'
 import type { FechaDia } from '../lib/fechas'
@@ -16,9 +16,10 @@ import { proximoExamen, textoCuentaAtras } from '../lib/examenes'
 import { cuadricula } from '../lib/habitos'
 import { resumenNegocio } from '../lib/negocio'
 import { porcentaje, resumenSemana, textoComparacion } from '../lib/semana'
+import { ideasSinProcesar } from '../lib/ideas'
 import { recuentoTareas } from '../lib/tareas'
 import { alternarDia } from '../repos/habitos'
-import { useClientes, useExamenes, useHabitos, useMarcas, useMovimientos, usePerfil, useTareas } from '../repos/hooks'
+import { useClientes, useExamenes, useHabitos, useIdeas, useMarcas, useMovimientos, usePerfil, useTareas } from '../repos/hooks'
 import { marcarTarea } from '../repos/tareas'
 import { useEstadoSync } from '../sync/hooks'
 
@@ -57,6 +58,7 @@ export function Inicio() {
           <TarjetaAhorro hoy={dia} />
           <TarjetaNegocio />
           <TarjetaSemana hoy={dia} />
+          <TarjetaIdeas />
         </div>
       </div>
     </Pagina>
@@ -439,6 +441,40 @@ function TarjetaSemana({ hoy }: { hoy: FechaDia }) {
           </div>
         </dl>
       )}
+    </section>
+  )
+}
+
+/** Cuántas ideas hay sin procesar en la bandeja. */
+function TarjetaIdeas() {
+  const ideas = useIdeas()
+  const { primeraDescargaHecha } = useEstadoSync()
+  const lista = ideas.datos ?? []
+  const sinProcesar = ideasSinProcesar(lista).length
+  const cargando = ideas.cargando || (lista.length === 0 && !primeraDescargaHecha)
+
+  return (
+    <section className="card" aria-labelledby="inicio-ideas">
+      <div className="card__head">
+        <h2 id="inicio-ideas" className="card__titulo">
+          <IconoIdea />
+          Ideas
+        </h2>
+        {!cargando && <span className="num num--xl">{sinProcesar}</span>}
+      </div>
+      {cargando ? (
+        <Esqueleto />
+      ) : (
+        <p className="muted">
+          {sinProcesar === 0 ? 'Bandeja vacía. Apunta con el botón «+».' : sinProcesar === 1 ? '1 idea sin procesar.' : `${sinProcesar} ideas sin procesar.`}
+        </p>
+      )}
+      <div className="card__foot">
+        <Link to="/ideas" className="btn btn--ghost">
+          Ver la bandeja
+          <IconoFlecha />
+        </Link>
+      </div>
     </section>
   )
 }
