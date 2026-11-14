@@ -3,7 +3,9 @@
 
 import { CONCEPTO_MAX, formatearEuros, parsearImporte, validarCategoria, validarConcepto, validarNecesidad, validarTipo, type TipoMovimiento } from '../lib/dinero'
 import {
+  apunteHastaAyer,
   apuntesPendientes,
+  idApunteParcial,
   camposAntiguos,
   IMPORTE_MAX_DIARIO,
   idApunteFijo,
@@ -11,12 +13,13 @@ import {
   normalizarFijo,
   validarCuando,
   validarFrecuencia,
+  type Apunte,
   type Frecuencia,
 } from '../lib/fijos'
 import { sumarDias, type FechaDia } from '../lib/fechas'
 import { ErrorDeValidacion } from '../lib/validacion'
 import type { FilaLocal } from '../sync/tablas'
-import { ErrorNoEncontrado, listar, transaccion } from './base'
+import { ErrorNoEncontrado, listar, transaccion, type Datos, type Escritor } from './base'
 
 export type Fijo = FilaLocal<'movimientos_fijos'>
 
@@ -94,21 +97,51 @@ export async function editarFijo(id: string, datos: DatosFijo, hoy: FechaDia): P
   })
 }
 
-/** Pausa o reanuda. Al reanudar no se apunta lo que tocó durante la pausa. */
+/**
+ * Pausa o reanuda. Al reanudar no se apunta lo que tocó durante la pausa.
+ * Al pausar se pone al día lo pendiente y, si es diario, se apuntan ya los
+ * días que estuvo activo esta semana (ver `cerrarSemana`).
+ */
 export async function pausarFijo(id: string, pausar: boolean, hoy: FechaDia): Promise<Fijo> {
   return transaccion(async (e) => {
     const anterior = await e.obtener('movimientos_fijos', id)
     if (!anterior) throw new ErrorNoEncontrado('Ese fijo ya no existe.')
-    if (pausar) return e.actualizar('movimientos_fijos', anterior, { activo: false })
+    if (pausar) {
+      const alDia = await cerrarSemana(e, anterior, hoy)
+      return e.actualizar('movimientos_fijos', alDia, { activo: false })
+    }
     const actual = normalizarFijo(anterior)
     const nuevo = { ...actual, inicio: inicioAlReanudar(anterior, hoy) }
     return e.actualizar('movimientos_fijos', anterior, { activo: true, inicio: nuevo.inicio, ...camposAntiguos(nuevo) })
   })
 }
 
-/** Borra el fijo (darlo de baja); los movimientos que ya apuntó se quedan. */
-export async function borrarFijo(id: string): Promise<void> {
-  return transaccion((e) => e.borrar('movimientos_fijos', id))
+/**
+ * Borra el fijo (darlo de baja); los movimientos que ya apuntó se quedan. Antes
+ * se apunta lo pendiente y, si es diario, los días activos de esta semana.
+ */
+export async function borrarFijo(id: string, hoy: FechaDia): Promise<void> {
+  return transaccion(async (e) => {
+    const fijo = await e.obtener('movimientos_fijos', id)
+    if (fijo) await cerrarSemana(e, fijo, hoy)
+    await e.borrar('movimientos_fijos', id)
+  })
+}
+
+/**
+ * Antes de que un fijo deje de estar activo: apunta lo que ya tocaba y, si es
+ * diario, crea el apunte de los días de esta semana hasta ayer. Ese apunte no
+ * cambia `ultimo_apunte`: si se reanuda la misma semana, el domingo se apunta
+ * lo de después. Devuelve el fijo como queda.
+ */
+async function cerrarSemana(e: Escritor, fijo: Fijo, hoy: FechaDia): Promise<Fijo> {
+  const { fijo: alDia } = await apuntarPendientes(e, fijo, hoy)
+  const parcial = apunteHastaAyer(alDia, hoy)
+  if (parcial) {
+    const id = idApunteParcial(fijo.id, parcial.periodo, parcial.fecha)
+    if (!(await e.obtener('movimientos', id))) e.crear('movimientos', movimientoDe(alDia, parcial, 'diaria'), id)
+  }
+  return alDia
 }
 
 /** Concepto del apunte semanal de un fijo diario: "Café (7 días)". */
@@ -128,32 +161,38 @@ function conceptoApunte(concepto: string, veces: number, frecuencia: Frecuencia)
 export async function aplicarFijos(hoy: FechaDia): Promise<number> {
   return transaccion(async (e) => {
     let creados = 0
-    for (const fijo of await e.todos('movimientos_fijos')) {
-      const apuntes = apuntesPendientes(fijo, hoy)
-      if (apuntes.length === 0) continue
-      const f = normalizarFijo(fijo)
-      for (const a of apuntes) {
-        const id = idApunteFijo(fijo.id, a.periodo, f.frecuencia)
-        if (await e.obtener('movimientos', id)) continue
-        const gasto = fijo.tipo === 'gasto'
-        e.crear(
-          'movimientos',
-          {
-            tipo: fijo.tipo,
-            concepto: conceptoApunte(fijo.concepto, a.veces, f.frecuencia),
-            importe_centimos: fijo.importe_centimos * a.veces,
-            fecha: a.fecha,
-            categoria: gasto ? fijo.categoria : null,
-            necesidad: gasto ? (fijo.necesidad ?? null) : null,
-            fijo_id: fijo.id,
-          },
-          id,
-        )
-        creados++
-      }
-      const ultimo = apuntes[apuntes.length - 1].fecha
-      e.actualizar('movimientos_fijos', fijo, { inicio: f.inicio, ultimo_apunte: ultimo, ...camposAntiguos({ ...f, ultimo_apunte: ultimo }) })
-    }
+    for (const fijo of await e.todos('movimientos_fijos')) creados += (await apuntarPendientes(e, fijo, hoy)).creados
     return creados
   })
+}
+
+/** El movimiento de un apunte de un fijo. */
+function movimientoDe(fijo: Fijo, a: Apunte, frecuencia: Frecuencia): Datos<'movimientos'> {
+  const gasto = fijo.tipo === 'gasto'
+  return {
+    tipo: fijo.tipo,
+    concepto: conceptoApunte(fijo.concepto, a.veces, frecuencia),
+    importe_centimos: fijo.importe_centimos * a.veces,
+    fecha: a.fecha,
+    categoria: gasto ? fijo.categoria : null,
+    necesidad: gasto ? (fijo.necesidad ?? null) : null,
+    fijo_id: fijo.id,
+  }
+}
+
+/** Apunta lo pendiente de un fijo y anota `ultimo_apunte`. */
+async function apuntarPendientes(e: Escritor, fijo: Fijo, hoy: FechaDia): Promise<{ creados: number; fijo: Fijo }> {
+  const apuntes = apuntesPendientes(fijo, hoy)
+  if (apuntes.length === 0) return { creados: 0, fijo }
+  const f = normalizarFijo(fijo)
+  let creados = 0
+  for (const a of apuntes) {
+    const id = idApunteFijo(fijo.id, a.periodo, f.frecuencia)
+    if (await e.obtener('movimientos', id)) continue
+    e.crear('movimientos', movimientoDe(fijo, a, f.frecuencia), id)
+    creados++
+  }
+  const ultimo = apuntes[apuntes.length - 1].fecha
+  const actualizado = e.actualizar('movimientos_fijos', fijo, { inicio: f.inicio, ultimo_apunte: ultimo, ...camposAntiguos({ ...f, ultimo_apunte: ultimo }) })
+  return { creados, fijo: actualizado }
 }

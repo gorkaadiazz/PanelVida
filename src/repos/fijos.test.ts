@@ -116,7 +116,7 @@ describe('fijos', () => {
     await editarFijo(f.id, { ...gimnasio, dia: '1', importe: '35' }, '2026-11-01')
     await aplicarFijos('2026-12-01')
     expect((await listarMovimientos()).map((m) => m.importe_centimos).sort()).toEqual([3000, 3500])
-    await borrarFijo(f.id)
+    await borrarFijo(f.id, '2026-12-01')
     expect(await listarFijos()).toEqual([])
     expect(await listarMovimientos()).toHaveLength(2)
   })

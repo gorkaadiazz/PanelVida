@@ -4,12 +4,14 @@
 import { describe, expect, it } from 'vitest'
 import {
   alMes,
+  apunteHastaAyer,
   apuntesPendientes,
   camposAntiguos,
   DESDE_NUNCA,
   equivalencias,
   esDeFijo,
   idApunteFijo,
+  idApunteParcial,
   inicioAlReanudar,
   MAX_SEMANAS_PENDIENTES,
   mesesPendientes,
@@ -76,6 +78,17 @@ describe('diaria: un apunte por semana, el domingo', () => {
   it('el próximo apunte es el domingo', () => {
     expect(proximoApunte(cafe(), '2026-11-11')).toBe('2026-11-15')
     expect(proximoApunte(cafe({ ultimo_apunte: '2026-11-15' }), '2026-11-15')).toBe('2026-11-22')
+  })
+  it('al pausar a mitad de semana: los días activos hasta ayer, con un id propio', () => {
+    expect(apunteHastaAyer(cafe(), '2026-11-12')).toEqual({ periodo: '2026-11-09', fecha: '2026-11-11', veces: 3 })
+    expect(apunteHastaAyer(cafe({ inicio: '2026-11-11' }), '2026-11-12')).toEqual({ periodo: '2026-11-09', fecha: '2026-11-11', veces: 1 })
+    expect(apunteHastaAyer(cafe(), '2026-11-09')).toBeNull() // el lunes no ha pasado ningún día
+    expect(apunteHastaAyer(cafe({ ultimo_apunte: '2026-11-15' }), '2026-11-15')).toBeNull() // semana ya apuntada
+    expect(apunteHastaAyer(cafe({ activo: false }), '2026-11-12')).toBeNull()
+    expect(apunteHastaAyer(fijo({ frecuencia: 'semanal', dia: 3 }), '2026-11-12')).toBeNull()
+    const parcial = idApunteParcial(ID, '2026-11-09', '2026-11-11')
+    expect(parcial).not.toBe(idApunteFijo(ID, '2026-11-09', 'diaria'))
+    expect(parcial).not.toBe(idApunteParcial(ID, '2026-11-09', '2026-11-13'))
   })
   it('su id no choca con el de un semanal del mismo periodo', () => {
     expect(idApunteFijo(ID, '2026-11-09', 'diaria')).not.toBe(idApunteFijo(ID, '2026-11-09', 'semanal'))

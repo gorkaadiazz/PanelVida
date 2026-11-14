@@ -268,7 +268,7 @@ describe('apunte de fijos con dos dispositivos', () => {
     await sincronizar(movil)
     hora('2026-11-10T08:00:00.000Z')
     pc.usar()
-    await borrarFijo(f.id)
+    await borrarFijo(f.id, '2026-11-10')
     await sincronizar(pc)
     hora('2026-12-01T08:00:00.000Z')
     await sincronizar(movil)

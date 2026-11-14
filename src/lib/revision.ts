@@ -119,6 +119,12 @@ export interface Sugerencia {
   media?: number
   /** Los fijos que se solapan (solo solapados); `titulo` es el más barato. */
   conceptos?: string[]
+  /**
+   * Categoría del gasto (prescindible) o de la subida (categoria_sube); null =
+   * sin categoría. Sirve para no contar dos veces el mismo dinero en
+   * `ahorroDeRecortes`. Las revisiones de antes no la tienen.
+   */
+  categoria?: Categoria | null
   ahorro_mes: number
   ahorro_anio: number
   impacto: Impacto
@@ -213,17 +219,19 @@ export function calcularRevision(e: EntradaRevision): DatosRevision {
 
   const sugerencias: Sugerencia[] = []
 
-  // 1. Gastos prescindibles del periodo (a mano; los fijos van en la regla 2)
-  const prescindibles = new Map<string, { titulo: string; total: number }>()
+  // 1. Gastos prescindibles del periodo (a mano; los fijos van en la regla 2),
+  //    agrupados por concepto y categoría
+  const prescindibles = new Map<string, { titulo: string; categoria: Categoria | null; total: number }>()
   for (const m of delPeriodo) {
     if (m.tipo !== 'gasto' || m.necesidad !== 'prescindible' || esDeFijo(m, fijos)) continue
-    const clave = normalizar(m.concepto)
-    const g = prescindibles.get(clave) ?? { titulo: m.concepto.trim(), total: 0 }
+    const categoria = esCategoria(m.categoria) ? m.categoria : null
+    const clave = `${normalizar(m.concepto)}\u0000${categoria ?? ''}`
+    const g = prescindibles.get(clave) ?? { titulo: m.concepto.trim(), categoria, total: 0 }
     g.total += m.importe_centimos
     prescindibles.set(clave, g)
   }
   for (const g of [...prescindibles.values()].sort((a, b) => b.total - a.total).slice(0, MAX_POR_REGLA)) {
-    sugerencias.push(sugerencia({ regla: 'prescindible', titulo: g.titulo, importe: g.total, ahorro_mes: Math.round(g.total * factor) }))
+    sugerencias.push(sugerencia({ regla: 'prescindible', titulo: g.titulo, categoria: g.categoria, importe: g.total, ahorro_mes: Math.round(g.total * factor) }))
   }
 
   // 2. Fijos más caros (los no marcados como esenciales)
@@ -245,6 +253,7 @@ export function calcularRevision(e: EntradaRevision): DatosRevision {
       sugerencia({
         regla: 'categoria_sube',
         titulo: c.categoria ? NOMBRE_CATEGORIA[c.categoria] : 'Sin categoría',
+        categoria: c.categoria,
         importe: c.actual,
         media: c.media,
         ahorro_mes: Math.round(subida * factor),
@@ -299,11 +308,25 @@ export function calcularRevision(e: EntradaRevision): DatosRevision {
 
 /**
  * Lo que ahorrarías al mes con los recortes sugeridos (para el escenario «con
- * recortes» de la previsión). Los solapados no se suman: ese fijo ya está en
- * «fijos más caros» o es un recorte alternativo.
+ * recortes» de la previsión), sin contar dos veces el mismo dinero:
+ *  · los solapados no se suman: ese fijo ya está en «fijos más caros» o es un
+ *    recorte alternativo;
+ *  · de una categoría que sube se suma solo lo que no cubren ya los gastos
+ *    prescindibles de esa misma categoría (dejar el cine ya baja el ocio).
  */
 export function ahorroDeRecortes(sugerencias: readonly Sugerencia[]): number {
-  return sugerencias.filter((s) => s.regla !== 'solapados').reduce((total, s) => total + s.ahorro_mes, 0)
+  let total = 0
+  for (const s of sugerencias) {
+    if (s.regla === 'prescindible' || s.regla === 'fijo_caro') total += s.ahorro_mes
+    else if (s.regla === 'categoria_sube') {
+      const yaContado =
+        s.categoria === undefined
+          ? 0
+          : sugerencias.filter((p) => p.regla === 'prescindible' && p.categoria === s.categoria).reduce((t, p) => t + p.ahorro_mes, 0)
+      total += Math.max(0, s.ahorro_mes - yaContado)
+    }
+  }
+  return total
 }
 
 // --- Comparaciones y textos -------------------------------------------------------
@@ -389,6 +412,7 @@ function leerSugerencia(v: unknown): Sugerencia | null {
     impacto: leerImpacto(s.impacto),
     ...(esEntero(s.media) ? { media: s.media } : {}),
     ...(Array.isArray(s.conceptos) ? { conceptos: s.conceptos.filter((c): c is string => esTexto(c)).slice(0, 20) } : {}),
+    ...(s.categoria === null || esCategoria(s.categoria) ? { categoria: s.categoria } : {}),
   }
 }
 

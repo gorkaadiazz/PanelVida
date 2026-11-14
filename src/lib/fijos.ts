@@ -21,7 +21,7 @@
 // (`camposAntiguos`) para la app sin actualizar de otros dispositivos.
 
 import { mesDe, sumarMeses, IMPORTE_MAX_CENTIMOS, type Mes } from './dinero'
-import { diferenciaDias, sumarDias, type FechaDia } from './fechas'
+import { diferenciaDias, restarDias, sumarDias, type FechaDia } from './fechas'
 import { lunesDe } from './semana'
 import { esUuid, uuidV5 } from './uuid'
 import { ErrorDeValidacion } from './validacion'
@@ -198,6 +198,33 @@ export function mesesPendientes(fijo: FijoBasico, hoy: FechaDia): Mes[] {
 export function idApunteFijo(fijoId: string, periodo: string, frecuencia: Frecuencia = 'mensual'): string {
   const nombre = frecuencia === 'diaria' ? `fijo:d:${periodo}` : `fijo:${periodo}`
   return uuidV5(nombre, fijoId.toLowerCase())
+}
+
+/**
+ * Al pausar o dar de baja un fijo DIARIO a mitad de semana: los días que ya
+ * estuvo activo esa semana (desde el lunes, o desde su inicio, hasta ayer) se
+ * apuntan en ese momento, porque el domingo ya no estará activo para hacerlo.
+ * Hoy no cuenta (la pausa vale desde hoy). null si no hay nada que apuntar:
+ * no es diario, ya está en pausa, la semana ya se apuntó o no pasó ningún día.
+ */
+export function apunteHastaAyer(fijo: FijoBasico, hoy: FechaDia): Apunte | null {
+  const f = normalizarFijo(fijo)
+  if (f.frecuencia !== 'diaria' || !f.activo) return null
+  const lunes = lunesDe(hoy)
+  if (f.ultimo_apunte && periodoDe('diaria', f.ultimo_apunte) >= lunes) return null
+  const desde = f.inicio > lunes ? f.inicio : lunes
+  const hasta = restarDias(hoy, 1)
+  const veces = diferenciaDias(desde, hasta) + 1
+  return veces > 0 ? { periodo: lunes, fecha: hasta, veces } : null
+}
+
+/**
+ * Id del apunte de una semana a medias (`apunteHastaAyer`): distinto del de la
+ * semana completa (el domingo, si se reanuda, se apunta lo de después) y del
+ * de otra pausa de la misma semana (otro `hasta`). No cambiar la fórmula.
+ */
+export function idApunteParcial(fijoId: string, periodo: string, hasta: FechaDia): string {
+  return uuidV5(`fijo:d:${periodo}:hasta:${hasta}`, fijoId.toLowerCase())
 }
 
 /** Próxima fecha en que se apuntará (null si está en pausa). */

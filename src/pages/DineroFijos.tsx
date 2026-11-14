@@ -281,7 +281,7 @@ function FilaFijo({ fijo: f, hoy, ejecutar }: { fijo: Fijo; hoy: FechaDia; ejecu
 
   async function borrar() {
     const mover = prepararFoco(fila.current)
-    if (await ejecutar(() => borrarFijo(f.id))) mover()
+    if (await ejecutar(() => borrarFijo(f.id, hoy))) mover()
   }
 
   if (modo === 'editar') {

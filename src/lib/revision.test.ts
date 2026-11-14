@@ -235,6 +235,63 @@ describe('sugerencias', () => {
   })
 })
 
+describe('escenario «con recortes» sin contar dos veces', () => {
+  const s = (c: Partial<Sugerencia>): Sugerencia => ({ regla: 'prescindible', titulo: 'x', importe: 0, ahorro_mes: 0, ahorro_anio: 0, impacto: null, ...c })
+
+  it('de una categoría que sube solo suma lo que no cubren sus prescindibles', () => {
+    const sugerencias = [
+      s({ regla: 'prescindible', titulo: 'Cine', categoria: 'ocio', ahorro_mes: 3000 }),
+      s({ regla: 'prescindible', titulo: 'Ropa', categoria: 'compras', ahorro_mes: 2000 }),
+      s({ regla: 'fijo_caro', titulo: 'Gimnasio', ahorro_mes: 3500 }),
+      s({ regla: 'categoria_sube', titulo: 'Ocio', categoria: 'ocio', ahorro_mes: 5000 }), // 3.000 ya están en «Cine»
+      s({ regla: 'categoria_sube', titulo: 'Comida', categoria: 'comida', ahorro_mes: 1500 }),
+      s({ regla: 'solapados', titulo: 'HBO', ahorro_mes: 999 }),
+    ]
+    expect(ahorroDeRecortes(sugerencias)).toBe(3000 + 2000 + 3500 + (5000 - 3000) + 1500)
+  })
+  it('si los prescindibles cubren toda la subida, la subida no suma nada', () => {
+    expect(ahorroDeRecortes([s({ categoria: 'ocio', ahorro_mes: 6000 }), s({ regla: 'categoria_sube', categoria: 'ocio', ahorro_mes: 4000 })])).toBe(6000)
+  })
+  it('«sin categoría» también se descuenta entre sí', () => {
+    expect(ahorroDeRecortes([s({ categoria: null, ahorro_mes: 1000 }), s({ regla: 'categoria_sube', categoria: null, ahorro_mes: 2500 })])).toBe(2500)
+  })
+  it('las revisiones de antes (sin categoría guardada) suman como antes', () => {
+    expect(ahorroDeRecortes([s({ ahorro_mes: 1000 }), s({ regla: 'categoria_sube', ahorro_mes: 2500 })])).toBe(3500)
+  })
+  it('de punta a punta: el cine prescindible y la subida del ocio no se suman enteros', () => {
+    const semanas = ['2026-10-12', '2026-10-19', '2026-10-26', '2026-11-02']
+    const d = calcularRevision(
+      entrada({
+        movimientos: [
+          ...semanas.map((f) => mov(f, 2000, { categoria: 'ocio' })),
+          mov('2026-11-10', 3000, { concepto: 'Cine', categoria: 'ocio', necesidad: 'prescindible' }),
+          mov('2026-11-11', 3000, { concepto: 'Bolera', categoria: 'ocio' }),
+        ],
+      }),
+    )
+    const cine = d.sugerencias.find((x) => x.regla === 'prescindible')!
+    const ocio = d.sugerencias.find((x) => x.regla === 'categoria_sube')!
+    expect(cine.categoria).toBe('ocio')
+    expect(ocio.categoria).toBe('ocio')
+    expect(ahorroDeRecortes(d.sugerencias)).toBe(cine.ahorro_mes + Math.max(0, ocio.ahorro_mes - cine.ahorro_mes))
+    expect(ahorroDeRecortes(d.sugerencias)).toBeLessThan(cine.ahorro_mes + ocio.ahorro_mes)
+  })
+  it('el mismo concepto en dos categorías son dos gastos distintos', () => {
+    const d = calcularRevision(
+      entrada({
+        movimientos: [
+          mov('2026-11-10', 900, { concepto: 'Cine', categoria: 'ocio', necesidad: 'prescindible' }),
+          mov('2026-11-11', 500, { concepto: 'cine', necesidad: 'prescindible' }),
+        ],
+      }),
+    )
+    expect(d.sugerencias.map((x) => [x.titulo, x.categoria, x.importe])).toEqual([
+      ['Cine', 'ocio', 900],
+      ['cine', null, 500],
+    ])
+  })
+})
+
 describe('textos de las sugerencias', () => {
   const s = (c: Partial<Sugerencia>): Sugerencia => ({ regla: 'fijo_caro', titulo: 'Netflix', importe: 999, ahorro_mes: 999, ahorro_anio: 11988, impacto: null, ...c })
 
