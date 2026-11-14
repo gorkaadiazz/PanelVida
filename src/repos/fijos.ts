@@ -13,7 +13,7 @@ import {
   validarFrecuencia,
   type Frecuencia,
 } from '../lib/fijos'
-import type { FechaDia } from '../lib/fechas'
+import { sumarDias, type FechaDia } from '../lib/fechas'
 import { ErrorDeValidacion } from '../lib/validacion'
 import type { FilaLocal } from '../sync/tablas'
 import { ErrorNoEncontrado, listar, transaccion } from './base'
@@ -79,8 +79,17 @@ export async function editarFijo(id: string, datos: DatosFijo, hoy: FechaDia): P
     const anterior = await e.obtener('movimientos_fijos', id)
     if (!anterior) throw new ErrorNoEncontrado('Ese fijo ya no existe.')
     const actual = normalizarFijo(anterior)
-    const inicio = limpios.frecuencia !== actual.frecuencia && actual.inicio < hoy ? hoy : actual.inicio
-    const nuevo = { ...limpios, inicio, ultimo_apunte: actual.ultimo_apunte }
+    const cambia = limpios.frecuencia !== actual.frecuencia
+    // Con otra frecuencia, el último apunte (de la frecuencia vieja) ya no sirve
+    // para saber el siguiente periodo: un mensual que pasa a anual se saltaría
+    // el año entero. Se empieza de cero desde hoy (o desde mañana si hoy ya se
+    // apuntó, para no cobrar dos veces el mismo día).
+    let inicio = actual.inicio
+    if (cambia) {
+      if (inicio < hoy) inicio = hoy
+      if (actual.ultimo_apunte && actual.ultimo_apunte >= inicio) inicio = sumarDias(actual.ultimo_apunte, 1)
+    }
+    const nuevo = { ...limpios, inicio, ultimo_apunte: cambia ? null : actual.ultimo_apunte }
     return e.actualizar('movimientos_fijos', anterior, { ...nuevo, ...camposAntiguos(nuevo) })
   })
 }
