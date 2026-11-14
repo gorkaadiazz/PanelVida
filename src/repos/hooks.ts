@@ -5,6 +5,7 @@ import type { FechaDia } from '../lib/fechas'
 import { useConsulta, type Consulta } from '../sync/hooks'
 import { listarClientes, type Cliente } from './clientes'
 import { listarExamenes, type DatosExamenes } from './examenes'
+import { listarFijos, type Fijo } from './fijos'
 import { listarMovimientos, type Movimiento } from './movimientos'
 import { obtenerPerfil, type Perfil } from './perfil'
 import { listarHabitos, listarMarcas, type Habito, type Marca } from './habitos'
@@ -36,6 +37,11 @@ export function useExamenes(): Consulta<DatosExamenes> {
 /** Todos los ingresos y gastos. */
 export function useMovimientos(): Consulta<Movimiento[]> {
   return useConsulta(['movimientos'], listarMovimientos)
+}
+
+/** Los movimientos fijos de cada mes, por día. */
+export function useFijos(): Consulta<Fijo[]> {
+  return useConsulta(['movimientos_fijos'], listarFijos)
 }
 
 /** Todos los clientes del negocio. */

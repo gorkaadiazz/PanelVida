@@ -1,5 +1,7 @@
 import { useEffect, useId, useRef, useState, type CSSProperties, type FormEvent, type RefObject } from 'react'
 import { AvisoError } from '../components/AvisoError'
+import { CampoCategoria } from '../components/CampoCategoria'
+import { GastosPorCategoria } from '../components/GastosPorCategoria'
 import { GraficaAhorro } from '../components/GraficaAhorro'
 import { Pagina } from '../components/Pagina'
 import { Vacio } from '../components/Vacio'
@@ -10,7 +12,10 @@ import { useHoy } from '../components/useHoy'
 import {
   CONCEPTO_MAX,
   centimosATexto,
+  esCategoria,
   formatearEuros,
+  gastosPorCategoria,
+  NOMBRE_CATEGORIA,
   mesDe,
   movimientosDelMes,
   nombreMes,
@@ -23,10 +28,12 @@ import {
   type TipoMovimiento,
 } from '../lib/dinero'
 import { formatearFecha, type FechaDia } from '../lib/fechas'
-import { useMovimientos, usePerfil } from '../repos/hooks'
+import { idsDeFijosEnMes } from '../repos/fijos'
+import { useFijos, useMovimientos, usePerfil } from '../repos/hooks'
 import { borrarMovimiento, crearMovimiento, editarMovimiento, type DatosMovimiento, type Movimiento } from '../repos/movimientos'
 import { guardarMetaAhorro, type Perfil } from '../repos/perfil'
 import { useEstadoSync } from '../sync/hooks'
+import { DineroFijos } from './DineroFijos'
 
 type Ejecutar = (accion: () => Promise<unknown>) => Promise<boolean>
 
@@ -35,6 +42,7 @@ export function Dinero() {
   const mesActual = mesDe(dia)
   const movimientos = useMovimientos()
   const perfil = usePerfil()
+  const fijos = useFijos()
   const { primeraDescargaHecha } = useEstadoSync()
   const { error, ejecutar, limpiar } = useAccion()
   const [mes, setMes] = useState<Mes>(mesActual)
@@ -46,6 +54,8 @@ export function Dinero() {
   const delMes = movimientosDelMes(lista, mes)
   const resumen = resumenMes(lista, mes)
   const total = resumir(lista).ahorro
+  // Movimientos de este mes que apuntó un fijo (llevan la etiqueta «Fijo»)
+  const deFijos = idsDeFijosEnMes(fijos.datos ?? [], `${mes}-01`)
 
   return (
     <Pagina titulo="Dinero">
@@ -107,9 +117,20 @@ export function Dinero() {
             </div>
             {sinDatos ? <EsqueletoCifra alto="8rem" /> : <GraficaAhorro meses={ultimosMeses(lista, mesActual)} />}
           </section>
+
+          <section className="card" aria-labelledby="dinero-categorias">
+            <div className="card__head">
+              <h2 id="dinero-categorias" className="card__titulo">
+                En qué gastas · {nombreMes(mes).replace(/ de \d+$/, '')}
+              </h2>
+            </div>
+            {sinDatos ? <EsqueletoCifra alto="6rem" /> : <GastosPorCategoria gastos={gastosPorCategoria(lista, mes)} />}
+          </section>
         </div>
 
         <AltaMovimiento hoy={dia} ejecutar={ejecutar} onCreado={(fecha) => setMes(mesDe(fecha))} />
+
+        <DineroFijos fijos={fijos.datos ?? []} hoy={dia} ejecutar={ejecutar} />
 
         <section aria-labelledby="dinero-lista">
           <h2 id="dinero-lista" className="t-section" tabIndex={-1}>
@@ -128,7 +149,7 @@ export function Dinero() {
           ) : (
             <ul className="list" role="list">
               {delMes.map((m) => (
-                <FilaMovimiento key={m.id} movimiento={m} ejecutar={ejecutar} onCambioDeMes={(fecha) => setMes(mesDe(fecha))} />
+                <FilaMovimiento key={m.id} movimiento={m} deFijo={deFijos.has(m.id)} ejecutar={ejecutar} onCambioDeMes={(fecha) => setMes(mesDe(fecha))} />
               ))}
             </ul>
           )}
@@ -323,13 +344,14 @@ function CamposMovimiento({
           </label>
           <input id={`${id}-fecha`} type="date" className="input" value={datos.fecha} onChange={(e) => cambiar({ fecha: e.target.value })} />
         </div>
+        {datos.tipo === 'gasto' && <CampoCategoria id={`${id}-categoria`} valor={datos.categoria ?? ''} cambiar={(categoria) => cambiar({ categoria })} />}
       </div>
     </>
   )
 }
 
 function AltaMovimiento({ hoy, ejecutar, onCreado }: { hoy: FechaDia; ejecutar: Ejecutar; onCreado: (fecha: FechaDia) => void }) {
-  const vacio = (): DatosMovimiento => ({ tipo: 'gasto', concepto: '', importe: '', fecha: hoy })
+  const vacio = (): DatosMovimiento => ({ tipo: 'gasto', concepto: '', importe: '', fecha: hoy, categoria: '' })
   const [datos, setDatos] = useState<DatosMovimiento>(vacio)
   const id = useId()
 
@@ -338,7 +360,7 @@ function AltaMovimiento({ hoy, ejecutar, onCreado }: { hoy: FechaDia; ejecutar: 
     if (await ejecutar(() => crearMovimiento(datos))) {
       onCreado(datos.fecha)
       // Se mantiene el tipo y la fecha: lo normal es apuntar varios seguidos
-      setDatos((d) => ({ ...d, concepto: '', importe: '' }))
+      setDatos((d) => ({ ...d, concepto: '', importe: '', categoria: '' }))
     }
   }
 
@@ -359,16 +381,19 @@ function AltaMovimiento({ hoy, ejecutar, onCreado }: { hoy: FechaDia; ejecutar: 
 
 function FilaMovimiento({
   movimiento: m,
+  deFijo,
   ejecutar,
   onCambioDeMes,
 }: {
   movimiento: Movimiento
+  /** Lo apuntó solo un fijo de cada mes. */
+  deFijo: boolean
   ejecutar: Ejecutar
   /** Si se edita y pasa a otro mes, la pantalla se va a ese mes (si no, desaparecería sin más). */
   onCambioDeMes: (fecha: FechaDia) => void
 }) {
   const [modo, setModo] = useState<'ver' | 'editar' | 'borrar'>('ver')
-  const [datos, setDatos] = useState<DatosMovimiento>({ tipo: m.tipo, concepto: m.concepto, importe: '', fecha: m.fecha })
+  const [datos, setDatos] = useState<DatosMovimiento>({ tipo: m.tipo, concepto: m.concepto, importe: '', fecha: m.fecha, categoria: m.categoria ?? '' })
   const id = useId()
   const fila = useRef<HTMLLIElement>(null)
   const botonEditar = useRef<HTMLButtonElement>(null)
@@ -441,7 +466,8 @@ function FilaMovimiento({
       <div className="list__main">
         <p className="break">{m.concepto}</p>
         <p className="t-small muted">
-          <span className="num">{formatearFecha(m.fecha)}</span> · {esIngreso ? 'Ingreso' : 'Gasto'}
+          <span className="num">{formatearFecha(m.fecha)}</span> · {esIngreso ? 'Ingreso' : esCategoria(m.categoria) ? NOMBRE_CATEGORIA[m.categoria] : 'Gasto'}
+          {deFijo && ' · Fijo'}
         </p>
       </div>
       <span className={`num importe${esIngreso ? ' importe--ingreso' : ''}`}>
@@ -455,7 +481,7 @@ function FilaMovimiento({
           className="icon-btn"
           aria-label={`Editar: ${m.concepto}`}
           onClick={() => {
-            setDatos({ tipo: m.tipo, concepto: m.concepto, importe: centimosATexto(m.importe_centimos), fecha: m.fecha })
+            setDatos({ tipo: m.tipo, concepto: m.concepto, importe: centimosATexto(m.importe_centimos), fecha: m.fecha, categoria: m.categoria ?? '' })
             setModo('editar')
           }}
         >

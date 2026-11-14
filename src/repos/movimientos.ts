@@ -1,6 +1,6 @@
 // Repositorio de ingresos y gastos. Importes en céntimos. Funciona sin conexión.
 
-import { parsearImporte, validarConcepto, validarFechaMovimiento, validarTipo, type TipoMovimiento } from '../lib/dinero'
+import { parsearImporte, validarCategoria, validarConcepto, validarFechaMovimiento, validarTipo, type TipoMovimiento } from '../lib/dinero'
 import type { FilaLocal } from '../sync/tablas'
 import { ErrorNoEncontrado, listar, transaccion } from './base'
 
@@ -12,14 +12,18 @@ export interface DatosMovimiento {
   /** Tal como lo escribe el usuario ("12,50"). */
   importe: string
   fecha: string
+  /** Solo en gastos; '' o sin poner = sin categoría. */
+  categoria?: string
 }
 
 function validar(datos: DatosMovimiento) {
+  const tipo = validarTipo(datos.tipo)
   return {
-    tipo: validarTipo(datos.tipo),
+    tipo,
     concepto: validarConcepto(datos.concepto),
     importe_centimos: parsearImporte(datos.importe),
     fecha: validarFechaMovimiento(datos.fecha),
+    categoria: validarCategoria(tipo, datos.categoria),
   }
 }
 

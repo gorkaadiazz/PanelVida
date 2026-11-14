@@ -181,3 +181,71 @@ export function parsearPrecio(texto: string): number {
   if (/^\s*0*(?:[.,]0{0,2})?\s*€?\s*$/.test(texto)) return 0
   return parsearImporte(texto)
 }
+
+// ---------------------------------------------------------------------------
+// Categorías de gastos
+// ---------------------------------------------------------------------------
+
+/**
+ * Categorías de gasto (lista cerrada: la misma que el `check` de la base de
+ * datos en 20261114000100_categorias_y_fijos.sql). Los ingresos no llevan.
+ */
+export const CATEGORIAS = ['comida', 'transporte', 'ocio', 'compras', 'casa', 'suscripciones', 'estudios', 'salud', 'otros'] as const
+export type Categoria = (typeof CATEGORIAS)[number]
+
+export const NOMBRE_CATEGORIA: Record<Categoria, string> = {
+  comida: 'Comida',
+  transporte: 'Transporte',
+  ocio: 'Ocio',
+  compras: 'Compras',
+  casa: 'Casa',
+  suscripciones: 'Suscripciones',
+  estudios: 'Estudios',
+  salud: 'Salud',
+  otros: 'Otros',
+}
+
+export function esCategoria(valor: unknown): valor is Categoria {
+  return typeof valor === 'string' && (CATEGORIAS as readonly string[]).includes(valor)
+}
+
+/**
+ * Categoría que se guarda: null en los ingresos (aunque llegue una) y si se
+ * deja vacía. Lanza ErrorDeValidacion si no es de la lista.
+ */
+export function validarCategoria(tipo: TipoMovimiento, categoria: string | null | undefined): Categoria | null {
+  if (tipo === 'ingreso' || !categoria) return null
+  if (!esCategoria(categoria)) throw new ErrorDeValidacion('Elige una categoría de la lista.')
+  return categoria
+}
+
+export interface GastoCategoria {
+  /** null = gastos sin categoría. */
+  categoria: Categoria | null
+  nombre: string
+  total: number
+  /** 0-100 sobre el total de gastos (redondeado; puede no sumar 100 justo). */
+  porcentaje: number
+}
+
+/** Gastos de un mes agrupados por categoría, de la que más a la que menos. */
+export function gastosPorCategoria(movimientos: readonly (MovimientoBasico & { categoria?: string | null })[], mes: Mes): GastoCategoria[] {
+  const totales = new Map<Categoria | null, number>()
+  let suma = 0
+  for (const m of movimientos) {
+    if (m.tipo !== 'gasto' || mesDe(m.fecha) !== mes) continue
+    // Una categoría desconocida (de una versión más nueva) cuenta como «sin categoría»
+    const c = esCategoria(m.categoria) ? m.categoria : null
+    totales.set(c, (totales.get(c) ?? 0) + m.importe_centimos)
+    suma += m.importe_centimos
+  }
+  return [...totales]
+    .map(([categoria, total]) => ({
+      categoria,
+      nombre: categoria ? NOMBRE_CATEGORIA[categoria] : 'Sin categoría',
+      total,
+      porcentaje: suma ? Math.round((total * 100) / suma) : 0,
+    }))
+    // De más a menos; «Sin categoría» al final si empata
+    .sort((a, b) => b.total - a.total || (a.categoria === null ? 1 : b.categoria === null ? -1 : a.nombre.localeCompare(b.nombre, 'es')))
+}

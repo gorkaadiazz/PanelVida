@@ -837,6 +837,73 @@ select pg_temp.comprobar((select not prosecdef from pg_proc where oid = 'public.
 -- Casos destructivos: van al final
 -- -----------------------------------------------------------------------------
 
+-- @caso: movimientos: la categoría es opcional, solo en gastos y de la lista
+reset role;
+select pg_temp.como('aaaaaaaa-0000-4000-8000-000000000001');
+insert into public.movimientos (id, tipo, concepto, importe_centimos, fecha, categoria) values
+  ('a0000000-0000-4000-8000-000000000e21', 'gasto', 'super', 100, '2026-11-01', 'comida'),
+  ('a0000000-0000-4000-8000-000000000e22', 'gasto', 'sin', 100, '2026-11-01', null),
+  ('a0000000-0000-4000-8000-000000000e23', 'ingreso', 'paga', 100, '2026-11-01', null);
+select pg_temp.comprobar((select categoria from public.movimientos where id = 'a0000000-0000-4000-8000-000000000e21') = 'comida',
+  'no se guarda la categoría');
+select pg_temp.debe_fallar($q$insert into public.movimientos (tipo, concepto, importe_centimos, fecha, categoria)
+  values ('ingreso', 'x', 1, '2026-11-01', 'comida')$q$, array['23514'], 'un ingreso con categoría');
+select pg_temp.debe_fallar($q$insert into public.movimientos (tipo, concepto, importe_centimos, fecha, categoria)
+  values ('gasto', 'x', 1, '2026-11-01', 'Comida')$q$, array['23514'], 'una categoría fuera de la lista');
+select pg_temp.debe_fallar($q$update public.movimientos set tipo = 'ingreso'
+  where id = 'a0000000-0000-4000-8000-000000000e21'$q$, array['23514'], 'pasar a ingreso un gasto con categoría sin quitarla');
+-- Una app vieja que sube sin la columna (upsert parcial) no borra la categoría
+insert into public.movimientos (id, tipo, concepto, importe_centimos, fecha, updated_at)
+  values ('a0000000-0000-4000-8000-000000000e21', 'gasto', 'super 2', 100, '2026-11-01', now() + interval '1 hour')
+  on conflict (id) do update set concepto = excluded.concepto, updated_at = excluded.updated_at;
+select pg_temp.comprobar((select categoria from public.movimientos where id = 'a0000000-0000-4000-8000-000000000e21') = 'comida',
+  'un upsert sin la columna categoria la ha borrado');
+
+-- @caso: movimientos_fijos: B no ve, edita ni borra los de A, y no se pueden crear a nombre de otro
+reset role;
+select pg_temp.como('aaaaaaaa-0000-4000-8000-000000000001');
+insert into public.movimientos_fijos (id, tipo, concepto, importe_centimos, categoria, dia, desde)
+  values ('a0000000-0000-4000-8000-000000000f31', 'gasto', 'Gimnasio', 3000, 'salud', 5, '2026-11');
+select pg_temp.comprobar((select user_id from public.movimientos_fijos where id = 'a0000000-0000-4000-8000-000000000f31')
+  = 'aaaaaaaa-0000-4000-8000-000000000001', 'user_id no se rellena con auth.uid() en movimientos_fijos');
+select pg_temp.como('bbbbbbbb-0000-4000-8000-000000000002');
+select pg_temp.comprobar((select count(*) from public.movimientos_fijos) = 0, 'B ve los fijos de A');
+update public.movimientos_fijos set activo = false;
+delete from public.movimientos_fijos;
+select pg_temp.debe_fallar($q$insert into public.movimientos_fijos (tipo, concepto, importe_centimos, dia, desde, user_id)
+  values ('gasto', 'x', 1, 1, '2026-11', 'aaaaaaaa-0000-4000-8000-000000000001')$q$, array['42501'], 'B crea un fijo a nombre de A');
+select pg_temp.debe_fallar($q$insert into public.movimientos_fijos (id, tipo, concepto, importe_centimos, dia, desde)
+  values ('a0000000-0000-4000-8000-000000000f31', 'gasto', 'x', 1, 1, '2026-11')
+  on conflict (id) do update set concepto = 'pisado'$q$, array['42501', '23505'], 'B pisa con upsert el fijo de A');
+select pg_temp.como('anon');
+select pg_temp.debe_fallar($q$select count(*) from public.movimientos_fijos$q$, array['42501'], 'anon lee movimientos_fijos');
+select pg_temp.como('aaaaaaaa-0000-4000-8000-000000000001');
+select pg_temp.comprobar((select concepto = 'Gimnasio' and activo from public.movimientos_fijos where id = 'a0000000-0000-4000-8000-000000000f31'),
+  'B ha editado o borrado el fijo de A');
+delete from public.movimientos_fijos where id = 'a0000000-0000-4000-8000-000000000f31';
+select pg_temp.comprobar(exists (select 1 from public.borrados where fila_id = 'a0000000-0000-4000-8000-000000000f31' and tabla = 'movimientos_fijos'),
+  'borrar un fijo no queda apuntado en borrados');
+
+-- @caso: movimientos_fijos: día, meses AAAA-MM, importe y categoría válidos
+reset role;
+select pg_temp.como('aaaaaaaa-0000-4000-8000-000000000001');
+select pg_temp.debe_fallar($q$insert into public.movimientos_fijos (tipo, concepto, importe_centimos, dia, desde)
+  values ('gasto', 'x', 1, 0, '2026-11')$q$, array['23514'], 'un fijo el día 0');
+select pg_temp.debe_fallar($q$insert into public.movimientos_fijos (tipo, concepto, importe_centimos, dia, desde)
+  values ('gasto', 'x', 1, 32, '2026-11')$q$, array['23514'], 'un fijo el día 32');
+select pg_temp.debe_fallar($q$insert into public.movimientos_fijos (tipo, concepto, importe_centimos, dia, desde)
+  values ('gasto', 'x', 1, 1, '2026-13')$q$, array['23514'], 'un mes 13');
+select pg_temp.debe_fallar($q$insert into public.movimientos_fijos (tipo, concepto, importe_centimos, dia, desde, ultimo_mes)
+  values ('gasto', 'x', 1, 1, '2026-11', '2026-11-01')$q$, array['23514'], 'ultimo_mes con día');
+select pg_temp.debe_fallar($q$insert into public.movimientos_fijos (tipo, concepto, importe_centimos, dia, desde)
+  values ('gasto', 'x', 0, 1, '2026-11')$q$, array['23514'], 'un fijo de 0 €');
+select pg_temp.debe_fallar($q$insert into public.movimientos_fijos (tipo, concepto, importe_centimos, dia, desde, categoria)
+  values ('ingreso', 'x', 1, 1, '2026-11', 'ocio')$q$, array['23514'], 'un ingreso fijo con categoría');
+insert into public.movimientos_fijos (id, tipo, concepto, importe_centimos, dia, desde)
+  values ('a0000000-0000-4000-8000-000000000f32', 'ingreso', 'Paga', 1000, 31, '2026-02');
+select pg_temp.comprobar((select activo and ultimo_mes is null from public.movimientos_fijos where id = 'a0000000-0000-4000-8000-000000000f32'),
+  'un fijo nuevo no nace activo y sin meses apuntados');
+
 -- @caso: borrar un usuario de auth.users borra en cascada todas sus filas
 reset role;
 -- A tiene filas en las tablas de Mi Panel (preámbulo) y un borrado apuntado:

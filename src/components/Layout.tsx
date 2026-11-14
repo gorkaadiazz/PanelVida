@@ -1,6 +1,7 @@
 import { Suspense, useEffect, useRef, type ReactNode } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { URL_EXAMENES } from '../lib/enlaces'
+import { ApuntarFijos } from './ApuntarFijos'
 import { EstadoSincronizacion } from './EstadoSincronizacion'
 import {
   IconoCuenta,
@@ -72,6 +73,7 @@ export function Layout() {
         </div>
       </nav>
 
+      <ApuntarFijos />
       <main className="app-main" ref={mainRef}>
         {/* Las pantallas se cargan aparte (App.tsx): mientras llega una, solo un aviso para lectores de pantalla */}
         <Suspense

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   centimosATexto,
+  gastosPorCategoria,
+  validarCategoria,
   ErrorDeValidacion,
   formatearEuros,
   mesDe,
@@ -325,5 +327,48 @@ describe('parsearPrecio (precio de un cliente: 0 sí vale)', () => {
   it('lo demás se valida como un importe', () => {
     expect(() => parsearPrecio('-5')).toThrow(ErrorDeValidacion)
     expect(() => parsearPrecio('gratis')).toThrow(ErrorDeValidacion)
+  })
+})
+
+describe('categorías de gastos', () => {
+  it('los ingresos no llevan categoría y vacía es null', () => {
+    expect(validarCategoria('ingreso', 'comida')).toBeNull()
+    expect(validarCategoria('gasto', '')).toBeNull()
+    expect(validarCategoria('gasto', null)).toBeNull()
+    expect(validarCategoria('gasto', 'ocio')).toBe('ocio')
+  })
+
+  it.each(['Comida', 'gimnasio', ' ocio', 'toString', '__proto__'])('rechaza la categoría "%s"', (c) => {
+    expect(() => validarCategoria('gasto', c)).toThrow(ErrorDeValidacion)
+  })
+
+  it('agrupa los gastos del mes por categoría, de más a menos, con su porcentaje', () => {
+    const m = (tipo: string, importe_centimos: number, fecha: string, categoria: string | null) => ({ tipo, importe_centimos, fecha, categoria })
+    const lista = [
+      m('gasto', 3000, '2026-11-02', 'comida'),
+      m('gasto', 1000, '2026-11-05', 'comida'),
+      m('gasto', 2000, '2026-11-09', 'ocio'),
+      m('gasto', 2000, '2026-11-10', null),
+      m('gasto', 500, '2026-10-30', 'ocio'), // otro mes
+      m('ingreso', 9000, '2026-11-01', null), // ingreso
+      m('gasto', 1000, '2026-11-11', 'categoria-del-futuro'), // desconocida → sin categoría
+    ]
+    expect(gastosPorCategoria(lista, '2026-11')).toEqual([
+      { categoria: 'comida', nombre: 'Comida', total: 4000, porcentaje: 44 },
+      { categoria: null, nombre: 'Sin categoría', total: 3000, porcentaje: 33 },
+      { categoria: 'ocio', nombre: 'Ocio', total: 2000, porcentaje: 22 },
+    ])
+  })
+
+  it('con empate, «Sin categoría» va la última', () => {
+    const lista = [
+      { tipo: 'gasto', importe_centimos: 100, fecha: '2026-11-02', categoria: null },
+      { tipo: 'gasto', importe_centimos: 100, fecha: '2026-11-02', categoria: 'salud' },
+    ]
+    expect(gastosPorCategoria(lista, '2026-11').map((g) => g.nombre)).toEqual(['Salud', 'Sin categoría'])
+  })
+
+  it('sin gastos, lista vacía', () => {
+    expect(gastosPorCategoria([], '2026-11')).toEqual([])
   })
 })

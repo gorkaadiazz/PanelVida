@@ -1656,3 +1656,48 @@ p.num--xl {
     animation-iteration-count: infinite !important;
   }
 }
+
+/* =========================================================
+   Gastos por categoría (Dinero)
+   ========================================================= */
+.progress--grafica { --progress-color: var(--grafica); }
+.categorias {
+  display: grid;
+  gap: var(--sp-3);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.categorias__fila {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--sp-1) var(--sp-3);
+  align-items: baseline;
+}
+.categorias__fila > .progress { grid-column: 1 / -1; }
+
+/* Movimientos fijos: plegables dentro de Dinero */
+.fijos > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  min-height: var(--tap);
+  cursor: pointer;
+  list-style: none;
+}
+.fijos > summary::-webkit-details-marker { display: none; }
+.fijos > summary::after {   /* flecha que gira al abrir */
+  content: "";
+  width: 10px;
+  height: 10px;
+  border-right: 2px solid var(--text-2);
+  border-bottom: 2px solid var(--text-2);
+  transform: rotate(45deg);
+  margin-inline-end: var(--sp-2);
+  transition: transform var(--dur-base) var(--ease-out);
+}
+.fijos[open] > summary::after { transform: rotate(-135deg); }
+@media (prefers-reduced-motion: reduce) {
+  .fijos > summary::after { transition: none; }
+}

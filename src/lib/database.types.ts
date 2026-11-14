@@ -609,6 +609,7 @@ export type Database = {
       }
       movimientos: {
         Row: {
+          categoria: string | null
           concepto: string
           created_at: string
           fecha: string
@@ -620,6 +621,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          categoria?: string | null
           concepto: string
           created_at?: string
           fecha: string
@@ -631,6 +633,7 @@ export type Database = {
           user_id?: string
         }
         Update: {
+          categoria?: string | null
           concepto?: string
           created_at?: string
           fecha?: string
@@ -638,6 +641,54 @@ export type Database = {
           importe_centimos?: number
           sync_at?: string
           tipo?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      movimientos_fijos: {
+        Row: {
+          activo: boolean
+          categoria: string | null
+          concepto: string
+          created_at: string
+          desde: string
+          dia: number
+          id: string
+          importe_centimos: number
+          sync_at: string
+          tipo: string
+          ultimo_mes: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          activo?: boolean
+          categoria?: string | null
+          concepto: string
+          created_at?: string
+          desde: string
+          dia: number
+          id?: string
+          importe_centimos: number
+          sync_at?: string
+          tipo: string
+          ultimo_mes?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          activo?: boolean
+          categoria?: string | null
+          concepto?: string
+          created_at?: string
+          desde?: string
+          dia?: number
+          id?: string
+          importe_centimos?: number
+          sync_at?: string
+          tipo?: string
+          ultimo_mes?: string | null
           updated_at?: string
           user_id?: string
         }
