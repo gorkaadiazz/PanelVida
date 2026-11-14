@@ -1,6 +1,6 @@
 // Repositorio de ingresos y gastos. Importes en céntimos. Funciona sin conexión.
 
-import { parsearImporte, validarCategoria, validarConcepto, validarFechaMovimiento, validarTipo, type TipoMovimiento } from '../lib/dinero'
+import { parsearImporte, validarCategoria, validarConcepto, validarFechaMovimiento, validarNecesidad, validarTipo, type TipoMovimiento } from '../lib/dinero'
 import type { FilaLocal } from '../sync/tablas'
 import { ErrorNoEncontrado, listar, transaccion } from './base'
 
@@ -14,6 +14,8 @@ export interface DatosMovimiento {
   fecha: string
   /** Solo en gastos; '' o sin poner = sin categoría. */
   categoria?: string
+  /** Solo en gastos: 'esencial', 'prescindible' o '' (sin marcar). */
+  necesidad?: string
 }
 
 function validar(datos: DatosMovimiento) {
@@ -24,6 +26,7 @@ function validar(datos: DatosMovimiento) {
     importe_centimos: parsearImporte(datos.importe),
     fecha: validarFechaMovimiento(datos.fecha),
     categoria: validarCategoria(tipo, datos.categoria),
+    necesidad: validarNecesidad(tipo, datos.necesidad),
   }
 }
 
@@ -35,9 +38,10 @@ export function listarMovimientos(): Promise<Movimiento[]> {
 /** Lanza ErrorDeValidacion si algún dato no vale. */
 export async function crearMovimiento(datos: DatosMovimiento): Promise<Movimiento> {
   const limpios = validar(datos)
-  return transaccion((e) => e.crear('movimientos', limpios))
+  return transaccion((e) => e.crear('movimientos', { ...limpios, fijo_id: null }))
 }
 
+/** Editar no cambia de qué fijo salió (`fijo_id`). */
 export async function editarMovimiento(id: string, datos: DatosMovimiento): Promise<Movimiento> {
   const limpios = validar(datos)
   return transaccion(async (e) => {

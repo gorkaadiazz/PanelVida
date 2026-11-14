@@ -1951,3 +1951,76 @@ html { scroll-padding-bottom: calc(var(--nav-bottom-h) + var(--safe-bottom) + 72
 /* Grupo de opciones con leyenda visible encima (p. ej. Prioridad, Valoración) */
 .grupo { border: 0; padding: 0; margin: 0; min-width: 0; }
 .grupo > legend { padding: 0; margin-bottom: var(--sp-1); }
+
+/* Dinero: pestañas Movimientos · Fijos · Revisiones · Previsión. Mismo
+   aspecto que .segmentos, pero son enlaces (cada una tiene su dirección). A
+   360 px no caben cuatro en una fila: pasan a dos por fila. */
+.pestanas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(6.5rem, 1fr));
+  gap: 3px;
+  padding: 3px;
+  border-radius: var(--r-md);
+  background: var(--surface-sunken);
+}
+.pestanas__item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(var(--tap) - 6px);
+  padding: 0 var(--sp-3);
+  border-radius: calc(var(--r-md) - 3px);
+  color: var(--text-2);
+  font-weight: var(--fw-medium);
+  text-decoration: none;
+  text-align: center;
+  transition: background-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+.pestanas__item[aria-current="page"] {
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.pestanas__item:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+@media (hover: hover) and (pointer: fine) {
+  .pestanas__item:hover:not([aria-current="page"]) { color: var(--text); }
+}
+@media (forced-colors: active) {
+  .pestanas__item[aria-current="page"] {
+    forced-color-adjust: none;
+    background: Highlight;
+    color: HighlightText;
+  }
+}
+
+/* Fijos con frecuencia */
+.importe__unidad { font-weight: var(--fw-regular); font-size: var(--fs-xs); }
+.fijo__cuesta { overflow-wrap: anywhere; }
+.fijo--pausa > .list__main > p:first-child { color: var(--text-2); }
+
+/* Revisiones de ahorro */
+.revision > summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  min-height: var(--tap);
+  cursor: pointer;
+  list-style: none;
+}
+.revision > summary::-webkit-details-marker { display: none; }
+.revision[open] > summary { margin-bottom: var(--sp-4); }
+.revision__fila { gap: var(--sp-3); flex-wrap: wrap; }
+.revision__fila > .list__main { flex: 1 1 8rem; }
+.revision__cambio { flex: 0 0 auto; }
+.revision__sugerencias,
+.revision__deseos {
+  display: grid;
+  gap: var(--sp-2);
+  margin: var(--sp-2) 0 0;
+  padding-inline-start: 1.25rem;
+}

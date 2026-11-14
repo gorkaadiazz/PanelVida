@@ -39,7 +39,7 @@ async function sincronizar(d: Dispositivo) {
 }
 
 const hora = (iso: string) => vi.setSystemTime(new Date(iso))
-const gimnasio: DatosFijo = { tipo: 'gasto', concepto: 'Gimnasio', importe: '30,50', dia: '1', categoria: 'salud' }
+const gimnasio: DatosFijo = { tipo: 'gasto', concepto: 'Gimnasio', importe: '30,50', dia: '1', categoria: 'salud', frecuencia: 'mensual', mes: '', necesidad: '' }
 
 beforeEach(() => {
   reiniciarEstado()
@@ -310,7 +310,7 @@ describe('fijos: casos límite del repositorio', () => {
     pc.usar()
     const f = await crearFijo({ ...gimnasio, dia: '5' }, '2026-11-01')
     expect(await aplicarFijos('2026-11-05')).toBe(1)
-    await editarFijo(f.id, { ...gimnasio, dia: '20' })
+    await editarFijo(f.id, { ...gimnasio, dia: '20' }, '2026-11-01')
     expect(await aplicarFijos('2026-11-20')).toBe(0)
     expect(await aplicarFijos('2026-12-19')).toBe(0)
     expect(await aplicarFijos('2026-12-20')).toBe(1)
@@ -323,7 +323,7 @@ describe('fijos: casos límite del repositorio', () => {
     await sincronizar(pc)
     pc.usar()
     const f = await crearFijo({ ...gimnasio, dia: '20' }, '2026-11-01')
-    await editarFijo(f.id, { ...gimnasio, dia: '5' })
+    await editarFijo(f.id, { ...gimnasio, dia: '5' }, '2026-11-01')
     expect(await aplicarFijos('2026-11-10')).toBe(1)
     expect(await aplicarFijos('2026-11-25')).toBe(0)
     expect((await listarMovimientos()).map((m) => m.fecha)).toEqual(['2026-11-05'])

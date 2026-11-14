@@ -1,6 +1,8 @@
 import { useEffect, useId, useRef, useState, type CSSProperties, type FormEvent, type RefObject } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import { AvisoError } from '../components/AvisoError'
 import { CampoCategoria } from '../components/CampoCategoria'
+import { CampoNecesidad } from '../components/CampoNecesidad'
 import { GastosPorCategoria } from '../components/GastosPorCategoria'
 import { GraficaAhorro } from '../components/GraficaAhorro'
 import { Pagina } from '../components/Pagina'
@@ -13,9 +15,11 @@ import {
   CONCEPTO_MAX,
   centimosATexto,
   esCategoria,
+  esNecesidad,
   formatearEuros,
   gastosPorCategoria,
   NOMBRE_CATEGORIA,
+  NOMBRE_NECESIDAD,
   mesDe,
   movimientosDelMes,
   nombreMes,
@@ -28,23 +32,72 @@ import {
   type TipoMovimiento,
 } from '../lib/dinero'
 import { formatearFecha, type FechaDia } from '../lib/fechas'
-import { idsDeFijosEnMes } from '../repos/fijos'
-import { useFijos, useMovimientos, usePerfil } from '../repos/hooks'
+import { idsDeFijos } from '../lib/fijos'
+import { useFijos, useMovimientos, usePerfil, useRevisiones } from '../repos/hooks'
 import { borrarMovimiento, crearMovimiento, editarMovimiento, type DatosMovimiento, type Movimiento } from '../repos/movimientos'
 import { guardarMetaAhorro, type Perfil } from '../repos/perfil'
 import { useEstadoSync } from '../sync/hooks'
 import { DineroFijos } from './DineroFijos'
+import { DineroRevisiones } from './DineroRevisiones'
 
 type Ejecutar = (accion: () => Promise<unknown>) => Promise<boolean>
 
+/** Secciones de Dinero (?ver=…). Sin parámetro, los movimientos. */
+const SECCIONES = [
+  { id: 'movimientos', nombre: 'Movimientos' },
+  { id: 'fijos', nombre: 'Fijos' },
+  { id: 'revisiones', nombre: 'Revisiones' },
+] as const
+type Seccion = (typeof SECCIONES)[number]['id']
+
 export function Dinero() {
+  const [params] = useSearchParams()
+  const ver = params.get('ver')
+  const seccion: Seccion = SECCIONES.some((s) => s.id === ver) ? (ver as Seccion) : 'movimientos'
+  const nombre = SECCIONES.find((s) => s.id === seccion)?.nombre ?? 'Movimientos'
+  const { error, ejecutar, limpiar } = useAccion()
+
+  return (
+    <Pagina titulo={seccion === 'movimientos' ? 'Dinero' : `${nombre} · Dinero`} encabezado="Dinero">
+      <div className="stack">
+        <nav className="pestanas" aria-label="Secciones de Dinero">
+          {SECCIONES.map((s) => (
+            <Link key={s.id} to={s.id === 'movimientos' ? '/dinero' : `/dinero?ver=${s.id}`} className="pestanas__item" aria-current={s.id === seccion ? 'page' : undefined}>
+              {s.nombre}
+            </Link>
+          ))}
+        </nav>
+        <AvisoError mensaje={error} onCerrar={limpiar} />
+        {seccion === 'movimientos' && <DineroMovimientos ejecutar={ejecutar} />}
+        {seccion === 'fijos' && <SeccionFijos ejecutar={ejecutar} />}
+        {seccion === 'revisiones' && <SeccionRevisiones ejecutar={ejecutar} />}
+      </div>
+    </Pagina>
+  )
+}
+
+function SeccionFijos({ ejecutar }: { ejecutar: Ejecutar }) {
+  const dia = useHoy()
+  const fijos = useFijos()
+  const { primeraDescargaHecha } = useEstadoSync()
+  const cargando = fijos.cargando || ((fijos.datos ?? []).length === 0 && !primeraDescargaHecha)
+  return <DineroFijos fijos={fijos.datos ?? []} hoy={dia} ejecutar={ejecutar} cargando={cargando} error={!!fijos.error} />
+}
+
+function SeccionRevisiones({ ejecutar }: { ejecutar: Ejecutar }) {
+  const revisiones = useRevisiones()
+  const { primeraDescargaHecha } = useEstadoSync()
+  const cargando = revisiones.cargando || ((revisiones.datos ?? []).length === 0 && !primeraDescargaHecha)
+  return <DineroRevisiones revisiones={revisiones.datos ?? []} ejecutar={ejecutar} cargando={cargando} error={!!revisiones.error} />
+}
+
+function DineroMovimientos({ ejecutar }: { ejecutar: Ejecutar }) {
   const dia = useHoy()
   const mesActual = mesDe(dia)
   const movimientos = useMovimientos()
   const perfil = usePerfil()
   const fijos = useFijos()
   const { primeraDescargaHecha } = useEstadoSync()
-  const { error, ejecutar, limpiar } = useAccion()
   const [mes, setMes] = useState<Mes>(mesActual)
 
   const lista = movimientos.datos ?? []
@@ -55,108 +108,103 @@ export function Dinero() {
   const resumen = resumenMes(lista, mes)
   const total = resumir(lista).ahorro
   // Movimientos de este mes que apuntó un fijo (llevan la etiqueta «Fijo»)
-  const deFijos = idsDeFijosEnMes(fijos.datos ?? [], `${mes}-01`)
+  const deFijos = idsDeFijos(delMes, fijos.datos ?? [])
 
   return (
-    <Pagina titulo="Dinero">
-      <div className="stack">
-        {movimientos.error && <AvisoError mensaje="No se han podido leer tus movimientos de este dispositivo. Recarga la página." />}
-        <AvisoError mensaje={error} onCerrar={limpiar} />
+    <>
+      {movimientos.error && <AvisoError mensaje="No se han podido leer tus movimientos de este dispositivo. Recarga la página." />}
 
-        <div className="mes-nav">
-          <button type="button" className="icon-btn" aria-label="Mes anterior" onClick={() => setMes((m) => sumarMeses(m, -1))}>
-            <IconoFlecha style={{ transform: 'rotate(180deg)' }} />
-          </button>
-          <p className="mes-nav__nombre" aria-live="polite">
-            {nombreMes(mes).replace(/^./, (c) => c.toLocaleUpperCase('es-ES'))}
-          </p>
-          {/* aria-disabled y no disabled: al llegar al mes actual el botón
-              conserva el foco en vez de soltarlo al <body> */}
-          <button
-            type="button"
-            className="icon-btn"
-            aria-label="Mes siguiente"
-            aria-disabled={mes >= mesActual}
-            onClick={() => {
-              if (mes < mesActual) setMes((m) => sumarMeses(m, 1))
-            }}
-          >
-            <IconoFlecha />
-          </button>
-        </div>
+      <div className="mes-nav">
+        <button type="button" className="icon-btn" aria-label="Mes anterior" onClick={() => setMes((m) => sumarMeses(m, -1))}>
+          <IconoFlecha style={{ transform: 'rotate(180deg)' }} />
+        </button>
+        <p className="mes-nav__nombre" aria-live="polite">
+          {nombreMes(mes).replace(/^./, (c) => c.toLocaleUpperCase('es-ES'))}
+        </p>
+        {/* aria-disabled y no disabled: al llegar al mes actual el botón
+            conserva el foco en vez de soltarlo al <body> */}
+        <button
+          type="button"
+          className="icon-btn"
+          aria-label="Mes siguiente"
+          aria-disabled={mes >= mesActual}
+          onClick={() => {
+            if (mes < mesActual) setMes((m) => sumarMeses(m, 1))
+          }}
+        >
+          <IconoFlecha />
+        </button>
+      </div>
 
-        <div className="grid-cards">
-          <section className="card" aria-labelledby="dinero-mes">
-            <div className="card__head">
-              <h2 id="dinero-mes" className="card__titulo">
-                Ahorro del mes
-              </h2>
-            </div>
-            {sinDatos ? (
-              <EsqueletoCifra />
-            ) : (
-              <>
-                <p className={`num num--xl${resumen.ahorro < 0 ? ' text-danger' : ''}`}>{formatearEuros(resumen.ahorro)}</p>
-                <dl className="cifras" style={{ marginTop: 'var(--sp-3)' }}>
-                  <dt>Ingresos</dt>
-                  <dd className="num">{formatearEuros(resumen.ingresos)}</dd>
-                  <dt>Gastos</dt>
-                  <dd className="num">{formatearEuros(resumen.gastos)}</dd>
-                </dl>
-              </>
-            )}
-          </section>
-
-          <TarjetaMeta total={total} perfil={perfil.datos ?? null} ejecutar={ejecutar} cargando={sinDatos} />
-
-          <section className="card" aria-labelledby="dinero-grafica">
-            <div className="card__head">
-              <h2 id="dinero-grafica" className="card__titulo">
-                Ahorro de los últimos 6 meses
-              </h2>
-            </div>
-            {sinDatos ? <EsqueletoCifra alto="8rem" /> : <GraficaAhorro meses={ultimosMeses(lista, mesActual)} />}
-          </section>
-
-          <section className="card" aria-labelledby="dinero-categorias">
-            <div className="card__head">
-              <h2 id="dinero-categorias" className="card__titulo">
-                {/* El mes ya está en la navegación de arriba: sin «· noviembre» en el título */}
-                {mes === mesActual ? 'En qué gastas este mes' : `En qué gastaste en ${nombreMes(mes).replace(/ de \d+$/, '')}`}
-              </h2>
-            </div>
-            {sinDatos ? <EsqueletoCifra alto="6rem" /> : <GastosPorCategoria gastos={gastosPorCategoria(lista, mes)} />}
-          </section>
-        </div>
-
-        <AltaMovimiento hoy={dia} ejecutar={ejecutar} onCreado={(fecha) => setMes(mesDe(fecha))} />
-
-        <DineroFijos fijos={fijos.datos ?? []} hoy={dia} ejecutar={ejecutar} />
-
-        <section aria-labelledby="dinero-lista">
-          <h2 id="dinero-lista" className="t-section" tabIndex={-1}>
-            Movimientos de {nombreMes(mes).replace(/ de \d+$/, '')} <span className="num muted">{delMes.length}</span>
-          </h2>
-          {movimientos.error && lista.length === 0 ? null : sinDatos ? (
-            <div className="stack" role="status" aria-busy="true" style={{ '--gap': 'var(--sp-2)' } as CSSProperties}>
-              <span className="visually-hidden">Cargando tus movimientos…</span>
-              <span className="skeleton" style={{ '--h': '3rem' } as CSSProperties} />
-              <span className="skeleton" style={{ '--h': '3rem' } as CSSProperties} />
-            </div>
-          ) : delMes.length === 0 ? (
-            <Vacio icono={<IconoDinero />} titulo={lista.length === 0 ? 'Aún no has apuntado nada' : 'Nada apuntado este mes'}>
-              Apunta arriba tus ingresos y gastos para ver cuánto ahorras.
-            </Vacio>
+      <div className="grid-cards">
+        <section className="card" aria-labelledby="dinero-mes">
+          <div className="card__head">
+            <h2 id="dinero-mes" className="card__titulo">
+              Ahorro del mes
+            </h2>
+          </div>
+          {sinDatos ? (
+            <EsqueletoCifra />
           ) : (
-            <ul className="list" role="list">
-              {delMes.map((m) => (
-                <FilaMovimiento key={m.id} movimiento={m} deFijo={deFijos.has(m.id)} ejecutar={ejecutar} onCambioDeMes={(fecha) => setMes(mesDe(fecha))} />
-              ))}
-            </ul>
+            <>
+              <p className={`num num--xl${resumen.ahorro < 0 ? ' text-danger' : ''}`}>{formatearEuros(resumen.ahorro)}</p>
+              <dl className="cifras" style={{ marginTop: 'var(--sp-3)' }}>
+                <dt>Ingresos</dt>
+                <dd className="num">{formatearEuros(resumen.ingresos)}</dd>
+                <dt>Gastos</dt>
+                <dd className="num">{formatearEuros(resumen.gastos)}</dd>
+              </dl>
+            </>
           )}
         </section>
+
+        <TarjetaMeta total={total} perfil={perfil.datos ?? null} ejecutar={ejecutar} cargando={sinDatos} />
+
+        <section className="card" aria-labelledby="dinero-grafica">
+          <div className="card__head">
+            <h2 id="dinero-grafica" className="card__titulo">
+              Ahorro de los últimos 6 meses
+            </h2>
+          </div>
+          {sinDatos ? <EsqueletoCifra alto="8rem" /> : <GraficaAhorro meses={ultimosMeses(lista, mesActual)} />}
+        </section>
+
+        <section className="card" aria-labelledby="dinero-categorias">
+          <div className="card__head">
+            <h2 id="dinero-categorias" className="card__titulo">
+              {/* El mes ya está en la navegación de arriba: sin «· noviembre» en el título */}
+              {mes === mesActual ? 'En qué gastas este mes' : `En qué gastaste en ${nombreMes(mes).replace(/ de \d+$/, '')}`}
+            </h2>
+          </div>
+          {sinDatos ? <EsqueletoCifra alto="6rem" /> : <GastosPorCategoria gastos={gastosPorCategoria(lista, mes)} />}
+        </section>
       </div>
-    </Pagina>
+
+      <AltaMovimiento hoy={dia} ejecutar={ejecutar} onCreado={(fecha) => setMes(mesDe(fecha))} />
+
+      <section aria-labelledby="dinero-lista">
+        <h2 id="dinero-lista" className="t-section" tabIndex={-1}>
+          Movimientos de {nombreMes(mes).replace(/ de \d+$/, '')} <span className="num muted">{delMes.length}</span>
+        </h2>
+        {movimientos.error && lista.length === 0 ? null : sinDatos ? (
+          <div className="stack" role="status" aria-busy="true" style={{ '--gap': 'var(--sp-2)' } as CSSProperties}>
+            <span className="visually-hidden">Cargando tus movimientos…</span>
+            <span className="skeleton" style={{ '--h': '3rem' } as CSSProperties} />
+            <span className="skeleton" style={{ '--h': '3rem' } as CSSProperties} />
+          </div>
+        ) : delMes.length === 0 ? (
+          <Vacio icono={<IconoDinero />} titulo={lista.length === 0 ? 'Aún no has apuntado nada' : 'Nada apuntado este mes'}>
+            Apunta arriba tus ingresos y gastos para ver cuánto ahorras.
+          </Vacio>
+        ) : (
+          <ul className="list" role="list">
+            {delMes.map((m) => (
+              <FilaMovimiento key={m.id} movimiento={m} deFijo={deFijos.has(m.id)} ejecutar={ejecutar} onCambioDeMes={(fecha) => setMes(mesDe(fecha))} />
+            ))}
+          </ul>
+        )}
+      </section>
+    </>
   )
 }
 
@@ -346,13 +394,14 @@ function CamposMovimiento({
           <input id={`${id}-fecha`} type="date" className="input" value={datos.fecha} onChange={(e) => cambiar({ fecha: e.target.value })} />
         </div>
         {datos.tipo === 'gasto' && <CampoCategoria id={`${id}-categoria`} valor={datos.categoria ?? ''} cambiar={(categoria) => cambiar({ categoria })} />}
+        {datos.tipo === 'gasto' && <CampoNecesidad id={`${id}-necesidad`} valor={datos.necesidad ?? ''} cambiar={(necesidad) => cambiar({ necesidad })} />}
       </div>
     </>
   )
 }
 
 function AltaMovimiento({ hoy, ejecutar, onCreado }: { hoy: FechaDia; ejecutar: Ejecutar; onCreado: (fecha: FechaDia) => void }) {
-  const vacio = (): DatosMovimiento => ({ tipo: 'gasto', concepto: '', importe: '', fecha: hoy, categoria: '' })
+  const vacio = (): DatosMovimiento => ({ tipo: 'gasto', concepto: '', importe: '', fecha: hoy, categoria: '', necesidad: '' })
   const [datos, setDatos] = useState<DatosMovimiento>(vacio)
   const id = useId()
 
@@ -361,7 +410,7 @@ function AltaMovimiento({ hoy, ejecutar, onCreado }: { hoy: FechaDia; ejecutar: 
     if (await ejecutar(() => crearMovimiento(datos))) {
       onCreado(datos.fecha)
       // Se mantiene el tipo y la fecha: lo normal es apuntar varios seguidos
-      setDatos((d) => ({ ...d, concepto: '', importe: '', categoria: '' }))
+      setDatos((d) => ({ ...d, concepto: '', importe: '', categoria: '', necesidad: '' }))
     }
   }
 
@@ -380,6 +429,17 @@ function AltaMovimiento({ hoy, ejecutar, onCreado }: { hoy: FechaDia; ejecutar: 
   )
 }
 
+function datosDe(m: Movimiento, importe: string): DatosMovimiento {
+  return {
+    tipo: m.tipo,
+    concepto: m.concepto,
+    importe,
+    fecha: m.fecha,
+    categoria: esCategoria(m.categoria) ? m.categoria : '',
+    necesidad: esNecesidad(m.necesidad) ? m.necesidad : '',
+  }
+}
+
 function FilaMovimiento({
   movimiento: m,
   deFijo,
@@ -387,14 +447,14 @@ function FilaMovimiento({
   onCambioDeMes,
 }: {
   movimiento: Movimiento
-  /** Lo apuntó solo un fijo de cada mes. */
+  /** Lo apuntó solo un fijo. */
   deFijo: boolean
   ejecutar: Ejecutar
   /** Si se edita y pasa a otro mes, la pantalla se va a ese mes (si no, desaparecería sin más). */
   onCambioDeMes: (fecha: FechaDia) => void
 }) {
   const [modo, setModo] = useState<'ver' | 'editar' | 'borrar'>('ver')
-  const [datos, setDatos] = useState<DatosMovimiento>({ tipo: m.tipo, concepto: m.concepto, importe: '', fecha: m.fecha, categoria: esCategoria(m.categoria) ? m.categoria : '' })
+  const [datos, setDatos] = useState<DatosMovimiento>(() => datosDe(m, ''))
   const id = useId()
   const fila = useRef<HTMLLIElement>(null)
   const botonEditar = useRef<HTMLButtonElement>(null)
@@ -468,6 +528,7 @@ function FilaMovimiento({
         <p className="break">{m.concepto}</p>
         <p className="t-small muted">
           <span className="num">{formatearFecha(m.fecha)}</span> · {esIngreso ? 'Ingreso' : esCategoria(m.categoria) ? NOMBRE_CATEGORIA[m.categoria] : 'Gasto'}
+          {!esIngreso && esNecesidad(m.necesidad) && ` · ${NOMBRE_NECESIDAD[m.necesidad]}`}
           {deFijo && ' · Fijo'}
         </p>
       </div>
@@ -482,7 +543,7 @@ function FilaMovimiento({
           className="icon-btn"
           aria-label={`Editar: ${m.concepto}`}
           onClick={() => {
-            setDatos({ tipo: m.tipo, concepto: m.concepto, importe: centimosATexto(m.importe_centimos), fecha: m.fecha, categoria: esCategoria(m.categoria) ? m.categoria : '' })
+            setDatos(datosDe(m, centimosATexto(m.importe_centimos)))
             setModo('editar')
           }}
         >

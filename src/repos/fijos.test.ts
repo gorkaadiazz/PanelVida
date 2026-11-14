@@ -13,7 +13,7 @@ import { borrarMovimiento, crearMovimiento, editarMovimiento, listarMovimientos 
 
 let base: BaseLocal
 const cola = async () => (await listarPendientes(base)).map((e) => `${e.op} ${e.tabla}`).sort()
-const gimnasio: DatosFijo = { tipo: 'gasto', concepto: 'Gimnasio', importe: '30', dia: '5', categoria: 'salud' }
+const gimnasio: DatosFijo = { tipo: 'gasto', concepto: 'Gimnasio', importe: '30', dia: '5', categoria: 'salud', frecuencia: 'mensual', mes: '', necesidad: '' }
 
 beforeEach(async () => {
   vi.stubGlobal('indexedDB', new IDBFactory())
@@ -65,8 +65,8 @@ describe('fijos', () => {
     expect(await aplicarFijos('2026-11-30')).toBe(0)
     const movs = await listarMovimientos()
     expect(movs).toHaveLength(1)
-    expect(movs[0]).toMatchObject({ id: idApunteFijo(f.id, '2026-11'), tipo: 'gasto', concepto: 'Gimnasio', importe_centimos: 3000, fecha: '2026-11-20', categoria: 'salud' })
-    expect((await listarFijos())[0].ultimo_mes).toBe('2026-11')
+    expect(movs[0]).toMatchObject({ id: idApunteFijo(f.id, '2026-11'), tipo: 'gasto', concepto: 'Gimnasio', importe_centimos: 3000, fecha: '2026-11-20', categoria: 'salud', necesidad: null, fijo_id: f.id })
+    expect((await listarFijos())[0]).toMatchObject({ ultimo_mes: '2026-11', ultimo_apunte: '2026-11-20' })
   })
 
   it('pone al día los meses atrasados', async () => {
@@ -113,7 +113,7 @@ describe('fijos', () => {
   it('editar cambia los meses que vienen; borrar el fijo deja lo ya apuntado', async () => {
     const f = await crearFijo({ ...gimnasio, dia: '1' }, '2026-11-01')
     await aplicarFijos('2026-11-01')
-    await editarFijo(f.id, { ...gimnasio, dia: '1', importe: '35' })
+    await editarFijo(f.id, { ...gimnasio, dia: '1', importe: '35' }, '2026-11-01')
     await aplicarFijos('2026-12-01')
     expect((await listarMovimientos()).map((m) => m.importe_centimos).sort()).toEqual([3000, 3500])
     await borrarFijo(f.id)
@@ -122,7 +122,7 @@ describe('fijos', () => {
   })
 
   it('un ingreso fijo no lleva categoría', async () => {
-    const f = await crearFijo({ tipo: 'ingreso', concepto: 'Paga', importe: '50', dia: '1', categoria: 'ocio' }, '2026-11-01')
+    const f = await crearFijo({ tipo: 'ingreso', concepto: 'Paga', importe: '50', dia: '1', categoria: 'ocio', frecuencia: 'mensual', mes: '', necesidad: 'esencial' }, '2026-11-01')
     expect(f.categoria).toBeNull()
     await aplicarFijos('2026-11-01')
     expect((await listarMovimientos())[0]).toMatchObject({ tipo: 'ingreso', categoria: null })

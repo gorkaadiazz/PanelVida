@@ -51,6 +51,8 @@ export async function marcarComprado(id: string, apuntarGasto: boolean, hoy: Fec
         importe_centimos: anterior.precio_centimos,
         fecha: hoy,
         categoria: 'compras',
+        necesidad: null,
+        fijo_id: null,
       })
     }
     return e.actualizar('deseos', anterior, { comprado: true, comprado_en: hoy })

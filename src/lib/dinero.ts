@@ -249,3 +249,23 @@ export function gastosPorCategoria(movimientos: readonly (MovimientoBasico & { c
     // De más a menos; «Sin categoría» al final si empata
     .sort((a, b) => b.total - a.total || (a.categoria === null ? 1 : b.categoria === null ? -1 : a.nombre.localeCompare(b.nombre, 'es')))
 }
+
+// ---------------------------------------------------------------------------
+// Esencial o prescindible (solo gastos; opcional)
+// ---------------------------------------------------------------------------
+
+export const NECESIDADES = ['esencial', 'prescindible'] as const
+export type Necesidad = (typeof NECESIDADES)[number]
+
+export const NOMBRE_NECESIDAD: Record<Necesidad, string> = { esencial: 'Esencial', prescindible: 'Prescindible' }
+
+export function esNecesidad(valor: unknown): valor is Necesidad {
+  return typeof valor === 'string' && (NECESIDADES as readonly string[]).includes(valor)
+}
+
+/** null en los ingresos y si se deja vacía. Lanza ErrorDeValidacion si no es de la lista. */
+export function validarNecesidad(tipo: TipoMovimiento, necesidad: string | null | undefined): Necesidad | null {
+  if (tipo === 'ingreso' || !necesidad) return null
+  if (!esNecesidad(necesidad)) throw new ErrorDeValidacion('Elige «esencial» o «prescindible».')
+  return necesidad
+}

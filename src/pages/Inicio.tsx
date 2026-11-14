@@ -21,7 +21,8 @@ import { esTipoPlan, NOMBRE_TIPO_PLAN, proximoPlan } from '../lib/planes'
 import { DIAS_EN_INICIO, proximosDias, textoCuentaAtras as cuentaAtrasCumple, textoDiaMes } from '../lib/cumpleanos'
 import { recuentoTareas } from '../lib/tareas'
 import { alternarDia } from '../repos/habitos'
-import { useClientes, useCumpleanos, useExamenes, useHabitos, useIdeas, useMarcas, useMovimientos, usePerfil, usePlanes, useTareas } from '../repos/hooks'
+import { useClientes, useCumpleanos, useExamenes, useHabitos, useIdeas, useMarcas, useMovimientos, usePerfil, usePlanes, useRevisiones, useTareas } from '../repos/hooks'
+import { leerDatosRevision, nombrePeriodo, textoCambio, type TipoRevision } from '../lib/revision'
 import { marcarTarea } from '../repos/tareas'
 import { useEstadoSync } from '../sync/hooks'
 
@@ -60,6 +61,7 @@ export function Inicio() {
           <TarjetaCumples hoy={dia} />
           <TarjetaPlan hoy={dia} />
           <TarjetaAhorro hoy={dia} />
+          <TarjetaRevision />
           <TarjetaNegocio />
           <TarjetaSemana hoy={dia} />
           <TarjetaIdeas />
@@ -325,6 +327,42 @@ function TarjetaAhorro({ hoy }: { hoy: FechaDia }) {
       <div className="card__foot">
         <Link to="/dinero" className="btn btn--ghost">
           {lista.length === 0 && !cargando ? 'Apuntar un gasto' : 'Ver Dinero'}
+          <IconoFlecha />
+        </Link>
+      </div>
+    </section>
+  )
+}
+
+/** Solo si hay una revisión de ahorro sin ver (la más reciente). */
+function TarjetaRevision() {
+  const revisiones = useRevisiones()
+  const nueva = (revisiones.datos ?? []).find((r) => !r.vista)
+  if (!nueva) return null
+  const datos = leerDatosRevision(nueva.datos)
+  const periodo = nombrePeriodo({ tipo: nueva.tipo as TipoRevision, inicio: nueva.inicio, fin: nueva.fin })
+  const sugerencias = datos?.sugerencias.length ?? 0
+
+  return (
+    <section className="card" aria-labelledby="inicio-revision">
+      <div className="card__head">
+        <h2 id="inicio-revision" className="card__titulo">
+          <IconoDinero />
+          Revisión nueva
+        </h2>
+      </div>
+      <div className="stack" style={{ '--gap': 'var(--sp-2)' } as CSSProperties}>
+        <p>{periodo.replace(/^./, (c) => c.toLocaleUpperCase('es-ES'))}</p>
+        {datos && (
+          <p className="t-small muted">
+            Gastaste <span className="num">{formatearEuros(datos.gastos)}</span> ({textoCambio(datos.gastos, datos.gastos_anterior)})
+            {sugerencias > 0 && ` · ${sugerencias === 1 ? '1 idea' : `${sugerencias} ideas`} para ahorrar`}
+          </p>
+        )}
+      </div>
+      <div className="card__foot">
+        <Link to="/dinero?ver=revisiones" className="btn btn--ghost">
+          Ver la revisión
           <IconoFlecha />
         </Link>
       </div>

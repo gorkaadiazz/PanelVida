@@ -12,6 +12,7 @@ import { listarIdeas, type Idea } from './ideas'
 import { listarMovimientos, type Movimiento } from './movimientos'
 import { obtenerPerfil, type Perfil } from './perfil'
 import { listarPlanes, type Plan } from './planes'
+import { listarRevisiones, type Revision } from './revisiones'
 import { listarHabitos, listarMarcas, type Habito, type Marca } from './habitos'
 import { listarTareas, type Tarea } from './tareas'
 
@@ -76,4 +77,9 @@ export function useClientes(): Consulta<Cliente[]> {
 /** El perfil (para la meta de ahorro); null si aún no se ha descargado. */
 export function usePerfil(): Consulta<Perfil | null> {
   return useConsulta(['perfiles'], obtenerPerfil)
+}
+
+/** Revisiones de ahorro, la más reciente primero. */
+export function useRevisiones(): Consulta<Revision[]> {
+  return useConsulta(['revisiones'], listarRevisiones)
 }
