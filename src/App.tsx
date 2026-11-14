@@ -20,6 +20,7 @@ const Dinero = pagina(() => import('./pages/Dinero'), 'Dinero')
 const Negocio = pagina(() => import('./pages/Negocio'), 'Negocio')
 const Mas = pagina(() => import('./pages/Mas'), 'Mas')
 const Cuenta = pagina(() => import('./pages/Cuenta'), 'Cuenta')
+const Cumpleanos = pagina(() => import('./pages/Cumpleanos'), 'Cumpleanos')
 const Ideas = pagina(() => import('./pages/Ideas'), 'Ideas')
 const NoEncontrada = pagina(() => import('./pages/NoEncontrada'), 'NoEncontrada')
 
@@ -66,6 +67,7 @@ function Contenido({ errorInicial }: { errorInicial: string | null }) {
         <Route path="negocio" element={<Negocio />} />
         <Route path="mas" element={<Mas />} />
         <Route path="ideas" element={<Ideas />} />
+        <Route path="cumpleanos" element={<Cumpleanos />} />
         <Route path="cuenta" element={<Cuenta />} />
         <Route path="*" element={<NoEncontrada />} />
       </Route>

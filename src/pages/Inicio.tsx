@@ -6,7 +6,7 @@ import { EtiquetaFecha } from '../components/EtiquetaFecha'
 import { Pagina } from '../components/Pagina'
 import { prepararFoco } from '../components/foco'
 import { Racha } from '../components/Racha'
-import { IconoDinero, IconoEstudios, IconoExterno, IconoFlecha, IconoHabitos, IconoIdea, IconoNegocio, IconoTareas } from '../components/iconos'
+import { IconoDinero, IconoEstudios, IconoCumple, IconoExterno, IconoFlecha, IconoHabitos, IconoIdea, IconoNegocio, IconoTareas } from '../components/iconos'
 import { useAccion } from '../components/useAccion'
 import { useHoy } from '../components/useHoy'
 import type { FechaDia } from '../lib/fechas'
@@ -17,9 +17,10 @@ import { cuadricula } from '../lib/habitos'
 import { resumenNegocio } from '../lib/negocio'
 import { porcentaje, resumenSemana, textoComparacion } from '../lib/semana'
 import { ideasSinProcesar } from '../lib/ideas'
+import { DIAS_EN_INICIO, proximosDias, textoCuentaAtras as cuentaAtrasCumple, textoDiaMes } from '../lib/cumpleanos'
 import { recuentoTareas } from '../lib/tareas'
 import { alternarDia } from '../repos/habitos'
-import { useClientes, useExamenes, useHabitos, useIdeas, useMarcas, useMovimientos, usePerfil, useTareas } from '../repos/hooks'
+import { useClientes, useCumpleanos, useExamenes, useHabitos, useIdeas, useMarcas, useMovimientos, usePerfil, useTareas } from '../repos/hooks'
 import { marcarTarea } from '../repos/tareas'
 import { useEstadoSync } from '../sync/hooks'
 
@@ -55,6 +56,7 @@ export function Inicio() {
           <TarjetaHabitos hoy={dia} ejecutar={ejecutar} />
           <TarjetaTareas hoy={dia} ejecutar={ejecutar} />
           <TarjetaExamen hoy={dia} />
+          <TarjetaCumples hoy={dia} />
           <TarjetaAhorro hoy={dia} />
           <TarjetaNegocio />
           <TarjetaSemana hoy={dia} />
@@ -472,6 +474,55 @@ function TarjetaIdeas() {
       <div className="card__foot">
         <Link to="/ideas" className="btn btn--ghost">
           Ver la bandeja
+          <IconoFlecha />
+        </Link>
+      </div>
+    </section>
+  )
+}
+
+/** Cumpleaños de hoy a dentro de 7 días. */
+function TarjetaCumples({ hoy }: { hoy: FechaDia }) {
+  const cumples = useCumpleanos()
+  const { primeraDescargaHecha } = useEstadoSync()
+  const lista = cumples.datos ?? []
+  const cerca = proximosDias(lista, hoy)
+  const cargando = cumples.cargando || (lista.length === 0 && !primeraDescargaHecha)
+
+  return (
+    <section className="card" aria-labelledby="inicio-cumples">
+      <div className="card__head">
+        <h2 id="inicio-cumples" className="card__titulo">
+          <IconoCumple />
+          Cumpleaños
+        </h2>
+      </div>
+      {cargando && lista.length === 0 ? (
+        <Esqueleto />
+      ) : cerca.length === 0 ? (
+        <p className="muted">{lista.length ? `Ninguno en los próximos ${DIAS_EN_INICIO} días.` : 'Aún no has apuntado ninguno.'}</p>
+      ) : (
+        <ul className="list" role="list">
+          {cerca.map((p) => (
+            <li key={p.cumple.id} className="list__item">
+              <span className={`cumple__cuenta${p.dias === 0 ? ' cumple__cuenta--hoy' : ''}`}>
+                {cuentaAtrasCumple(p.dias).replace(/^./, (x) => x.toLocaleUpperCase('es-ES'))}
+              </span>
+              <span className="list__main break">
+                {p.cumple.nombre}
+                <span className="t-small muted">
+                  {' · '}
+                  {textoDiaMes(p.cumple.dia, p.cumple.mes)}
+                  {p.edad !== null && <> · <span className="num">{p.edad}</span> años</>}
+                </span>
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="card__foot">
+        <Link to="/cumpleanos" className="btn btn--ghost">
+          {lista.length === 0 && !cargando ? 'Apuntar cumpleaños' : 'Ver todos'}
           <IconoFlecha />
         </Link>
       </div>

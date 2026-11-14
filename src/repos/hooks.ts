@@ -4,6 +4,7 @@
 import type { FechaDia } from '../lib/fechas'
 import { useConsulta, type Consulta } from '../sync/hooks'
 import { listarClientes, type Cliente } from './clientes'
+import { listarCumpleanos, type Cumple } from './cumpleanos'
 import { listarExamenes, type DatosExamenes } from './examenes'
 import { listarFijos, type Fijo } from './fijos'
 import { listarIdeas, type Idea } from './ideas'
@@ -48,6 +49,11 @@ export function useFijos(): Consulta<Fijo[]> {
 /** Todas las ideas de la bandeja (también las archivadas). */
 export function useIdeas(): Consulta<Idea[]> {
   return useConsulta(['ideas'], listarIdeas)
+}
+
+/** Todos los cumpleaños (sin ordenar: lib/cumpleanos los ordena por el próximo). */
+export function useCumpleanos(): Consulta<Cumple[]> {
+  return useConsulta(['cumpleanos'], listarCumpleanos)
 }
 
 /** Todos los clientes del negocio. */

@@ -244,3 +244,15 @@ export function IconoIdea(props: PropsIcono) {
     </Icono>
   )
 }
+
+export function IconoCumple(props: PropsIcono) {
+  return (
+    <Icono {...props}>
+      <path d="M4 21h16" />
+      <path d="M5 21v-7a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v7" />
+      <path d="M5 16c1.5 0 1.5 1 3.5 1s2-1 3.5-1 1.5 1 3.5 1 2-1 3.5-1" />
+      <path d="M12 12V8" />
+      <path d="M12 3.5c.9 1 1.2 1.8.9 2.5-.2.5-.5.7-.9.7s-.7-.2-.9-.7c-.3-.7 0-1.5.9-2.5Z" />
+    </Icono>
+  )
+}

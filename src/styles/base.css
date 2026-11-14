@@ -1849,3 +1849,22 @@ p.num--xl {
 }
 .menu__item:hover { background: var(--surface-sunken); }
 .menu__item:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+/* Cumpleaños: la cuenta atrás va delante, en una pastilla de ancho fijo */
+.cumple__cuenta {
+  flex-shrink: 0;
+  min-width: 5.5rem;
+  padding: 2px 8px;
+  border-radius: var(--r-sm);
+  background: var(--surface-sunken);
+  color: var(--text-2);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  text-align: center;
+}
+.cumple__cuenta--hoy { background: var(--accent); color: var(--on-accent); }
+@media (max-width: 479.98px) {
+  .cumple { flex-wrap: wrap; row-gap: var(--sp-1); }
+  .cumple > .list__main { flex: 1 1 calc(100% - 7rem); }
+  .cumple > .acciones { margin-inline-start: auto; }
+}

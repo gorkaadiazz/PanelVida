@@ -985,7 +985,8 @@ do $$
 declare
   -- tabla → insert mínimo válido de A (se amplía con cada sección de la fase 8)
   inserts text[][] := array[
-    array['ideas', $i$insert into public.ideas (id, texto) values ('a0000000-0000-4000-8000-000000000a81', 'Idea de A')$i$]
+    array['ideas', $i$insert into public.ideas (id, texto) values ('a0000000-0000-4000-8000-000000000a81', 'Idea de A')$i$],
+    array['cumpleanos', $i$insert into public.cumpleanos (nombre, dia, mes) values ('Cumple de A', 5, 3)$i$]
   ];
   t text;
   filas bigint;
@@ -1031,6 +1032,20 @@ select pg_temp.debe_fallar($q$insert into public.ideas (texto) values ('')$q$, a
 select pg_temp.debe_fallar($q$insert into public.ideas (texto) values (repeat('x', 501))$q$, array['23514'], 'una idea de 501 caracteres');
 insert into public.ideas (id, texto) values ('a0000000-0000-4000-8000-000000000a82', repeat('ñ', 500));
 select pg_temp.comprobar((select not archivada from public.ideas where id = 'a0000000-0000-4000-8000-000000000a82'), 'una idea nueva nace archivada');
+
+-- @caso: cumpleanos: día que existe en su mes, 29 de febrero solo con año bisiesto (o sin año)
+reset role;
+select pg_temp.como('aaaaaaaa-0000-4000-8000-000000000001');
+insert into public.cumpleanos (nombre, dia, mes) values ('bisiesto sin año', 29, 2);
+insert into public.cumpleanos (nombre, dia, mes, anio) values ('bisiesto 2004', 29, 2, 2004), ('2000 sí', 29, 2, 2000), ('fin de mes', 31, 12, 1999);
+select pg_temp.debe_fallar($q$insert into public.cumpleanos (nombre, dia, mes, anio) values ('x', 29, 2, 2003)$q$, array['23514'], '29/2 de un año no bisiesto');
+select pg_temp.debe_fallar($q$insert into public.cumpleanos (nombre, dia, mes, anio) values ('x', 29, 2, 1900)$q$, array['23514'], '29/2/1900 (no bisiesto)');
+select pg_temp.debe_fallar($q$insert into public.cumpleanos (nombre, dia, mes) values ('x', 30, 2)$q$, array['23514'], 'el 30 de febrero');
+select pg_temp.debe_fallar($q$insert into public.cumpleanos (nombre, dia, mes) values ('x', 31, 4)$q$, array['23514'], 'el 31 de abril');
+select pg_temp.debe_fallar($q$insert into public.cumpleanos (nombre, dia, mes) values ('x', 0, 4)$q$, array['23514'], 'el día 0');
+select pg_temp.debe_fallar($q$insert into public.cumpleanos (nombre, dia, mes) values ('x', 1, 13)$q$, array['23514'], 'el mes 13');
+select pg_temp.debe_fallar($q$insert into public.cumpleanos (nombre, dia, mes, anio) values ('x', 1, 1, 1899)$q$, array['23514'], 'el año 1899');
+select pg_temp.debe_fallar($q$insert into public.cumpleanos (nombre, dia, mes) values ('', 1, 1)$q$, array['23514'], 'sin nombre');
 
 -- @caso: borrar un usuario de auth.users borra en cascada todas sus filas
 reset role;

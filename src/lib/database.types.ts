@@ -180,6 +180,45 @@ export type Database = {
         }
         Relationships: []
       }
+      cumpleanos: {
+        Row: {
+          anio: number | null
+          created_at: string
+          dia: number
+          id: string
+          mes: number
+          nombre: string
+          notas: string
+          sync_at: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          anio?: number | null
+          created_at?: string
+          dia: number
+          id?: string
+          mes: number
+          nombre: string
+          notas?: string
+          sync_at?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          anio?: number | null
+          created_at?: string
+          dia?: number
+          id?: string
+          mes?: number
+          nombre?: string
+          notas?: string
+          sync_at?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       emails_permitidos: {
         Row: {
           created_at: string
