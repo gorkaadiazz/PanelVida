@@ -1221,6 +1221,24 @@ select pg_temp.comprobar((select count(*) from public.revisiones where id = 'b00
 select pg_temp.debe_fallar($q$insert into public.revisiones (id, tipo, inicio, fin, datos) values ('b0000000-0000-4000-8000-0000000000e1', 'mensual', '2026-04-01', '2026-04-30', '{"v": 1}')
   on conflict (id) do update set vista = true$q$, array['42501'], 'A pisa la revisión de B');
 
+-- @caso: efectivo o tarjeta: por defecto tarjeta (filas antiguas y app sin actualizar) y solo esos dos
+reset role;
+select pg_temp.como('aaaaaaaa-0000-4000-8000-000000000001');
+insert into public.movimientos (id, tipo, concepto, importe_centimos, fecha)
+  values ('a0000000-0000-4000-8000-00000000e0a1', 'gasto', 'Sin medio', 100, '2026-11-15');
+select pg_temp.comprobar((select medio = 'tarjeta' from public.movimientos where id = 'a0000000-0000-4000-8000-00000000e0a1'), 'un movimiento sin medio no queda en tarjeta');
+insert into public.movimientos (tipo, concepto, importe_centimos, fecha, medio) values ('ingreso', 'Paga en mano', 2000, '2026-11-15', 'efectivo');
+insert into public.movimientos_fijos (tipo, concepto, importe_centimos, dia, desde, medio) values ('gasto', 'Bocadillo', 300, 1, '2026-11', 'efectivo');
+insert into public.movimientos_fijos (id, tipo, concepto, importe_centimos, dia, desde) values ('a0000000-0000-4000-8000-00000000e0a2', 'gasto', 'Gym', 3000, 1, '2026-11');
+select pg_temp.comprobar((select medio = 'tarjeta' from public.movimientos_fijos where id = 'a0000000-0000-4000-8000-00000000e0a2'), 'un fijo sin medio no queda en tarjeta');
+select pg_temp.comprobar((select medio = 'efectivo' from public.movimientos_fijos where concepto = 'Bocadillo'), 'un fijo en efectivo no se guarda así');
+select pg_temp.debe_fallar($q$insert into public.movimientos (tipo, concepto, importe_centimos, fecha, medio) values ('gasto', 'x', 1, '2026-11-15', 'bizum')$q$,
+  array['23514'], 'un movimiento con un medio fuera de la lista');
+select pg_temp.debe_fallar($q$insert into public.movimientos (tipo, concepto, importe_centimos, fecha, medio) values ('gasto', 'x', 1, '2026-11-15', null)$q$,
+  array['23502'], 'un movimiento con medio nulo');
+select pg_temp.debe_fallar($q$insert into public.movimientos_fijos (tipo, concepto, importe_centimos, dia, desde, medio) values ('gasto', 'x', 1, 1, '2026-11', 'bizum')$q$,
+  array['23514'], 'un fijo con un medio fuera de la lista');
+
 -- @fin
 do $$
 begin

@@ -730,6 +730,7 @@ export type Database = {
           fijo_id: string | null
           id: string
           importe_centimos: number
+          medio: string
           necesidad: string | null
           sync_at: string
           tipo: string
@@ -744,6 +745,7 @@ export type Database = {
           fijo_id?: string | null
           id?: string
           importe_centimos: number
+          medio?: string
           necesidad?: string | null
           sync_at?: string
           tipo: string
@@ -758,6 +760,7 @@ export type Database = {
           fijo_id?: string | null
           id?: string
           importe_centimos?: number
+          medio?: string
           necesidad?: string | null
           sync_at?: string
           tipo?: string
@@ -779,6 +782,7 @@ export type Database = {
           importe_centimos: number
           inicio: string
           mes: number | null
+          medio: string
           necesidad: string | null
           sync_at: string
           tipo: string
@@ -799,6 +803,7 @@ export type Database = {
           importe_centimos: number
           inicio?: string
           mes?: number | null
+          medio?: string
           necesidad?: string | null
           sync_at?: string
           tipo: string
@@ -819,6 +824,7 @@ export type Database = {
           importe_centimos?: number
           inicio?: string
           mes?: number | null
+          medio?: string
           necesidad?: string | null
           sync_at?: string
           tipo?: string
