@@ -109,6 +109,11 @@ Comprobaciones ahora mismo: `npm test -- --run` 473/473, `npm run test:sql` 41/4
 - Escenario «con recortes»: de una categoría que sube solo se suma lo que no cubren ya los gastos prescindibles de esa categoría (las sugerencias guardan su categoría).
 - Migración 20261114000800 (antes de desplegar; ver `docs/RECORDATORIOS.md`). Compatibilidad: la app sin actualizar sigue apuntando bien los mensuales (trigger `compatibilidad_fijos`) y nunca apunta los demás (`desde = '9999-12'`).
 
+### Tarjeta o efectivo (15/11/2026)
+- Cada movimiento y cada fijo (gasto o ingreso) dice si es con tarjeta o en efectivo (columna `medio`, por defecto `tarjeta`). Lo que apunta un fijo sale con su medio; al comprar un deseo, tarjeta.
+- Dinero: tarjeta «Tarjeta y efectivo» con lo gastado e ingresado de cada forma en el mes, y la etiqueta en cada fila.
+- Migración 20261115000100 (antes de desplegar). La app sin actualizar no manda `medio` y queda en tarjeta.
+
 ### Fases siguientes
 - **Fase 7, despliegue:** en Netlify (origen propio), no en GitHub Pages. Pasos en `docs/DESPLEGAR.md`.
 

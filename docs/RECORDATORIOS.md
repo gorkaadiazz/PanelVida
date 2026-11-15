@@ -16,6 +16,7 @@ supabase/migrations/20261114000500_planes.sql
 supabase/migrations/20261114000600_deseos.sql
 supabase/migrations/20261114000700_no_revivir_borrados.sql
 supabase/migrations/20261114000800_frecuencia_y_revisiones.sql
+supabase/migrations/20261115000100_medio_de_pago.sql
 ```
 
 De la 000300 a la 000600 son de la fase 8 (ideas, cumpleaños, planes y lista de
@@ -28,6 +29,9 @@ año; esencial/prescindible; revisiones de ahorro). **Aplícala ANTES de subir l
 web nueva**: la app nueva guarda columnas que solo existen con ella y, sin la
 migración, no sincroniza (no pierde nada: lo reintenta hasta que la apliques).
 Los fijos que ya tenías se convierten solos en «cada mes» y siguen igual.
+
+La 20261115000100 añade «tarjeta o efectivo» a movimientos y fijos. También
+**antes de subir la web nueva**. Lo que ya tenías queda como «tarjeta».
 
 Igual que en `docs/MIGRAR.md`: o pegando cada archivo en **SQL Editor → New
 query → Run**, o con la CLI:
