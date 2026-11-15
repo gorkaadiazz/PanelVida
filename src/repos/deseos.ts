@@ -52,6 +52,7 @@ export async function marcarComprado(id: string, apuntarGasto: boolean, hoy: Fec
         fecha: hoy,
         categoria: 'compras',
         necesidad: null,
+        medio: 'tarjeta',
         fijo_id: null,
       })
     }

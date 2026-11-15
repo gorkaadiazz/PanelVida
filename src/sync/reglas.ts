@@ -37,6 +37,7 @@ export function limpiarFila(def: DefTabla, fila: Readonly<Record<string, unknown
   const limpia: Record<string, unknown> = {}
   for (const col of [...COLUMNAS_COMUNES, ...def.columnas]) {
     if (fila[col] !== undefined) limpia[col] = fila[col]
+    else if (def.porDefecto?.[col] !== undefined) limpia[col] = def.porDefecto[col]
   }
   return limpia
 }

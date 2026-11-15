@@ -1,7 +1,7 @@
 // Repositorio de los movimientos fijos (cada día, semana, mes o año) y de su
 // apunte automático. Funciona sin conexión, como todos.
 
-import { CONCEPTO_MAX, formatearEuros, parsearImporte, validarCategoria, validarConcepto, validarNecesidad, validarTipo, type TipoMovimiento } from '../lib/dinero'
+import { CONCEPTO_MAX, formatearEuros, parsearImporte, validarCategoria, validarConcepto, medioDe, validarMedio, validarNecesidad, validarTipo, type TipoMovimiento } from '../lib/dinero'
 import {
   apunteHastaAyer,
   apuntesPendientes,
@@ -37,6 +37,8 @@ export interface DatosFijo {
   categoria: string
   /** Solo en gastos; '' = sin marcar. */
   necesidad: string
+  /** 'tarjeta' o 'efectivo'; '' o sin poner = tarjeta. */
+  medio?: string
 }
 
 function validar(datos: DatosFijo) {
@@ -54,6 +56,7 @@ function validar(datos: DatosFijo) {
     ...validarCuando(frecuencia, datos.dia, datos.mes),
     categoria: validarCategoria(tipo, datos.categoria),
     necesidad: validarNecesidad(tipo, datos.necesidad),
+    medio: validarMedio(datos.medio),
   }
 }
 
@@ -176,6 +179,7 @@ function movimientoDe(fijo: Fijo, a: Apunte, frecuencia: Frecuencia): Datos<'mov
     fecha: a.fecha,
     categoria: gasto ? fijo.categoria : null,
     necesidad: gasto ? (fijo.necesidad ?? null) : null,
+    medio: medioDe(fijo),
     fijo_id: fijo.id,
   }
 }

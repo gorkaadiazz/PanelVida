@@ -128,3 +128,21 @@ describe('fijos', () => {
     expect((await listarMovimientos())[0]).toMatchObject({ tipo: 'ingreso', categoria: null })
   })
 })
+
+describe('efectivo o tarjeta', () => {
+  it('un movimiento guarda su medio; sin elegir es tarjeta; uno fuera de la lista no se guarda', async () => {
+    expect((await crearMovimiento({ tipo: 'ingreso', concepto: 'Paga', importe: '20', fecha: '2026-11-15', medio: 'efectivo' })).medio).toBe('efectivo')
+    const m = await crearMovimiento({ tipo: 'gasto', concepto: 'Súper', importe: '20', fecha: '2026-11-15' })
+    expect(m.medio).toBe('tarjeta')
+    expect((await editarMovimiento(m.id, { tipo: 'gasto', concepto: 'Súper', importe: '20', fecha: '2026-11-15', medio: 'efectivo' })).medio).toBe('efectivo')
+    await expect(crearMovimiento({ tipo: 'gasto', concepto: 'x', importe: '1', fecha: '2026-11-15', medio: 'bizum' })).rejects.toThrow(ErrorDeValidacion)
+  })
+
+  it('lo que apunta un fijo en efectivo sale en efectivo', async () => {
+    await crearFijo({ ...gimnasio, concepto: 'Clases', dia: '1', medio: 'efectivo' }, '2026-10-01')
+    await aplicarFijos('2026-11-15')
+    const apuntados = (await listarMovimientos()).filter((m) => m.concepto === 'Clases')
+    expect(apuntados.length).toBeGreaterThan(0)
+    expect(apuntados.every((m) => m.medio === 'efectivo')).toBe(true)
+  })
+})

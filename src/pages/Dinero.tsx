@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState, type CSSProperties, type FormEvent,
 import { Link, useSearchParams } from 'react-router-dom'
 import { AvisoError } from '../components/AvisoError'
 import { CampoCategoria } from '../components/CampoCategoria'
+import { CampoMedio } from '../components/CampoMedio'
 import { CampoNecesidad } from '../components/CampoNecesidad'
 import { GastosPorCategoria } from '../components/GastosPorCategoria'
 import { GraficaAhorro } from '../components/GraficaAhorro'
@@ -18,13 +19,16 @@ import {
   esNecesidad,
   formatearEuros,
   gastosPorCategoria,
+  medioDe,
   NOMBRE_CATEGORIA,
+  NOMBRE_MEDIO,
   NOMBRE_NECESIDAD,
   mesDe,
   movimientosDelMes,
   nombreMes,
   progresoMeta,
   resumenMes,
+  resumenMesPorMedio,
   resumir,
   sumarMeses,
   ultimosMeses,
@@ -109,6 +113,7 @@ function DineroMovimientos({ ejecutar }: { ejecutar: Ejecutar }) {
   const sinDatos = cargando && lista.length === 0 && !movimientos.error
   const delMes = movimientosDelMes(lista, mes)
   const resumen = resumenMes(lista, mes)
+  const porMedio = resumenMesPorMedio(lista, mes)
   const total = resumir(lista).ahorro
   // Movimientos de este mes que apuntó un fijo (llevan la etiqueta «Fijo»)
   const deFijos = idsDeFijos(delMes, fijos.datos ?? [])
@@ -158,6 +163,28 @@ function DineroMovimientos({ ejecutar }: { ejecutar: Ejecutar }) {
                 <dd className="num">{formatearEuros(resumen.gastos)}</dd>
               </dl>
             </>
+          )}
+        </section>
+
+        <section className="card" aria-labelledby="dinero-medios">
+          <div className="card__head">
+            <h2 id="dinero-medios" className="card__titulo">
+              Tarjeta y efectivo
+            </h2>
+          </div>
+          {sinDatos ? (
+            <EsqueletoCifra alto="6rem" />
+          ) : (
+            <dl className="cifras">
+              <dt>Gastado con tarjeta</dt>
+              <dd className="num">{formatearEuros(porMedio.tarjeta.gastos)}</dd>
+              <dt>Gastado en efectivo</dt>
+              <dd className="num">{formatearEuros(porMedio.efectivo.gastos)}</dd>
+              <dt>Ingresos en tarjeta</dt>
+              <dd className="num">{formatearEuros(porMedio.tarjeta.ingresos)}</dd>
+              <dt>Ingresos en efectivo</dt>
+              <dd className="num">{formatearEuros(porMedio.efectivo.ingresos)}</dd>
+            </dl>
           )}
         </section>
 
@@ -346,21 +373,24 @@ function CamposMovimiento({
 }) {
   return (
     <>
-      <fieldset className="segmentos">
-        <legend className="visually-hidden">Tipo</legend>
-        {(['gasto', 'ingreso'] as TipoMovimiento[]).map((tipo) => (
-          <label key={tipo}>
-            <input
-              type="radio"
-              name={`${id}-tipo`}
-              value={tipo}
-              checked={datos.tipo === tipo}
-              onChange={() => cambiar({ tipo })}
-            />
-            {tipo === 'gasto' ? 'Gasto' : 'Ingreso'}
-          </label>
-        ))}
-      </fieldset>
+      <div className="row">
+        <fieldset className="segmentos">
+          <legend className="visually-hidden">Tipo</legend>
+          {(['gasto', 'ingreso'] as TipoMovimiento[]).map((tipo) => (
+            <label key={tipo}>
+              <input
+                type="radio"
+                name={`${id}-tipo`}
+                value={tipo}
+                checked={datos.tipo === tipo}
+                onChange={() => cambiar({ tipo })}
+              />
+              {tipo === 'gasto' ? 'Gasto' : 'Ingreso'}
+            </label>
+          ))}
+        </fieldset>
+        <CampoMedio id={id} valor={datos.medio ?? ''} cambiar={(medio) => cambiar({ medio })} />
+      </div>
       <div className="alta alta--tres">
         <div className="field">
           <label htmlFor={`${id}-concepto`} className="field__label">
@@ -404,7 +434,7 @@ function CamposMovimiento({
 }
 
 function AltaMovimiento({ hoy, ejecutar, onCreado }: { hoy: FechaDia; ejecutar: Ejecutar; onCreado: (fecha: FechaDia) => void }) {
-  const vacio = (): DatosMovimiento => ({ tipo: 'gasto', concepto: '', importe: '', fecha: hoy, categoria: '', necesidad: '' })
+  const vacio = (): DatosMovimiento => ({ tipo: 'gasto', concepto: '', importe: '', fecha: hoy, categoria: '', necesidad: '', medio: 'tarjeta' })
   const [datos, setDatos] = useState<DatosMovimiento>(vacio)
   const id = useId()
 
@@ -412,7 +442,7 @@ function AltaMovimiento({ hoy, ejecutar, onCreado }: { hoy: FechaDia; ejecutar: 
     evento.preventDefault()
     if (await ejecutar(() => crearMovimiento(datos))) {
       onCreado(datos.fecha)
-      // Se mantiene el tipo y la fecha: lo normal es apuntar varios seguidos
+      // Se mantiene el tipo, el medio y la fecha: lo normal es apuntar varios seguidos
       setDatos((d) => ({ ...d, concepto: '', importe: '', categoria: '', necesidad: '' }))
     }
   }
@@ -440,6 +470,7 @@ function datosDe(m: Movimiento, importe: string): DatosMovimiento {
     fecha: m.fecha,
     categoria: esCategoria(m.categoria) ? m.categoria : '',
     necesidad: esNecesidad(m.necesidad) ? m.necesidad : '',
+    medio: medioDe(m),
   }
 }
 
@@ -532,6 +563,7 @@ function FilaMovimiento({
         <p className="t-small muted">
           <span className="num">{formatearFecha(m.fecha)}</span> · {esIngreso ? 'Ingreso' : esCategoria(m.categoria) ? NOMBRE_CATEGORIA[m.categoria] : 'Gasto'}
           {!esIngreso && esNecesidad(m.necesidad) && ` · ${NOMBRE_NECESIDAD[m.necesidad]}`}
+          {` · ${NOMBRE_MEDIO[medioDe(m)]}`}
           {deFijo && ' · Fijo'}
         </p>
       </div>

@@ -5,11 +5,12 @@
 import { useEffect, useId, useRef, useState, type CSSProperties, type FormEvent, type RefObject } from 'react'
 import { AvisoError } from '../components/AvisoError'
 import { CampoCategoria } from '../components/CampoCategoria'
+import { CampoMedio } from '../components/CampoMedio'
 import { CampoNecesidad } from '../components/CampoNecesidad'
 import { prepararFoco } from '../components/foco'
 import { IconoBorrar, IconoDinero, IconoEditar } from '../components/iconos'
 import { Vacio } from '../components/Vacio'
-import { CONCEPTO_MAX, centimosATexto, esCategoria, esNecesidad, formatearEuros, NOMBRE_CATEGORIA, NOMBRE_NECESIDAD, type TipoMovimiento } from '../lib/dinero'
+import { CONCEPTO_MAX, centimosATexto, esCategoria, esNecesidad, formatearEuros, medioDe, NOMBRE_CATEGORIA, NOMBRE_MEDIO, NOMBRE_NECESIDAD, type TipoMovimiento } from '../lib/dinero'
 import { formatearFecha, type FechaDia } from '../lib/fechas'
 import {
   alMes,
@@ -29,7 +30,7 @@ import { borrarFijo, crearFijo, editarFijo, pausarFijo, type DatosFijo, type Fij
 
 type Ejecutar = (accion: () => Promise<unknown>) => Promise<boolean>
 
-const VACIO: DatosFijo = { tipo: 'gasto', concepto: '', importe: '', frecuencia: 'mensual', dia: '', mes: '', categoria: '', necesidad: '' }
+const VACIO: DatosFijo = { tipo: 'gasto', concepto: '', importe: '', frecuencia: 'mensual', dia: '', mes: '', categoria: '', necesidad: '', medio: 'tarjeta' }
 
 const NOMBRES_MES = Array.from({ length: 12 }, (_, i) =>
   new Intl.DateTimeFormat('es-ES', { month: 'long', timeZone: 'UTC' }).format(Date.UTC(2000, i, 1)).replace(/^./, (c) => c.toLocaleUpperCase('es-ES')),
@@ -125,15 +126,18 @@ function CamposFijo({ id, datos, cambiar, autoFocus }: { id: string; datos: Dato
   const frecuencia: Frecuencia = esFrecuencia(datos.frecuencia) ? datos.frecuencia : 'mensual'
   return (
     <>
-      <fieldset className="segmentos">
-        <legend className="visually-hidden">Tipo</legend>
-        {(['gasto', 'ingreso'] as TipoMovimiento[]).map((tipo) => (
-          <label key={tipo}>
-            <input type="radio" name={`${id}-tipo`} value={tipo} checked={datos.tipo === tipo} onChange={() => cambiar({ tipo })} />
-            {tipo === 'gasto' ? 'Gasto' : 'Ingreso'}
-          </label>
-        ))}
-      </fieldset>
+      <div className="row">
+        <fieldset className="segmentos">
+          <legend className="visually-hidden">Tipo</legend>
+          {(['gasto', 'ingreso'] as TipoMovimiento[]).map((tipo) => (
+            <label key={tipo}>
+              <input type="radio" name={`${id}-tipo`} value={tipo} checked={datos.tipo === tipo} onChange={() => cambiar({ tipo })} />
+              {tipo === 'gasto' ? 'Gasto' : 'Ingreso'}
+            </label>
+          ))}
+        </fieldset>
+        <CampoMedio id={id} valor={datos.medio ?? ''} cambiar={(medio) => cambiar({ medio })} />
+      </div>
       <div className="alta alta--tres">
         <div className="field">
           <label htmlFor={`${id}-concepto`} className="field__label">
@@ -252,6 +256,7 @@ function datosDe(f: Fijo): DatosFijo {
     mes: n.mes ? String(n.mes) : '',
     categoria: esCategoria(f.categoria) ? f.categoria : '',
     necesidad: esNecesidad(f.necesidad) ? f.necesidad : '',
+    medio: medioDe(f),
   }
 }
 
@@ -341,6 +346,7 @@ function FilaFijo({ fijo: f, hoy, ejecutar }: { fijo: Fijo; hoy: FechaDia; ejecu
           {textoCuando(f)}
           {categoria && ` · ${categoria}`}
           {necesidad && ` · ${necesidad}`}
+          {` · ${NOMBRE_MEDIO[medioDe(f)]}`}
           {' · '}
           {proximo ? (
             <>

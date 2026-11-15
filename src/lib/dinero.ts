@@ -269,3 +269,44 @@ export function validarNecesidad(tipo: TipoMovimiento, necesidad: string | null 
   if (!esNecesidad(necesidad)) throw new ErrorDeValidacion('Elige «esencial» o «prescindible».')
   return necesidad
 }
+
+// ---------------------------------------------------------------------------
+// Efectivo o tarjeta (gastos e ingresos)
+// ---------------------------------------------------------------------------
+
+export const MEDIOS = ['tarjeta', 'efectivo'] as const
+export type Medio = (typeof MEDIOS)[number]
+
+export const NOMBRE_MEDIO: Record<Medio, string> = { tarjeta: 'Tarjeta', efectivo: 'Efectivo' }
+
+/** Lo que se usa si no se dice nada (igual que el `default` de la base de datos). */
+export const MEDIO_POR_DEFECTO: Medio = 'tarjeta'
+
+export function esMedio(valor: unknown): valor is Medio {
+  return typeof valor === 'string' && (MEDIOS as readonly string[]).includes(valor)
+}
+
+/**
+ * Medio de una fila guardada. Una fila sin él (creada antes de existir, o
+ * aún sin descargar) o con uno desconocido cuenta como tarjeta, que es lo
+ * que guarda el servidor por defecto.
+ */
+export function medioDe(fila: { medio?: string | null }): Medio {
+  return esMedio(fila.medio) ? fila.medio : MEDIO_POR_DEFECTO
+}
+
+/** '' o sin poner = tarjeta. Lanza ErrorDeValidacion si no es de la lista. */
+export function validarMedio(medio: string | null | undefined): Medio {
+  if (!medio) return MEDIO_POR_DEFECTO
+  if (!esMedio(medio)) throw new ErrorDeValidacion('Elige «tarjeta» o «efectivo».')
+  return medio
+}
+
+/** Ingresos, gastos y ahorro de un mes separados en tarjeta y efectivo. */
+export function resumenMesPorMedio(movimientos: readonly (MovimientoBasico & { medio?: string | null })[], mes: Mes): Record<Medio, ResumenMes> {
+  const delMes = movimientos.filter((m) => mesDe(m.fecha) === mes)
+  return {
+    tarjeta: resumir(delMes.filter((m) => medioDe(m) === 'tarjeta')),
+    efectivo: resumir(delMes.filter((m) => medioDe(m) === 'efectivo')),
+  }
+}

@@ -75,6 +75,12 @@ describe('limpiarFila', () => {
   it('conserva los null y omite lo que no está definido', () => {
     expect(limpiarFila(definicion('habitos'), { id: 'a', nombre: 'Leer', orden: undefined })).toEqual({ id: 'a', nombre: 'Leer' })
   })
+
+  it('una fila local anterior a `medio` sube «tarjeta» (como el default del servidor), y uno puesto se respeta', () => {
+    expect(limpiarFila(definicion('movimientos'), { id: 'a', concepto: 'x' })).toEqual({ id: 'a', concepto: 'x', medio: 'tarjeta' })
+    expect(limpiarFila(definicion('movimientos_fijos'), { id: 'a' })).toEqual({ id: 'a', medio: 'tarjeta' })
+    expect(limpiarFila(definicion('movimientos'), { id: 'a', medio: 'efectivo' })).toEqual({ id: 'a', medio: 'efectivo' })
+  })
 })
 
 describe('planDeSubida', () => {

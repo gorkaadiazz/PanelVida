@@ -1,6 +1,6 @@
 // Repositorio de ingresos y gastos. Importes en céntimos. Funciona sin conexión.
 
-import { parsearImporte, validarCategoria, validarConcepto, validarFechaMovimiento, validarNecesidad, validarTipo, type TipoMovimiento } from '../lib/dinero'
+import { parsearImporte, validarCategoria, validarConcepto, validarFechaMovimiento, validarMedio, validarNecesidad, validarTipo, type TipoMovimiento } from '../lib/dinero'
 import type { FilaLocal } from '../sync/tablas'
 import { ErrorNoEncontrado, listar, transaccion } from './base'
 
@@ -16,6 +16,8 @@ export interface DatosMovimiento {
   categoria?: string
   /** Solo en gastos: 'esencial', 'prescindible' o '' (sin marcar). */
   necesidad?: string
+  /** 'tarjeta' o 'efectivo' (gastos e ingresos); '' o sin poner = tarjeta. */
+  medio?: string
 }
 
 function validar(datos: DatosMovimiento) {
@@ -27,6 +29,7 @@ function validar(datos: DatosMovimiento) {
     fecha: validarFechaMovimiento(datos.fecha),
     categoria: validarCategoria(tipo, datos.categoria),
     necesidad: validarNecesidad(tipo, datos.necesidad),
+    medio: validarMedio(datos.medio),
   }
 }
 

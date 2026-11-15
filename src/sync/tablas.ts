@@ -41,6 +41,12 @@ export interface DefTabla<N extends string = string> {
    * las comunes y sync_at), no la fila entera.
    */
   soloLectura?: boolean
+  /**
+   * Valor que se sube en una columna que la fila local aún no tiene (filas
+   * guardadas antes de añadirla). Debe ser el mismo `default` del servidor:
+   * si no, un lote con filas con y sin la columna mandaría NULL.
+   */
+  porDefecto?: Readonly<Record<string, unknown>>
 }
 
 export const TABLAS = [
@@ -53,12 +59,13 @@ export const TABLAS = [
   },
   { nombre: 'tareas', columnas: ['texto', 'fecha_limite', 'hecha', 'hecha_en'] },
   // fijo_id: el fijo que lo apuntó (sin clave foránea: borrar el fijo deja lo apuntado)
-  { nombre: 'movimientos', columnas: ['tipo', 'concepto', 'importe_centimos', 'fecha', 'categoria', 'necesidad', 'fijo_id'], indices: ['fecha'] },
+  { nombre: 'movimientos', columnas: ['tipo', 'concepto', 'importe_centimos', 'fecha', 'categoria', 'necesidad', 'medio', 'fijo_id'], indices: ['fecha'], porDefecto: { medio: 'tarjeta' } },
   // Fijos (cada día, semana, mes o año). No es madre de movimientos: borrar un fijo deja los ya apuntados.
   // `desde` y `ultimo_mes` se siguen subiendo para la app antigua (ver lib/fijos.ts).
   {
     nombre: 'movimientos_fijos',
-    columnas: ['tipo', 'concepto', 'importe_centimos', 'categoria', 'necesidad', 'frecuencia', 'dia', 'mes', 'inicio', 'ultimo_apunte', 'desde', 'ultimo_mes', 'activo'],
+    columnas: ['tipo', 'concepto', 'importe_centimos', 'categoria', 'necesidad', 'medio', 'frecuencia', 'dia', 'mes', 'inicio', 'ultimo_apunte', 'desde', 'ultimo_mes', 'activo'],
+    porDefecto: { medio: 'tarjeta' },
   },
   // Revisiones semanales y mensuales de ahorro (las calcula la app: lib/revision.ts)
   { nombre: 'revisiones', columnas: ['tipo', 'inicio', 'fin', 'datos', 'vista'] },
