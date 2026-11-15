@@ -1177,6 +1177,39 @@ export type Database = {
           },
         ]
       }
+      traspasos: {
+        Row: {
+          created_at: string
+          fecha: string
+          id: string
+          importe_centimos: number
+          sentido: string
+          sync_at: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          fecha: string
+          id?: string
+          importe_centimos: number
+          sentido: string
+          sync_at?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          created_at?: string
+          fecha?: string
+          id?: string
+          importe_centimos?: number
+          sentido?: string
+          sync_at?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       uso_ia: {
         Row: {
           created_at: string

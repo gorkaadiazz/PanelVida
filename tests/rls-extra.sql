@@ -989,7 +989,8 @@ declare
     array['cumpleanos', $i$insert into public.cumpleanos (nombre, dia, mes) values ('Cumple de A', 5, 3)$i$],
     array['planes', $i$insert into public.planes (titulo) values ('Plan de A')$i$],
     array['deseos', $i$insert into public.deseos (articulo, precio_centimos) values ('Deseo de A', 100)$i$],
-    array['revisiones', $i$insert into public.revisiones (tipo, inicio, fin, datos) values ('semanal', '2026-11-09', '2026-11-15', '{"v": 1}')$i$]
+    array['revisiones', $i$insert into public.revisiones (tipo, inicio, fin, datos) values ('semanal', '2026-11-09', '2026-11-15', '{"v": 1}')$i$],
+    array['traspasos', $i$insert into public.traspasos (sentido, importe_centimos, fecha) values ('sacar', 5000, '2026-11-15')$i$]
   ];
   t text;
   filas bigint;
@@ -1103,7 +1104,7 @@ select pg_temp.comprobar(not exists (select 1 from public.ideas where id = 'a000
   'una fila borrada ha vuelto a aparecer');
 -- Y las tablas de Mi Panel lo tienen todas
 select pg_temp.comprobar((select count(distinct event_object_table) from information_schema.triggers
-  where trigger_schema = 'public' and trigger_name = 'no_revivir_borrado') = 11, 'falta no_revivir_borrado en alguna tabla');
+  where trigger_schema = 'public' and trigger_name = 'no_revivir_borrado') = 12, 'falta no_revivir_borrado en alguna tabla');
 
 -- @caso: borrar un usuario de auth.users borra en cascada todas sus filas
 reset role;
@@ -1238,6 +1239,19 @@ select pg_temp.debe_fallar($q$insert into public.movimientos (tipo, concepto, im
   array['23502'], 'un movimiento con medio nulo');
 select pg_temp.debe_fallar($q$insert into public.movimientos_fijos (tipo, concepto, importe_centimos, dia, desde, medio) values ('gasto', 'x', 1, 1, '2026-11', 'bizum')$q$,
   array['23514'], 'un fijo con un medio fuera de la lista');
+
+-- @caso: traspasos: sacar o ingresar, importe en céntimos positivo y fecha de día válida
+reset role;
+select pg_temp.como('aaaaaaaa-0000-4000-8000-000000000001');
+insert into public.traspasos (sentido, importe_centimos, fecha) values ('ingresar', 1, '2026-11-15');
+insert into public.traspasos (sentido, importe_centimos, fecha) values ('sacar', 99999999999, '2000-01-01'), ('ingresar', 1, '2100-12-31');
+select pg_temp.debe_fallar($q$insert into public.traspasos (sentido, importe_centimos, fecha) values ('sacar', 1, '2101-01-01')$q$, array['23514'], 'un traspaso más allá de 2100');
+select pg_temp.debe_fallar($q$insert into public.traspasos (sentido, importe_centimos, fecha) values ('sacar', -100, '2026-11-15')$q$, array['23514'], 'un traspaso negativo');
+select pg_temp.debe_fallar($q$insert into public.traspasos (sentido, importe_centimos, fecha) values ('bizum', 1, '2026-11-15')$q$, array['23514'], 'un traspaso con sentido fuera de la lista');
+select pg_temp.debe_fallar($q$insert into public.traspasos (sentido, importe_centimos, fecha) values ('sacar', 0, '2026-11-15')$q$, array['23514'], 'un traspaso de 0');
+select pg_temp.debe_fallar($q$insert into public.traspasos (sentido, importe_centimos, fecha) values ('sacar', 100000000000, '2026-11-15')$q$, array['23514'], 'un traspaso enorme');
+select pg_temp.debe_fallar($q$insert into public.traspasos (sentido, importe_centimos, fecha) values ('sacar', 1, '1999-12-31')$q$, array['23514'], 'un traspaso con fecha imposible');
+select pg_temp.debe_fallar($q$insert into public.traspasos (user_id, sentido, importe_centimos, fecha) values ('bbbbbbbb-0000-4000-8000-000000000002', 'sacar', 1, '2026-11-15')$q$, array['42501'], 'un traspaso a nombre de otro');
 
 -- @fin
 do $$
