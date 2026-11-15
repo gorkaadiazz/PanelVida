@@ -126,7 +126,7 @@ function CamposFijo({ id, datos, cambiar, autoFocus }: { id: string; datos: Dato
   const frecuencia: Frecuencia = esFrecuencia(datos.frecuencia) ? datos.frecuencia : 'mensual'
   return (
     <>
-      <div className="row">
+      <div className="row" style={{ '--gap': 'var(--sp-3)' } as CSSProperties}>
         <fieldset className="segmentos">
           <legend className="visually-hidden">Tipo</legend>
           {(['gasto', 'ingreso'] as TipoMovimiento[]).map((tipo) => (

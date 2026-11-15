@@ -6,6 +6,7 @@ import { useConsulta, type Consulta } from '../sync/hooks'
 import { listarClientes, type Cliente } from './clientes'
 import { listarCumpleanos, type Cumple } from './cumpleanos'
 import { listarDeseos, type Deseo } from './deseos'
+import { listarTraspasos, type Traspaso } from './traspasos'
 import { listarExamenes, type DatosExamenes } from './examenes'
 import { listarFijos, type Fijo } from './fijos'
 import { listarIdeas, type Idea } from './ideas'
@@ -67,6 +68,11 @@ export function usePlanes(): Consulta<Plan[]> {
 /** La lista de deseos (pendientes y comprados). */
 export function useDeseos(): Consulta<Deseo[]> {
   return useConsulta(['deseos'], listarDeseos)
+}
+
+/** Todos los traspasos entre tarjeta y efectivo (sin ordenar). */
+export function useTraspasos(): Consulta<Traspaso[]> {
+  return useConsulta(['traspasos'], listarTraspasos)
 }
 
 /** Todos los clientes del negocio. */

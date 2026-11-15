@@ -29,6 +29,12 @@ import {
   progresoMeta,
   resumenMes,
   resumenMesPorMedio,
+  saldoPorMedio,
+  SENTIDOS,
+  ACCION_SENTIDO,
+  NOMBRE_SENTIDO,
+  esSentido,
+  filasDelMes,
   resumir,
   sumarMeses,
   ultimosMeses,
@@ -37,7 +43,8 @@ import {
 } from '../lib/dinero'
 import { formatearFecha, type FechaDia } from '../lib/fechas'
 import { idsDeFijos } from '../lib/fijos'
-import { useFijos, useMovimientos, usePerfil, useRevisiones } from '../repos/hooks'
+import { useFijos, useMovimientos, usePerfil, useRevisiones, useTraspasos } from '../repos/hooks'
+import { borrarTraspaso, crearTraspaso, type DatosTraspaso, type Traspaso } from '../repos/traspasos'
 import { borrarMovimiento, crearMovimiento, editarMovimiento, type DatosMovimiento, type Movimiento } from '../repos/movimientos'
 import { guardarMetaAhorro, type Perfil } from '../repos/perfil'
 import { useEstadoSync } from '../sync/hooks'
@@ -104,6 +111,7 @@ function DineroMovimientos({ ejecutar }: { ejecutar: Ejecutar }) {
   const movimientos = useMovimientos()
   const perfil = usePerfil()
   const fijos = useFijos()
+  const traspasos = useTraspasos()
   const { primeraDescargaHecha } = useEstadoSync()
   const [mes, setMes] = useState<Mes>(mesActual)
 
@@ -115,6 +123,10 @@ function DineroMovimientos({ ejecutar }: { ejecutar: Ejecutar }) {
   const resumen = resumenMes(lista, mes)
   const porMedio = resumenMesPorMedio(lista, mes)
   const total = resumir(lista).ahorro
+  const listaTraspasos = traspasos.datos ?? []
+  const saldo = saldoPorMedio(lista, listaTraspasos)
+  // Movimientos y traspasos del mes juntos, del más reciente al más antiguo
+  const filasMes = filasDelMes(lista, listaTraspasos, mes)
   // Movimientos de este mes que apuntó un fijo (llevan la etiqueta «Fijo»)
   const deFijos = idsDeFijos(delMes, fijos.datos ?? [])
 
@@ -175,17 +187,25 @@ function DineroMovimientos({ ejecutar }: { ejecutar: Ejecutar }) {
           {sinDatos ? (
             <EsqueletoCifra alto="6rem" />
           ) : (
-            <dl className="cifras">
-              <dt>Gastado con tarjeta</dt>
-              <dd className="num">{formatearEuros(porMedio.tarjeta.gastos)}</dd>
-              <dt>Gastado en efectivo</dt>
-              <dd className="num">{formatearEuros(porMedio.efectivo.gastos)}</dd>
-              <dt>Ingresos en tarjeta</dt>
-              <dd className="num">{formatearEuros(porMedio.tarjeta.ingresos)}</dd>
-              <dt>Ingresos en efectivo</dt>
-              <dd className="num">{formatearEuros(porMedio.efectivo.ingresos)}</dd>
-            </dl>
+            <>
+              <dl className="cifras">
+                <dt>En tarjeta</dt>
+                <dd className={`num${saldo.tarjeta < 0 ? ' text-danger' : ''}`}>{formatearEuros(saldo.tarjeta)}</dd>
+                <dt>En efectivo</dt>
+                <dd className={`num${saldo.efectivo < 0 ? ' text-danger' : ''}`}>{formatearEuros(saldo.efectivo)}</dd>
+              </dl>
+              <p className="t-small muted" style={{ marginTop: 'var(--sp-2)' }}>
+                Gastado {mes === mesActual ? 'este mes' : `en ${nombreMes(mes).replace(/ de \d+$/, '')}`}: <span className="num">{formatearEuros(porMedio.tarjeta.gastos)}</span> con tarjeta ·{' '}
+                <span className="num">{formatearEuros(porMedio.efectivo.gastos)}</span> en efectivo
+              </p>
+              {(saldo.efectivo < 0 || saldo.tarjeta < 0) && (
+                <p className="t-small muted" style={{ marginTop: 'var(--sp-1)' }}>
+                  ¿Sale en negativo? Si ya tenías dinero antes de empezar a apuntar, añádelo como ingreso en {saldo.efectivo < 0 && saldo.tarjeta < 0 ? 'efectivo y en tarjeta' : saldo.efectivo < 0 ? 'efectivo' : 'tarjeta'}.
+                </p>
+              )}
+            </>
           )}
+          <AltaTraspaso hoy={dia} ejecutar={ejecutar} onCreado={(fecha) => setMes(mesDe(fecha))} />
         </section>
 
         <TarjetaMeta total={total} perfil={perfil.datos ?? null} ejecutar={ejecutar} cargando={sinDatos} />
@@ -214,7 +234,7 @@ function DineroMovimientos({ ejecutar }: { ejecutar: Ejecutar }) {
 
       <section aria-labelledby="dinero-lista">
         <h2 id="dinero-lista" className="t-section" tabIndex={-1}>
-          Movimientos de {nombreMes(mes).replace(/ de \d+$/, '')} <span className="num muted">{delMes.length}</span>
+          Movimientos de {nombreMes(mes).replace(/ de \d+$/, '')} <span className="num muted">{filasMes.length}</span>
         </h2>
         {movimientos.error && lista.length === 0 ? null : sinDatos ? (
           <div className="stack" role="status" aria-busy="true" style={{ '--gap': 'var(--sp-2)' } as CSSProperties}>
@@ -222,15 +242,19 @@ function DineroMovimientos({ ejecutar }: { ejecutar: Ejecutar }) {
             <span className="skeleton" style={{ '--h': '3rem' } as CSSProperties} />
             <span className="skeleton" style={{ '--h': '3rem' } as CSSProperties} />
           </div>
-        ) : delMes.length === 0 ? (
+        ) : filasMes.length === 0 ? (
           <Vacio icono={<IconoDinero />} titulo={lista.length === 0 ? 'Aún no has apuntado nada' : 'Nada apuntado este mes'}>
             Apunta arriba tus ingresos y gastos para ver cuánto ahorras.
           </Vacio>
         ) : (
           <ul className="list" role="list">
-            {delMes.map((m) => (
-              <FilaMovimiento key={m.id} movimiento={m} deFijo={deFijos.has(m.id)} ejecutar={ejecutar} onCambioDeMes={(fecha) => setMes(mesDe(fecha))} />
-            ))}
+            {filasMes.map((f) =>
+              f.clase === 'movimiento' ? (
+                <FilaMovimiento key={f.m.id} movimiento={f.m} deFijo={deFijos.has(f.m.id)} ejecutar={ejecutar} onCambioDeMes={(fecha) => setMes(mesDe(fecha))} />
+              ) : (
+                <FilaTraspaso key={f.t.id} traspaso={f.t} ejecutar={ejecutar} />
+              ),
+            )}
           </ul>
         )}
       </section>
@@ -373,7 +397,7 @@ function CamposMovimiento({
 }) {
   return (
     <>
-      <div className="row">
+      <div className="row" style={{ '--gap': 'var(--sp-3)' } as CSSProperties}>
         <fieldset className="segmentos">
           <legend className="visually-hidden">Tipo</legend>
           {(['gasto', 'ingreso'] as TipoMovimiento[]).map((tipo) => (
@@ -585,6 +609,160 @@ function FilaMovimiento({
           <IconoEditar />
         </button>
         <button type="button" ref={botonBorrar} className="icon-btn icon-btn--peligro" aria-label={`Borrar: ${m.concepto}`} onClick={() => setModo('borrar')}>
+          <IconoBorrar />
+        </button>
+      </div>
+    </li>
+  )
+}
+
+/** Botón «Sacar del cajero o ingresar» y su formulario (dentro de la tarjeta «Tarjeta y efectivo»). */
+function AltaTraspaso({ hoy, ejecutar, onCreado }: { hoy: FechaDia; ejecutar: Ejecutar; onCreado: (fecha: FechaDia) => void }) {
+  const [abierto, setAbierto] = useState(false)
+  const [datos, setDatos] = useState<DatosTraspaso>({ sentido: 'sacar', importe: '', fecha: hoy })
+  const id = useId()
+  const boton = useRef<HTMLButtonElement>(null)
+  const volver = useRef(false)
+  useEffect(() => {
+    if (abierto || !volver.current) return
+    volver.current = false
+    boton.current?.focus()
+  }, [abierto])
+
+  function cerrar() {
+    volver.current = true
+    setAbierto(false)
+  }
+
+  async function enviar(evento: FormEvent) {
+    evento.preventDefault()
+    if (await ejecutar(() => crearTraspaso(datos))) {
+      onCreado(datos.fecha)
+      setDatos((d) => ({ ...d, importe: '' }))
+      cerrar()
+    }
+  }
+
+  if (!abierto) {
+    return (
+      <div className="card__foot">
+        <button
+          type="button"
+          ref={boton}
+          className="btn btn--ghost"
+          onClick={() => {
+            setDatos({ sentido: 'sacar', importe: '', fecha: hoy })
+            setAbierto(true)
+          }}
+        >
+          Sacar del cajero o ingresar
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <form className="stack" style={{ '--gap': 'var(--sp-3)', marginTop: 'var(--sp-3)' } as CSSProperties} onSubmit={(e) => void enviar(e)} aria-label="Pasar dinero entre tarjeta y efectivo">
+      <fieldset className="segmentos" aria-describedby={`${id}-ayuda`}>
+        <legend className="visually-hidden">Qué haces</legend>
+        {SENTIDOS.map((s) => (
+          <label key={s}>
+            <input type="radio" name={`${id}-sentido`} value={s} checked={datos.sentido === s} onChange={() => setDatos((d) => ({ ...d, sentido: s }))} />
+            {s === 'sacar' ? 'Sacar' : 'Ingresar'}
+          </label>
+        ))}
+      </fieldset>
+      <p id={`${id}-ayuda`} className="t-small muted">{datos.sentido === 'sacar' ? 'De la tarjeta al efectivo (cajero).' : 'Del efectivo a la tarjeta (ingreso en el banco).'} No cuenta como gasto ni como ingreso.</p>
+      <div className="alta alta--tres">
+        <div className="field field--fecha">
+          <label htmlFor={`${id}-importe`} className="field__label">
+            Importe (€)
+          </label>
+          <input
+            id={`${id}-importe`}
+            className="input"
+            inputMode="decimal"
+            autoComplete="off"
+            value={datos.importe}
+            placeholder="0,00"
+            onChange={(e) => setDatos((d) => ({ ...d, importe: e.target.value }))}
+            autoFocus
+          />
+        </div>
+        <div className="field field--fecha">
+          <label htmlFor={`${id}-fecha`} className="field__label">
+            Fecha
+          </label>
+          <input id={`${id}-fecha`} type="date" className="input" value={datos.fecha} onChange={(e) => setDatos((d) => ({ ...d, fecha: e.target.value }))} />
+        </div>
+      </div>
+      <div className="row">
+        <button type="submit" className="btn btn--primary">
+          {esSentido(datos.sentido) ? ACCION_SENTIDO[datos.sentido] : 'Guardar'}
+        </button>
+        <button type="button" className="btn btn--ghost" onClick={cerrar}>
+          Cancelar
+        </button>
+      </div>
+    </form>
+  )
+}
+
+/** Un traspaso en la lista del mes: sin signo (no suma ni resta al ahorro). Solo se borra. */
+function FilaTraspaso({ traspaso: t, ejecutar }: { traspaso: Traspaso; ejecutar: Ejecutar }) {
+  const [borrando, setBorrando] = useState(false)
+  const fila = useRef<HTMLLIElement>(null)
+  const botonBorrar = useRef<HTMLButtonElement>(null)
+  const volver = useRef(false)
+  useEffect(() => {
+    if (borrando || !volver.current) return
+    volver.current = false
+    botonBorrar.current?.focus()
+  }, [borrando])
+
+  const nombre = esSentido(t.sentido) ? NOMBRE_SENTIDO[t.sentido] : 'Traspaso'
+  const camino = t.sentido === 'ingresar' ? 'De efectivo a tarjeta' : 'De tarjeta a efectivo'
+
+  async function borrar() {
+    const mover = prepararFoco(fila.current)
+    if (await ejecutar(() => borrarTraspaso(t.id))) mover()
+  }
+
+  if (borrando) {
+    return (
+      <li className="list__item" ref={fila}>
+        <div className="confirmar list__main">
+          <span className="break">¿Borrar «{nombre}» de {formatearEuros(t.importe_centimos)}?</span>
+          <button type="button" className="btn btn--danger" onClick={() => void borrar()}>
+            Borrar
+          </button>
+          <button
+            type="button"
+            className="btn btn--ghost"
+            autoFocus
+            onClick={() => {
+              volver.current = true
+              setBorrando(false)
+            }}
+          >
+            Cancelar
+          </button>
+        </div>
+      </li>
+    )
+  }
+
+  return (
+    <li className="list__item movimiento" ref={fila}>
+      <div className="list__main">
+        <p className="break">{nombre}</p>
+        <p className="t-small muted">
+          <span className="num">{formatearFecha(t.fecha)}</span> · {camino}
+        </p>
+      </div>
+      <span className="num importe">{formatearEuros(t.importe_centimos)}</span>
+      <div className="acciones">
+        <button type="button" ref={botonBorrar} className="icon-btn icon-btn--peligro" aria-label={`Borrar: ${nombre} de ${formatearEuros(t.importe_centimos)}`} onClick={() => setBorrando(true)}>
           <IconoBorrar />
         </button>
       </div>

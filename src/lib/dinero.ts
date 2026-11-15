@@ -310,3 +310,92 @@ export function resumenMesPorMedio(movimientos: readonly (MovimientoBasico & { m
     efectivo: resumir(delMes.filter((m) => medioDe(m) === 'efectivo')),
   }
 }
+
+// ---------------------------------------------------------------------------
+// Traspasos: sacar del cajero (tarjeta → efectivo) o ingresar en el banco
+// (efectivo → tarjeta). No son ingreso ni gasto: el ahorro total no cambia.
+// ---------------------------------------------------------------------------
+
+export const SENTIDOS = ['sacar', 'ingresar'] as const
+export type Sentido = (typeof SENTIDOS)[number]
+
+/** Para el formulario. */
+export const ACCION_SENTIDO: Record<Sentido, string> = { sacar: 'Sacar del cajero', ingresar: 'Ingresar en el banco' }
+/** Para la lista (ya hecho). */
+export const NOMBRE_SENTIDO: Record<Sentido, string> = { sacar: 'Sacado del cajero', ingresar: 'Ingresado en el banco' }
+
+export interface TraspasoBasico {
+  sentido: string
+  importe_centimos: number
+  fecha: FechaDia
+}
+
+export function esSentido(valor: unknown): valor is Sentido {
+  return typeof valor === 'string' && (SENTIDOS as readonly string[]).includes(valor)
+}
+
+export function validarSentido(sentido: string): Sentido {
+  if (!esSentido(sentido)) throw new ErrorDeValidacion('Elige si sacas del cajero o ingresas en el banco.')
+  return sentido
+}
+
+/** Límites del `check` de traspasos.fecha en la base de datos. */
+export const FECHA_TRASPASO_MIN: FechaDia = '2000-01-01'
+export const FECHA_TRASPASO_MAX: FechaDia = '2100-12-31'
+
+/**
+ * Fecha de un traspaso: de día y dentro de lo que acepta el servidor (si no,
+ * se guardaría en local, contaría en el saldo y el servidor lo rechazaría).
+ */
+export function validarFechaTraspaso(fecha: string): FechaDia {
+  const f = validarFechaMovimiento(fecha)
+  if (f < FECHA_TRASPASO_MIN || f > FECHA_TRASPASO_MAX) throw new ErrorDeValidacion('La fecha tiene que estar entre el año 2000 y el 2100.')
+  return f
+}
+
+/**
+ * Dónde está el ahorro total: lo de cada medio (ingresos − gastos) más los
+ * traspasos entre ellos. tarjeta + efectivo = ahorro total siempre.
+ * Un traspaso con un sentido desconocido (de una versión más nueva) no cuenta.
+ */
+export function saldoPorMedio(movimientos: readonly (MovimientoBasico & { medio?: string | null })[], traspasos: readonly TraspasoBasico[]): Record<Medio, number> {
+  const saldo: Record<Medio, number> = { tarjeta: 0, efectivo: 0 }
+  for (const m of movimientos) {
+    if (m.tipo === 'ingreso') saldo[medioDe(m)] += m.importe_centimos
+    else if (m.tipo === 'gasto') saldo[medioDe(m)] -= m.importe_centimos
+  }
+  for (const t of traspasos) {
+    if (t.sentido === 'sacar') {
+      saldo.tarjeta -= t.importe_centimos
+      saldo.efectivo += t.importe_centimos
+    } else if (t.sentido === 'ingresar') {
+      saldo.efectivo -= t.importe_centimos
+      saldo.tarjeta += t.importe_centimos
+    }
+  }
+  return saldo
+}
+
+/** Del más reciente al más antiguo; el mismo día, el último apuntado primero. */
+function masRecientePrimero(a: { fecha: FechaDia; created_at: string; id: string }, b: { fecha: FechaDia; created_at: string; id: string }): number {
+  return a.fecha === b.fecha ? b.created_at.localeCompare(a.created_at) || a.id.localeCompare(b.id) : a.fecha < b.fecha ? 1 : -1
+}
+
+/** Movimientos y traspasos de un mes juntos, en el mismo orden que la lista de movimientos. */
+export function filasDelMes<M extends MovimientoBasico & { created_at: string; id: string }, T extends TraspasoBasico & { created_at: string; id: string }>(
+  movimientos: readonly M[],
+  traspasos: readonly T[],
+  mes: Mes,
+): ({ clase: 'movimiento'; m: M } | { clase: 'traspaso'; t: T })[] {
+  return [
+    ...movimientosDelMes(movimientos, mes).map((m) => ({ clase: 'movimiento' as const, m })),
+    ...traspasosDelMes(traspasos, mes).map((t) => ({ clase: 'traspaso' as const, t })),
+  ].sort((a, b) => masRecientePrimero(a.clase === 'movimiento' ? a.m : a.t, b.clase === 'movimiento' ? b.m : b.t))
+}
+
+/** Traspasos de un mes, del más reciente al más antiguo. */
+export function traspasosDelMes<T extends TraspasoBasico & { created_at: string; id: string }>(traspasos: readonly T[], mes: Mes): T[] {
+  return traspasos
+    .filter((t) => mesDe(t.fecha) === mes)
+    .sort(masRecientePrimero)
+}

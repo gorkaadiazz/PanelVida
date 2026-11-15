@@ -67,6 +67,8 @@ export const TABLAS = [
     columnas: ['tipo', 'concepto', 'importe_centimos', 'categoria', 'necesidad', 'medio', 'frecuencia', 'dia', 'mes', 'inicio', 'ultimo_apunte', 'desde', 'ultimo_mes', 'activo'],
     porDefecto: { medio: 'tarjeta' },
   },
+  // Sacar del cajero / ingresar en el banco (ni ingreso ni gasto)
+  { nombre: 'traspasos', columnas: ['sentido', 'importe_centimos', 'fecha'], indices: ['fecha'] },
   // Revisiones semanales y mensuales de ahorro (las calcula la app: lib/revision.ts)
   { nombre: 'revisiones', columnas: ['tipo', 'inicio', 'fin', 'datos', 'vista'] },
   // Fase 8: bandeja de ideas
