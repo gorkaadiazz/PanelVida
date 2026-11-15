@@ -17,6 +17,7 @@ supabase/migrations/20261114000600_deseos.sql
 supabase/migrations/20261114000700_no_revivir_borrados.sql
 supabase/migrations/20261114000800_frecuencia_y_revisiones.sql
 supabase/migrations/20261115000100_medio_de_pago.sql
+supabase/migrations/20261115000200_traspasos.sql
 ```
 
 De la 000300 a la 000600 son de la fase 8 (ideas, cumpleaños, planes y lista de
@@ -32,6 +33,12 @@ Los fijos que ya tenías se convierten solos en «cada mes» y siguen igual.
 
 La 20261115000100 añade «tarjeta o efectivo» a movimientos y fijos. También
 **antes de subir la web nueva**. Lo que ya tenías queda como «tarjeta».
+La 20261115000200 crea `traspasos` (sacar del cajero / ingresar en el banco),
+también antes de subir la web.
+
+Si la historia de migraciones del proyecto está vacía (se aplicaron a mano),
+**no uses `db push`**: intentaría repetirlas todas. Aplica solo las nuevas con
+`npx supabase db query --remote -f <archivo>` o en el SQL Editor.
 
 Igual que en `docs/MIGRAR.md`: o pegando cada archivo en **SQL Editor → New
 query → Run**, o con la CLI:

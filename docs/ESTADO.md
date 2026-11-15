@@ -113,6 +113,7 @@ Comprobaciones ahora mismo: `npm test -- --run` 473/473, `npm run test:sql` 41/4
 - Cada movimiento y cada fijo (gasto o ingreso) dice si es con tarjeta o en efectivo (columna `medio`, por defecto `tarjeta`). Lo que apunta un fijo sale con su medio; al comprar un deseo, tarjeta.
 - Dinero: tarjeta «Tarjeta y efectivo» con lo gastado e ingresado de cada forma en el mes, y la etiqueta en cada fila.
 - Migración 20261115000100 (antes de desplegar). La app sin actualizar no manda `medio` y queda en tarjeta.
+- Sacar del cajero / ingresar en el banco: tabla `traspasos` (migración 20261115000200), aparte de `movimientos` porque no son ingreso ni gasto (el ahorro, las revisiones, la previsión y los deseos no cambian). La tarjeta enseña el saldo en tarjeta y en efectivo (suman el ahorro total) y los traspasos salen en la lista del mes, sin signo; solo se borran.
 
 ### Fases siguientes
 - **Fase 7, despliegue:** en Netlify (origen propio), no en GitHub Pages. Pasos en `docs/DESPLEGAR.md`.
