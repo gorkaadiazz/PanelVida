@@ -29,7 +29,8 @@ create table public.comandos (
   terminado_en timestamptz,
   constraint comandos_valor check (
     case accion
-      when 'volumen' then valor ~ '^(100|[1-9]?[0-9])$'
+      -- (con «is not null»: un check que da NULL deja pasar la fila)
+      when 'volumen' then valor is not null and valor ~ '^(100|[1-9]?[0-9])$'
       when 'abrir_app' then valor is not null and length(btrim(valor)) between 1 and 40
       else valor is null
     end)
@@ -148,6 +149,9 @@ begin
   end if;
   update public.comandos set estado = 'caducado', terminado_en = now()
   where agente_id = auth.uid() and estado = 'pendiente' and caduca_en <= now();
+  -- Las que se quedaron «en marcha» (el agente se cortó a medias): error, nunca se repiten
+  update public.comandos set estado = 'error', mensaje = 'El agente se cortó mientras la ejecutaba', terminado_en = now()
+  where agente_id = auth.uid() and estado = 'ejecutando' and created_at < now() - interval '1 minute';
   return query
     select c.id from public.comandos c
     where c.agente_id = auth.uid() and c.estado = 'pendiente' and c.caduca_en > now()

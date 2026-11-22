@@ -149,7 +149,7 @@ select pg_temp.comprobar(not exists (
   select 1
   from information_schema.columns col
   where col.table_schema = 'public' and col.column_name = 'user_id'
-    and col.table_name not in ('uso_ia', 'borrados', 'compra_frecuentes', 'hogar_miembros', 'hogar_invitaciones', 'hogar_intentos', 'hogar_avisos', 'agentes', 'codigos_vinculacion', 'comandos', 'red_dispositivos', 'red_conexiones')
+    and col.table_name not in ('uso_ia', 'borrados', 'compra_frecuentes', 'hogar_miembros', 'hogar_invitaciones', 'hogar_intentos', 'hogar_avisos', 'agentes', 'codigos_vinculacion', 'comandos', 'red_dispositivos', 'red_conexiones', 'red_ultimo_aviso')
     -- compra_casa tiene sus 4 políticas, pero por miembro del hogar (no por user_id): tests/rls-casa.sql
     and (select count(distinct p.cmd) from pg_policies p
          where p.schemaname = 'public' and p.tablename = col.table_name

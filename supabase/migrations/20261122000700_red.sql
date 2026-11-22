@@ -20,7 +20,7 @@ create table public.red_dispositivos (
   mac text not null check (mac ~ '^([0-9a-f]{2}:){5}[0-9a-f]{2}$'),
   nombre text check (nombre is null or length(btrim(nombre)) between 1 and 40),
   fabricante text check (fabricante is null or length(fabricante) <= 80),
-  ip text check (ip is null or ip ~ '^[0-9]{1,3}(\.[0-9]{1,3}){3}$'),
+  ip text check (ip is null or ip ~ '^(25[0-5]|2[0-4][0-9]|1?[0-9]?[0-9])(\.(25[0-5]|2[0-4][0-9]|1?[0-9]?[0-9])){3}$'),
   -- MAC «administrada localmente»: casi siempre una MAC aleatoria de un móvil
   aleatoria boolean not null default false,
   conectado boolean not null default true,
@@ -50,6 +50,25 @@ create table public.red_conexiones (
 );
 create index red_conexiones_dispositivo_idx on public.red_conexiones (dispositivo_id, hasta desc);
 create index red_conexiones_user_hasta_idx on public.red_conexiones (user_id, hasta);
+
+-- Topes contra un agente comprometido (sus credenciales robadas no necesitan
+-- el PC: podría llamar a agente_red y a aviso-red en bucle):
+--   · un escaneo por minuto y PC (agentes.ultimo_escaneo);
+--   · como mucho 500 aparatos por persona (las MAC nuevas de más se ignoran);
+--   · los desconocidos que llevan 90 días sin verse se olvidan;
+--   · un aviso de red cada 5 minutos por persona (red_ultimo_aviso): lo que
+--     llegue entretanto sale agrupado en el siguiente.
+alter table public.agentes add column ultimo_escaneo timestamptz;
+
+create table public.red_ultimo_aviso (
+  user_id uuid primary key references auth.users (id) on delete cascade,
+  cuando timestamptz not null
+);
+-- Nadie la lee ni la escribe desde la app (solo red_reservar_avisos)
+alter table public.red_ultimo_aviso enable row level security;
+create policy "solo_cuentas_normales" on public.red_ultimo_aviso as restrictive for all to authenticated
+  using ((select public.tipo_cuenta()) = 'normal') with check ((select public.tipo_cuenta()) = 'normal');
+revoke all on public.red_ultimo_aviso from anon, authenticated;
 
 -- updated_at al cambiar el nombre, conocido o unido_a
 create or replace function public.red_al_editar()
@@ -124,6 +143,11 @@ begin
   end if;
   -- Un escaneo a la vez por dueño (dos PC en casa podrían mandar a la vez)
   perform pg_advisory_xact_lock(hashtext('red:' || v_dueno::text));
+  -- Como mucho un escaneo por minuto y PC: si llega antes, no se hace nada
+  if exists (select 1 from public.agentes a where a.id = auth.uid() and a.ultimo_escaneo > v_ahora - interval '1 minute') then
+    return (select count(*) from public.red_dispositivos where user_id = v_dueno and not avisado);
+  end if;
+  update public.agentes set ultimo_escaneo = v_ahora where id = auth.uid();
 
   for d in select * from jsonb_array_elements(dispositivos) loop
     v_mac := lower(d ->> 'mac');
@@ -131,9 +155,14 @@ begin
     v_fab := left(regexp_replace(coalesce(d ->> 'fabricante', ''), '[[:cntrl:]]', '', 'g'), 80);
     -- Lo que no tenga buena forma se ignora (el check de la tabla lo pararía)
     continue when v_mac is null or v_mac !~ '^([0-9a-f]{2}:){5}[0-9a-f]{2}$' or v_mac = any (v_macs);
-    if v_ip is not null and v_ip !~ '^[0-9]{1,3}(\.[0-9]{1,3}){3}$' then v_ip := null; end if;
+    if v_ip is not null and v_ip !~ '^(25[0-5]|2[0-4][0-9]|1?[0-9]?[0-9])(\.(25[0-5]|2[0-4][0-9]|1?[0-9]?[0-9])){3}$' then v_ip := null; end if;
     v_macs := v_macs || v_mac;
 
+    -- Tope de 500 aparatos por persona: una MAC nueva de más se ignora
+    if not exists (select 1 from public.red_dispositivos x where x.user_id = v_dueno and x.mac = v_mac)
+       and (select count(*) from public.red_dispositivos x where x.user_id = v_dueno) >= 500 then
+      continue;
+    end if;
     insert into public.red_dispositivos (user_id, mac, ip, fabricante, aleatoria, conectado, primera_vez, ultima_vez)
     values (v_dueno, v_mac, v_ip, nullif(v_fab, ''), substr(v_mac, 2, 1) in ('2', '6', 'a', 'e'), true, v_ahora, v_ahora)
     on conflict (user_id, mac) do update
@@ -159,6 +188,10 @@ begin
 
   -- Historial corto: 30 días
   delete from public.red_conexiones where user_id = v_dueno and hasta < v_ahora - interval '30 days';
+  -- Los desconocidos que no se ven desde hace 90 días se olvidan
+  delete from public.red_dispositivos
+  where user_id = v_dueno and not conocido and ultima_vez < v_ahora - interval '90 days'
+    and not exists (select 1 from public.red_dispositivos u where u.unido_a = red_dispositivos.id);
 
   return (select count(*) from public.red_dispositivos where user_id = v_dueno and not avisado);
 end;
@@ -168,17 +201,31 @@ grant execute on function public.agente_red(jsonb) to authenticated;
 
 -- Para la Edge Function aviso-red (service role): reserva los aparatos nuevos
 -- de un dueño (los marca como avisados) y los devuelve para avisar. Así, aunque
--- se llame dos veces a la vez, cada aparato se avisa una sola vez.
+-- se llame dos veces a la vez, cada aparato se avisa una sola vez. Y como
+-- mucho un aviso cada 5 minutos por persona: si es pronto no devuelve nada
+-- (los nuevos siguen sin avisar y salen juntos en el siguiente).
 create or replace function public.red_reservar_avisos(dueno uuid)
 returns table (mac text, ip text, fabricante text, aleatoria boolean)
-language sql
+language plpgsql
 volatile
 security definer
 set search_path = ''
 as $$
-  update public.red_dispositivos d set avisado = true
-  where d.user_id = dueno and not d.avisado
-  returning d.mac, d.ip, d.fabricante, d.aleatoria;
+begin
+  perform pg_advisory_xact_lock(hashtext('aviso-red:' || dueno::text));
+  if exists (select 1 from public.red_ultimo_aviso u where u.user_id = dueno and u.cuando > now() - interval '5 minutes') then
+    return;
+  end if;
+  if not exists (select 1 from public.red_dispositivos d where d.user_id = dueno and not d.avisado) then
+    return;
+  end if;
+  insert into public.red_ultimo_aviso (user_id, cuando) values (dueno, now())
+  on conflict (user_id) do update set cuando = excluded.cuando;
+  return query
+    update public.red_dispositivos d set avisado = true
+    where d.user_id = dueno and not d.avisado
+    returning d.mac, d.ip, d.fabricante, d.aleatoria;
+end;
 $$;
 revoke execute on function public.red_reservar_avisos(uuid) from public, anon, authenticated;
 grant execute on function public.red_reservar_avisos(uuid) to service_role;

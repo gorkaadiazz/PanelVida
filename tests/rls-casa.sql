@@ -445,7 +445,7 @@ select pg_temp.debe_fallar($q$insert into public.ideas (texto) values ('x')$q$, 
 -- Todas las tablas de Mi Panel tienen la política restrictiva
 reset role;
 select pg_temp.comprobar((select count(*) from pg_policies where schemaname = 'public' and policyname = 'solo_cuentas_normales'
-  and permissive = 'RESTRICTIVE') = 17, 'falta la política solo_cuentas_normales en alguna tabla');
+  and permissive = 'RESTRICTIVE') = 18, 'falta la política solo_cuentas_normales en alguna tabla');
 -- Y ninguna tabla de Mi Panel con RLS se queda sin ella, salvo las de la compra y las de la web de exámenes
 select pg_temp.comprobar(not exists (
   select 1 from pg_tables t
@@ -735,6 +735,7 @@ insert into public.agentes (id, user_id, nombre) values ('f9999999-0000-4000-800
 insert into public.comandos (user_id, agente_id, accion) values ('ffffffff-0000-4000-8000-00000000000f', 'f9999999-0000-4000-8000-000000000009', 'bloquear');
 insert into public.red_dispositivos (id, user_id, mac) values ('f0000000-0000-4000-8000-0000000000d9', 'ffffffff-0000-4000-8000-00000000000f', '00:11:22:33:44:55');
 insert into public.red_conexiones (dispositivo_id, user_id, desde, hasta) values ('f0000000-0000-4000-8000-0000000000d9', 'ffffffff-0000-4000-8000-00000000000f', now(), now());
+insert into public.red_ultimo_aviso (user_id, cuando) values ('ffffffff-0000-4000-8000-00000000000f', now());
 -- Si mañana se añade una tabla con la restrictiva, este caso pide añadir aquí su fila
 do $$
 declare t text; filas bigint;
@@ -1205,8 +1206,11 @@ select pg_temp.debe_fallar($q$select public.red_reservar_avisos('aaaaaaaa-0000-4
 select pg_temp.como('service');
 select pg_temp.comprobar((select count(*) from public.red_reservar_avisos('aaaaaaaa-0000-4000-8000-00000000000a')) = 2, 'no reserva los 2');
 select pg_temp.comprobar((select count(*) from public.red_reservar_avisos('aaaaaaaa-0000-4000-8000-00000000000a')) = 0, 'repite el aviso');
--- Otro escaneo con los mismos: no hay nada nuevo que avisar; el que falta pasa a desconectado
+-- Otro escaneo con los mismos (como si hubiera pasado un minuto): no hay nada nuevo que avisar; el que falta pasa a desconectado
+reset role;
+update public.agentes set ultimo_escaneo = null;
 select pg_temp.como('99999999-0000-4000-8000-000000000009');
+
 select pg_temp.comprobar(public.agente_red('[{"mac": "a4:bb:cc:00:00:01", "ip": "192.168.1.10"}]') = 0, 'vuelve a avisar de algo ya visto');
 reset role;
 select pg_temp.comprobar(not (select conectado from public.red_dispositivos where mac = 'da:00:00:00:00:02'), 'no pasa a desconectado');
@@ -1225,7 +1229,10 @@ reset role;
 update public.red_conexiones set desde = now() - interval '2 hours', hasta = now() - interval '1 hour';
 insert into public.red_conexiones (dispositivo_id, user_id, desde, hasta)
   select id, user_id, now() - interval '41 days', now() - interval '40 days' from public.red_dispositivos;
+reset role;
+update public.agentes set ultimo_escaneo = null;
 select pg_temp.como('99999999-0000-4000-8000-000000000009');
+
 select public.agente_red('[{"mac": "a4:bb:cc:00:00:01"}]');
 reset role;
 select pg_temp.comprobar((select count(*) from public.red_conexiones) = 2, 'no abre un intervalo nuevo o no borra el viejo');
@@ -1262,6 +1269,317 @@ select pg_temp.comprobar((select nombre from public.red_dispositivos where mac =
 select pg_temp.como('99999999-0000-4000-8000-000000000009');
 select pg_temp.debe_fallar($q$select public.agente_red('{"mac": "x"}')$q$, array['23514'], 'un escaneo que no es una lista');
 select pg_temp.debe_fallar($q$select public.agente_red((select jsonb_agg(jsonb_build_object('mac', 'aa:aa:aa:aa:aa:aa')) from generate_series(1, 513)))$q$, array['23514'], 'un escaneo enorme');
+
+-- @caso: red: topes contra un agente comprometido (1 escaneo por minuto, 500 aparatos, avisos cada 5 minutos, olvidar desconocidos viejos)
+reset role;
+insert into public.emails_permitidos (email) values ('agente-1@agente.invalid');
+insert into auth.users (id, email, raw_app_meta_data) values ('99999999-0000-4000-8000-000000000009', 'agente-1@agente.invalid', '{"tipo": "agente"}');
+insert into public.agentes (id, user_id, nombre) values ('99999999-0000-4000-8000-000000000009', 'aaaaaaaa-0000-4000-8000-00000000000a', 'PC casa');
+select pg_temp.como('99999999-0000-4000-8000-000000000009');
+select public.agente_red('[{"mac": "a4:00:00:00:00:01"}]');
+-- un segundo escaneo enseguida no hace nada
+select public.agente_red('[{"mac": "a4:00:00:00:00:02"}]');
+reset role;
+select pg_temp.comprobar((select count(*) from public.red_dispositivos) = 1, 'acepta dos escaneos en el mismo minuto');
+-- 500 aparatos como mucho: con 499 + 3 nuevos solo entra 1
+insert into public.red_dispositivos (user_id, mac)
+  select 'aaaaaaaa-0000-4000-8000-00000000000a', 'a4:00:00:00:' || lpad(to_hex(i / 256), 2, '0') || ':' || lpad(to_hex(i % 256), 2, '0') from generate_series(2, 500) i;
+update public.agentes set ultimo_escaneo = null;
+select pg_temp.como('99999999-0000-4000-8000-000000000009');
+select public.agente_red('[{"mac": "b4:00:00:00:00:01"}, {"mac": "b4:00:00:00:00:02"}, {"mac": "a4:00:00:00:00:01"}]');
+reset role;
+select pg_temp.comprobar((select count(*) from public.red_dispositivos) = 500, 'pasa de 500 aparatos');
+select pg_temp.comprobar((select conectado from public.red_dispositivos where mac = 'a4:00:00:00:00:01'), 'un aparato ya conocido deja de actualizarse con el tope');
+-- Avisos: el primero sí; otro enseguida no (aunque haya nuevos); pasados 5 minutos, sí y agrupado
+select pg_temp.como('service');
+select pg_temp.comprobar((select count(*) from public.red_reservar_avisos('aaaaaaaa-0000-4000-8000-00000000000a')) = 500, 'el primer aviso no reserva los nuevos');
+reset role;
+update public.red_dispositivos set avisado = false where mac in ('a4:00:00:00:00:05', 'a4:00:00:00:00:06');
+select pg_temp.como('service');
+select pg_temp.comprobar((select count(*) from public.red_reservar_avisos('aaaaaaaa-0000-4000-8000-00000000000a')) = 0, 'avisa dos veces en 5 minutos');
+reset role;
+update public.red_ultimo_aviso set cuando = now() - interval '6 minutes';
+select pg_temp.como('service');
+select pg_temp.comprobar((select count(*) from public.red_reservar_avisos('aaaaaaaa-0000-4000-8000-00000000000a')) = 2, 'no avisa agrupado pasados 5 minutos');
+-- Los desconocidos que no se ven desde hace 90 días se olvidan (los conocidos no)
+reset role;
+update public.red_dispositivos set ultima_vez = now() - interval '91 days', conectado = false where mac in ('a4:00:00:00:00:07', 'a4:00:00:00:00:08');
+update public.red_dispositivos set conocido = true where mac = 'a4:00:00:00:00:08';
+update public.agentes set ultimo_escaneo = null;
+select pg_temp.como('99999999-0000-4000-8000-000000000009');
+select public.agente_red('[]');
+reset role;
+select pg_temp.comprobar(not exists (select 1 from public.red_dispositivos where mac = 'a4:00:00:00:00:07')
+  and exists (select 1 from public.red_dispositivos where mac = 'a4:00:00:00:00:08'), 'no olvida bien los desconocidos viejos');
+-- Nadie lee red_ultimo_aviso desde la app
+select pg_temp.como('aaaaaaaa-0000-4000-8000-00000000000a');
+select pg_temp.debe_fallar($q$select * from public.red_ultimo_aviso$q$, array['42501'], 'leer red_ultimo_aviso');
+
+-- @caso: mando: una orden que se queda «en marcha» (el agente se cortó) pasa a error y no se repite
+reset role;
+insert into public.emails_permitidos (email) values ('agente-1@agente.invalid');
+insert into auth.users (id, email, raw_app_meta_data) values ('99999999-0000-4000-8000-000000000009', 'agente-1@agente.invalid', '{"tipo": "agente"}');
+insert into public.agentes (id, user_id, nombre) values ('99999999-0000-4000-8000-000000000009', 'aaaaaaaa-0000-4000-8000-00000000000a', 'PC casa');
+select pg_temp.como('aaaaaaaa-0000-4000-8000-00000000000a');
+insert into public.comandos (id, agente_id, accion) values ('c0000000-0000-4000-8000-000000000009', '99999999-0000-4000-8000-000000000009', 'bloquear');
+select pg_temp.como('99999999-0000-4000-8000-000000000009');
+select public.agente_tomar_comando('c0000000-0000-4000-8000-000000000009');
+reset role;
+update public.comandos set created_at = now() - interval '2 minutes';
+select pg_temp.como('99999999-0000-4000-8000-000000000009');
+select pg_temp.comprobar((select count(*) from public.agente_comandos_pendientes()) = 0, 'devuelve la orden a medias');
+reset role;
+select pg_temp.comprobar((select estado from public.comandos) = 'error', 'la orden a medias no pasa a error');
+
+-- @caso: mando (tester): caducidad justo en los 30 s; pendientes marca las caducadas; resultado solo de una orden cogida
+reset role;
+insert into public.emails_permitidos (email) values ('agente-1@agente.invalid'), ('agente-2@agente.invalid');
+insert into auth.users (id, email, raw_app_meta_data) values
+  ('99999999-0000-4000-8000-000000000009', 'agente-1@agente.invalid', '{"tipo": "agente"}'),
+  ('77777777-0000-4000-8000-000000000007', 'agente-2@agente.invalid', '{"tipo": "agente"}');
+-- Dos PC del MISMO dueño
+insert into public.agentes (id, user_id, nombre) values
+  ('99999999-0000-4000-8000-000000000009', 'aaaaaaaa-0000-4000-8000-00000000000a', 'PC casa'),
+  ('77777777-0000-4000-8000-000000000007', 'aaaaaaaa-0000-4000-8000-00000000000a', 'Portátil');
+select pg_temp.como('aaaaaaaa-0000-4000-8000-00000000000a');
+insert into public.comandos (id, agente_id, accion) values
+  ('c0000000-0000-4000-8000-0000000000a1', '99999999-0000-4000-8000-000000000009', 'siguiente'),
+  ('c0000000-0000-4000-8000-0000000000a2', '99999999-0000-4000-8000-000000000009', 'anterior'),
+  ('c0000000-0000-4000-8000-0000000000a3', '99999999-0000-4000-8000-000000000009', 'silenciar'),
+  ('c0000000-0000-4000-8000-0000000000a4', '99999999-0000-4000-8000-000000000009', 'play_pausa'),
+  ('c0000000-0000-4000-8000-0000000000a5', '99999999-0000-4000-8000-000000000009', 'volumen_subir');
+reset role;
+select pg_temp.comprobar((select bool_and(caduca_en = now() + interval '30 seconds') from public.comandos), 'la caducidad no es de 30 s exactos');
+-- a5: caduca justo ahora y el agente la pide directamente (sin pasar por pendientes): no la coge y queda caducada
+update public.comandos set caduca_en = now() where id = 'c0000000-0000-4000-8000-0000000000a5';
+select pg_temp.como('99999999-0000-4000-8000-000000000009');
+select pg_temp.comprobar((select count(*) from public.agente_tomar_comando('c0000000-0000-4000-8000-0000000000a5')) = 0, 'agente_tomar_comando coge una orden en el segundo exacto en que caduca');
+reset role;
+select pg_temp.comprobar((select estado from public.comandos where id = 'c0000000-0000-4000-8000-0000000000a5') = 'caducado', 'la orden del borde no queda caducada');
+-- a1: caduca justo ahora (borde: ya no vale); a2: le queda 1 ms; a3: caducó hace un rato
+update public.comandos set caduca_en = now() where id = 'c0000000-0000-4000-8000-0000000000a1';
+update public.comandos set caduca_en = now() + interval '1 millisecond' where id = 'c0000000-0000-4000-8000-0000000000a2';
+update public.comandos set caduca_en = now() - interval '1 hour' where id = 'c0000000-0000-4000-8000-0000000000a3';
+-- El otro PC del mismo dueño no ve ni coge las órdenes de este
+select pg_temp.como('77777777-0000-4000-8000-000000000007');
+select pg_temp.comprobar((select count(*) from public.comandos) = 0, 'un PC ve las órdenes de otro PC del mismo dueño');
+select pg_temp.comprobar((select count(*) from public.agente_comandos_pendientes()) = 0, 'un PC recibe pendientes de otro');
+select pg_temp.comprobar((select count(*) from public.agente_tomar_comando('c0000000-0000-4000-8000-0000000000a4')) = 0, 'un PC coge la orden de otro PC del mismo dueño');
+select public.agente_resultado('c0000000-0000-4000-8000-0000000000a4', false, 'trampa');
+select pg_temp.como('99999999-0000-4000-8000-000000000009');
+-- Resultado de una orden que aún no ha cogido: no cambia nada
+select public.agente_resultado('c0000000-0000-4000-8000-0000000000a4', true, 'antes de cogerla');
+select pg_temp.comprobar((select array_agg(x order by x) from public.agente_comandos_pendientes() x)
+  = array['c0000000-0000-4000-8000-0000000000a2', 'c0000000-0000-4000-8000-0000000000a4']::uuid[], 'pendientes no separa las caducadas en el borde');
+select pg_temp.comprobar((select estado from public.comandos where id = 'c0000000-0000-4000-8000-0000000000a1') = 'caducado', 'pendientes no marca como caducada la del segundo exacto');
+select pg_temp.comprobar((select count(*) from public.agente_tomar_comando('c0000000-0000-4000-8000-0000000000a1')) = 0, 'coge una orden que caduca justo ahora');
+select pg_temp.comprobar((select accion from public.agente_tomar_comando('c0000000-0000-4000-8000-0000000000a2')) = 'anterior', 'no coge una orden a la que le queda 1 ms');
+select pg_temp.comprobar((select accion from public.agente_tomar_comando('c0000000-0000-4000-8000-0000000000a4')) = 'play_pausa', 'no coge la a4');
+select public.agente_resultado('c0000000-0000-4000-8000-0000000000a2', false, repeat('x', 300) || E'\u0007');
+select public.agente_resultado('c0000000-0000-4000-8000-0000000000a4', true);
+-- Una vez acabada, otro resultado no la cambia
+select public.agente_resultado('c0000000-0000-4000-8000-0000000000a4', false, 'otra vez');
+-- El agente no borra órdenes
+delete from public.comandos;
+reset role;
+select pg_temp.comprobar((select estado from public.comandos where id = 'c0000000-0000-4000-8000-0000000000a1') = 'caducado'
+  and (select estado from public.comandos where id = 'c0000000-0000-4000-8000-0000000000a3') = 'caducado', 'las caducadas no quedan caducadas');
+select pg_temp.comprobar((select terminado_en is not null from public.comandos where id = 'c0000000-0000-4000-8000-0000000000a3'), 'caducada sin hora de fin');
+select pg_temp.comprobar((select estado = 'error' and length(mensaje) = 200 and mensaje !~ '[[:cntrl:]]' from public.comandos where id = 'c0000000-0000-4000-8000-0000000000a2'), 'el error no se recorta o deja caracteres de control');
+select pg_temp.comprobar((select estado || '|' || coalesce(mensaje, '∅') from public.comandos where id = 'c0000000-0000-4000-8000-0000000000a4') = 'hecho|', 'un resultado repetido cambia la orden');
+select pg_temp.comprobar((select count(*) from public.comandos) = 5, 'el agente borra órdenes');
+-- El dueño sí borra las suyas
+select pg_temp.como('aaaaaaaa-0000-4000-8000-00000000000a');
+delete from public.comandos where id = 'c0000000-0000-4000-8000-0000000000a1';
+reset role;
+select pg_temp.comprobar((select count(*) from public.comandos) = 4, 'el dueño no borra sus órdenes');
+
+-- @caso: mando (tester): lo de más de un día se limpia al mandar otra; abrir_app con espacios; desvinculado no coge nada
+reset role;
+insert into public.emails_permitidos (email) values ('agente-1@agente.invalid');
+insert into auth.users (id, email, raw_app_meta_data) values ('99999999-0000-4000-8000-000000000009', 'agente-1@agente.invalid', '{"tipo": "agente"}');
+insert into public.agentes (id, user_id, nombre, apps) values ('99999999-0000-4000-8000-000000000009', 'aaaaaaaa-0000-4000-8000-00000000000a', 'PC casa', array['Firefox']);
+select pg_temp.como('aaaaaaaa-0000-4000-8000-00000000000a');
+insert into public.comandos (id, agente_id, accion) values ('c0000000-0000-4000-8000-0000000000b1', '99999999-0000-4000-8000-000000000009', 'bloquear');
+reset role;
+update public.comandos set created_at = now() - interval '25 hours';
+select pg_temp.como('aaaaaaaa-0000-4000-8000-00000000000a');
+insert into public.comandos (agente_id, accion) values ('99999999-0000-4000-8000-000000000009', 'bloquear');
+select pg_temp.comprobar((select count(*) from public.comandos) = 1 and not exists (select 1 from public.comandos where id = 'c0000000-0000-4000-8000-0000000000b1'), 'no limpia lo de más de un día');
+select pg_temp.debe_fallar($q$insert into public.comandos (agente_id, accion, valor) values ('99999999-0000-4000-8000-000000000009', 'abrir_app', '   ')$q$, array['23514'], 'abrir una app en blanco');
+select pg_temp.debe_fallar($q$insert into public.comandos (agente_id, accion, valor) values ('99999999-0000-4000-8000-000000000009', 'abrir_app', ' Firefox')$q$, array['23514'], 'abrir una app con espacios delante');
+select pg_temp.debe_fallar($q$insert into public.comandos (agente_id, accion) values ('99999999-0000-4000-8000-000000000009', 'abrir_app')$q$, array['23514'], 'abrir una app sin nombre');
+select pg_temp.debe_fallar($q$insert into public.comandos (agente_id, accion, valor) values ('99999999-0000-4000-8000-000000000009', 'volumen', '040')$q$, array['23514'], 'volumen con cero delante');
+select pg_temp.debe_fallar($q$insert into public.comandos (agente_id, accion, valor) values ('99999999-0000-4000-8000-000000000009', 'volumen', E'40\n')$q$, array['23514'], 'volumen con salto de línea');
+select pg_temp.debe_fallar($q$insert into public.comandos (agente_id, accion) values ('aaaaaaaa-0000-4000-8000-00000000000a', 'apagar')$q$, array['42501', '23503'], 'una orden a un PC que no existe');
+-- Desvinculado: ni pendientes ni coger
+delete from public.agentes where id = '99999999-0000-4000-8000-000000000009';
+select pg_temp.como('99999999-0000-4000-8000-000000000009');
+select pg_temp.debe_fallar($q$select * from public.agente_comandos_pendientes()$q$, array['42501'], 'un agente desvinculado pide pendientes');
+select pg_temp.debe_fallar($q$select * from public.agente_tomar_comando('c0000000-0000-4000-8000-0000000000b1')$q$, array['42501'], 'un agente desvinculado coge órdenes');
+select pg_temp.como('anon');
+select pg_temp.debe_fallar($q$select * from public.agente_comandos_pendientes()$q$, array['42501'], 'anon pide pendientes');
+
+-- @caso: mando (tester): una orden de volumen SIN valor no se acepta (el check da NULL y deja pasar)
+reset role;
+insert into public.emails_permitidos (email) values ('agente-1@agente.invalid');
+insert into auth.users (id, email, raw_app_meta_data) values ('99999999-0000-4000-8000-000000000009', 'agente-1@agente.invalid', '{"tipo": "agente"}');
+insert into public.agentes (id, user_id, nombre) values ('99999999-0000-4000-8000-000000000009', 'aaaaaaaa-0000-4000-8000-00000000000a', 'PC casa');
+select pg_temp.como('aaaaaaaa-0000-4000-8000-00000000000a');
+select pg_temp.debe_fallar($q$insert into public.comandos (agente_id, accion) values ('99999999-0000-4000-8000-000000000009', 'volumen')$q$, array['23514'], 'volumen sin valor');
+
+-- @caso: red (tester): no repetir avisos — solo los nuevos de verdad, por dueño; olvidar uno lo vuelve nuevo
+reset role;
+insert into public.emails_permitidos (email) values ('agente-1@agente.invalid'), ('agente-2@agente.invalid');
+insert into auth.users (id, email, raw_app_meta_data) values
+  ('99999999-0000-4000-8000-000000000009', 'agente-1@agente.invalid', '{"tipo": "agente"}'),
+  ('88888888-0000-4000-8000-000000000008', 'agente-2@agente.invalid', '{"tipo": "agente"}');
+insert into public.agentes (id, user_id, nombre) values
+  ('99999999-0000-4000-8000-000000000009', 'aaaaaaaa-0000-4000-8000-00000000000a', 'PC casa'),
+  ('88888888-0000-4000-8000-000000000008', 'bbbbbbbb-0000-4000-8000-00000000000b', 'PC de B');
+-- B ve la misma MAC en SU casa: es otro aparato, de otro dueño
+reset role;
+update public.agentes set ultimo_escaneo = null; delete from public.red_ultimo_aviso; -- (como si hubieran pasado los minutos de los topes)
+select pg_temp.como('88888888-0000-4000-8000-000000000008');
+select pg_temp.comprobar(public.agente_red('[{"mac": "a4:bb:cc:00:00:01"}]') = 1, 'B no cuenta su aparato nuevo');
+reset role;
+update public.agentes set ultimo_escaneo = null; delete from public.red_ultimo_aviso; -- (como si hubieran pasado los minutos de los topes)
+select pg_temp.como('99999999-0000-4000-8000-000000000009');
+select pg_temp.comprobar(public.agente_red('[{"mac": "a4:bb:cc:00:00:01"}, {"mac": "a4:bb:cc:00:00:02"}]') = 2, 'A no cuenta 2 nuevos');
+-- Mientras no se avisa, cada escaneo sigue diciendo que hay 2 (el agente reintenta el aviso)
+select pg_temp.comprobar(public.agente_red('[{"mac": "a4:bb:cc:00:00:01"}, {"mac": "a4:bb:cc:00:00:02"}]') = 2, 'pierde los pendientes de avisar');
+reset role;
+update public.agentes set ultimo_escaneo = null; delete from public.red_ultimo_aviso; -- (como si hubieran pasado los minutos de los topes)
+select pg_temp.como('service');
+select pg_temp.comprobar((select array_agg(mac order by mac) from public.red_reservar_avisos('aaaaaaaa-0000-4000-8000-00000000000a')) = array['a4:bb:cc:00:00:01', 'a4:bb:cc:00:00:02'], 'no reserva los de A');
+-- Lo de B no se ha tocado al avisar a A
+reset role;
+select pg_temp.comprobar((select not avisado from public.red_dispositivos where user_id = 'bbbbbbbb-0000-4000-8000-00000000000b'), 'avisar a A marca lo de B');
+-- Se van y vuelven (desconectados y otra vez conectados): no es nuevo
+reset role;
+update public.agentes set ultimo_escaneo = null; delete from public.red_ultimo_aviso; -- (como si hubieran pasado los minutos de los topes)
+select pg_temp.como('99999999-0000-4000-8000-000000000009');
+select pg_temp.comprobar(public.agente_red('[]') = 0, 'un escaneo vacío avisa');
+reset role;
+select pg_temp.comprobar((select count(*) from public.red_dispositivos where user_id = 'aaaaaaaa-0000-4000-8000-00000000000a' and conectado) = 0, 'el escaneo vacío no los desconecta');
+reset role;
+update public.agentes set ultimo_escaneo = null; delete from public.red_ultimo_aviso; -- (como si hubieran pasado los minutos de los topes)
+select pg_temp.como('99999999-0000-4000-8000-000000000009');
+select pg_temp.comprobar(public.agente_red('[{"mac": "a4:bb:cc:00:00:01"}, {"mac": "a4:bb:cc:00:00:02"}, {"mac": "a4:bb:cc:00:00:03"}]') = 1, 'vuelve a avisar de los que vuelven');
+reset role;
+update public.agentes set ultimo_escaneo = null; delete from public.red_ultimo_aviso; -- (como si hubieran pasado los minutos de los topes)
+select pg_temp.como('service');
+select pg_temp.comprobar((select array_agg(mac) from public.red_reservar_avisos('aaaaaaaa-0000-4000-8000-00000000000a')) = array['a4:bb:cc:00:00:03'], 'no avisa SOLO del nuevo');
+-- Ponerle nombre, marcarlo como conocido o desconocido no lo vuelve a avisar
+select pg_temp.como('aaaaaaaa-0000-4000-8000-00000000000a');
+update public.red_dispositivos set nombre = 'Tele', conocido = true where mac = 'a4:bb:cc:00:00:01';
+update public.red_dispositivos set conocido = false where mac = 'a4:bb:cc:00:00:01';
+-- Olvidarlo: si vuelve a salir, es nuevo y se avisa (lo que dice la pantalla)
+delete from public.red_dispositivos where mac = 'a4:bb:cc:00:00:02';
+reset role;
+update public.agentes set ultimo_escaneo = null; delete from public.red_ultimo_aviso; -- (como si hubieran pasado los minutos de los topes)
+select pg_temp.como('99999999-0000-4000-8000-000000000009');
+select pg_temp.comprobar(public.agente_red('[{"mac": "a4:bb:cc:00:00:01"}, {"mac": "a4:bb:cc:00:00:02"}]') = 1, 'olvidado y vuelto no cuenta como nuevo, o el renombrado sí');
+reset role;
+select pg_temp.comprobar((select nombre = 'Tele' and not conocido from public.red_dispositivos where mac = 'a4:bb:cc:00:00:01' and user_id = 'aaaaaaaa-0000-4000-8000-00000000000a'), 'un escaneo borra el nombre que le pusiste');
+-- La función de avisos con un dueño sin nada (o inventado): nada
+reset role;
+update public.agentes set ultimo_escaneo = null; delete from public.red_ultimo_aviso; -- (como si hubieran pasado los minutos de los topes)
+select pg_temp.como('service');
+select pg_temp.comprobar((select count(*) from public.red_reservar_avisos('ffffffff-0000-4000-8000-00000000000f')) = 0, 'reserva para alguien sin red');
+select pg_temp.como('anon');
+select pg_temp.debe_fallar($q$select public.red_reservar_avisos('aaaaaaaa-0000-4000-8000-00000000000a')$q$, array['42501'], 'anon reserva avisos');
+reset role;
+update public.agentes set ultimo_escaneo = null; delete from public.red_ultimo_aviso; -- (como si hubieran pasado los minutos de los topes)
+select pg_temp.como('99999999-0000-4000-8000-000000000009');
+select pg_temp.debe_fallar($q$select public.red_reservar_avisos('aaaaaaaa-0000-4000-8000-00000000000a')$q$, array['42501'], 'el agente reserva avisos sin pasar por aviso-red');
+
+-- @caso: red (tester): caducidad del historial (30 días justos) y ventana de 12 minutos para alargar un intervalo
+reset role;
+insert into public.emails_permitidos (email) values ('agente-1@agente.invalid'), ('agente-2@agente.invalid');
+insert into auth.users (id, email, raw_app_meta_data) values
+  ('99999999-0000-4000-8000-000000000009', 'agente-1@agente.invalid', '{"tipo": "agente"}'),
+  ('88888888-0000-4000-8000-000000000008', 'agente-2@agente.invalid', '{"tipo": "agente"}');
+insert into public.agentes (id, user_id, nombre) values
+  ('99999999-0000-4000-8000-000000000009', 'aaaaaaaa-0000-4000-8000-00000000000a', 'PC casa'),
+  ('88888888-0000-4000-8000-000000000008', 'bbbbbbbb-0000-4000-8000-00000000000b', 'PC de B');
+reset role;
+update public.agentes set ultimo_escaneo = null; delete from public.red_ultimo_aviso; -- (como si hubieran pasado los minutos de los topes)
+select pg_temp.como('99999999-0000-4000-8000-000000000009');
+select public.agente_red('[{"mac": "a4:bb:cc:00:00:01"}, {"mac": "a4:bb:cc:00:00:02"}, {"mac": "a4:bb:cc:00:00:03"}]');
+reset role;
+update public.agentes set ultimo_escaneo = null; delete from public.red_ultimo_aviso; -- (como si hubieran pasado los minutos de los topes)
+select pg_temp.como('88888888-0000-4000-8000-000000000008');
+select public.agente_red('[{"mac": "b4:bb:cc:00:00:01"}]');
+reset role;
+-- 01: su último intervalo acabó hace 12 min justos (se alarga); 02: hace 12 min y 1 s (otro intervalo nuevo)
+update public.red_conexiones c set desde = now() - interval '1 hour', hasta = now() - interval '12 minutes'
+  from public.red_dispositivos d where d.id = c.dispositivo_id and d.mac = 'a4:bb:cc:00:00:01';
+update public.red_conexiones c set desde = now() - interval '1 hour', hasta = now() - interval '12 minutes 1 second'
+  from public.red_dispositivos d where d.id = c.dispositivo_id and d.mac = 'a4:bb:cc:00:00:02';
+-- 03: historial viejo: uno de hace 30 días justos (se queda) y otro de 30 días y 1 s (se borra)
+insert into public.red_conexiones (dispositivo_id, user_id, desde, hasta)
+  select id, user_id, now() - interval '31 days', now() - interval '30 days' from public.red_dispositivos where mac = 'a4:bb:cc:00:00:03';
+insert into public.red_conexiones (dispositivo_id, user_id, desde, hasta)
+  select id, user_id, now() - interval '31 days', now() - interval '30 days 1 second' from public.red_dispositivos where mac = 'a4:bb:cc:00:00:03';
+-- Lo viejo de B lo borra SU agente, no el de A
+insert into public.red_conexiones (dispositivo_id, user_id, desde, hasta)
+  select id, user_id, now() - interval '50 days', now() - interval '45 days' from public.red_dispositivos where mac = 'b4:bb:cc:00:00:01';
+reset role;
+update public.agentes set ultimo_escaneo = null; delete from public.red_ultimo_aviso; -- (como si hubieran pasado los minutos de los topes)
+select pg_temp.como('99999999-0000-4000-8000-000000000009');
+select public.agente_red('[{"mac": "a4:bb:cc:00:00:01"}, {"mac": "a4:bb:cc:00:00:02"}]');
+reset role;
+select pg_temp.comprobar((select count(*) = 1 and min(desde) = now() - interval '1 hour' and max(hasta) = now()
+  from public.red_conexiones c join public.red_dispositivos d on d.id = c.dispositivo_id where d.mac = 'a4:bb:cc:00:00:01'), 'a los 12 min justos no alarga el intervalo');
+select pg_temp.comprobar((select count(*) from public.red_conexiones c join public.red_dispositivos d on d.id = c.dispositivo_id where d.mac = 'a4:bb:cc:00:00:02') = 2,
+  'pasados 12 min alarga el intervalo en vez de abrir otro');
+select pg_temp.comprobar((select count(*) from public.red_conexiones c join public.red_dispositivos d on d.id = c.dispositivo_id
+  where d.mac = 'a4:bb:cc:00:00:03' and c.hasta < now() - interval '1 day') = 1, 'el borde de 30 días no es el esperado');
+select pg_temp.comprobar(not exists (select 1 from public.red_conexiones c join public.red_dispositivos d on d.id = c.dispositivo_id
+  where d.mac = 'a4:bb:cc:00:00:03' and c.hasta = now() - interval '30 days 1 second'), 'no borra lo de 30 días y 1 s');
+select pg_temp.comprobar((select count(*) from public.red_conexiones where user_id = 'bbbbbbbb-0000-4000-8000-00000000000b') = 2, 'el agente de A borra el historial de B');
+-- El aparato que no ha salido en el escaneo deja de estar conectado y su intervalo no crece
+select pg_temp.comprobar((select not conectado from public.red_dispositivos where mac = 'a4:bb:cc:00:00:03'), 'el que falta sigue conectado');
+select pg_temp.comprobar((select max(hasta) from public.red_conexiones c join public.red_dispositivos d on d.id = c.dispositivo_id where d.mac = 'a4:bb:cc:00:00:03') = now(), 'el historial del ausente cambia');
+
+-- @caso: red (tester): escaneos raros (no objetos, MAC en mayúsculas, IP mala, fabricante con control) y lo tuyo no se pisa
+reset role;
+insert into public.emails_permitidos (email) values ('agente-1@agente.invalid');
+insert into auth.users (id, email, raw_app_meta_data) values ('99999999-0000-4000-8000-000000000009', 'agente-1@agente.invalid', '{"tipo": "agente"}');
+insert into public.agentes (id, user_id, nombre) values ('99999999-0000-4000-8000-000000000009', 'aaaaaaaa-0000-4000-8000-00000000000a', 'PC casa');
+reset role;
+update public.agentes set ultimo_escaneo = null; delete from public.red_ultimo_aviso; -- (como si hubieran pasado los minutos de los topes)
+select pg_temp.como('99999999-0000-4000-8000-000000000009');
+select pg_temp.comprobar(public.agente_red($j$[1, "a4:bb:cc:00:00:09", null, [], {"mac": {"x": 1}}, {"mac": "A4:BB:CC:00:00:01", "ip": "192.168.1.5; drop", "fabricante": "Marca\u0007\u001b[31m SA"},
+  {"mac": "a4:bb:cc:00:00:02", "ip": "192.168.1.6", "fabricante": "%s"}]$j$::jsonb) = 2, 'no ignora lo que no tiene forma');
+reset role;
+select pg_temp.comprobar((select ip is null and fabricante = 'Marca[31m SA' and mac = 'a4:bb:cc:00:00:01' from public.red_dispositivos where mac = 'a4:bb:cc:00:00:01'), 'no limpia la IP, el fabricante o la MAC');
+select pg_temp.comprobar((select fabricante from public.red_dispositivos where mac = 'a4:bb:cc:00:00:02') = '%s', 'cambia un fabricante normal');
+-- Lo que pones tú se queda; un escaneo sin fabricante ni IP no borra los que había
+select pg_temp.como('aaaaaaaa-0000-4000-8000-00000000000a');
+update public.red_dispositivos set nombre = 'Impresora', conocido = true where mac = 'a4:bb:cc:00:00:02';
+reset role;
+update public.agentes set ultimo_escaneo = null; delete from public.red_ultimo_aviso; -- (como si hubieran pasado los minutos de los topes)
+select pg_temp.como('99999999-0000-4000-8000-000000000009');
+select public.agente_red('[{"mac": "a4:bb:cc:00:00:02"}]');
+reset role;
+select pg_temp.comprobar((select nombre = 'Impresora' and conocido and ip = '192.168.1.6' and fabricante = '%s' from public.red_dispositivos where mac = 'a4:bb:cc:00:00:02'), 'un escaneo pisa lo tuyo o lo que ya se sabía');
+-- Un nombre en blanco no vale; el nombre se puede quitar (null)
+select pg_temp.como('aaaaaaaa-0000-4000-8000-00000000000a');
+select pg_temp.debe_fallar($q$update public.red_dispositivos set nombre = '   ' where mac = 'a4:bb:cc:00:00:02'$q$, array['23514'], 'nombre en blanco');
+update public.red_dispositivos set nombre = null where mac = 'a4:bb:cc:00:00:02';
+-- Olvidar el principal deja a sus unidos sueltos (sin borrarlos)
+update public.red_dispositivos set unido_a = (select id from public.red_dispositivos where mac = 'a4:bb:cc:00:00:02') where mac = 'a4:bb:cc:00:00:01';
+select pg_temp.debe_fallar($q$update public.red_dispositivos set unido_a = id where mac = 'a4:bb:cc:00:00:01'$q$, array['23514'], 'unir un aparato consigo mismo');
+delete from public.red_dispositivos where mac = 'a4:bb:cc:00:00:02';
+reset role;
+select pg_temp.comprobar((select unido_a is null and user_id = 'aaaaaaaa-0000-4000-8000-00000000000a' from public.red_dispositivos where mac = 'a4:bb:cc:00:00:01'), 'olvidar el principal se lleva a sus unidos');
+select pg_temp.comprobar(not exists (select 1 from public.red_conexiones c where not exists (select 1 from public.red_dispositivos d where d.id = c.dispositivo_id)), 'queda historial de un aparato olvidado');
+-- Borrar la cuenta se lleva la red
+delete from auth.users where id = 'aaaaaaaa-0000-4000-8000-00000000000a';
+select pg_temp.comprobar(not exists (select 1 from public.red_dispositivos) and not exists (select 1 from public.red_conexiones), 'la red sobrevive a la cuenta');
+
 
 -- @fin
 rollback;
