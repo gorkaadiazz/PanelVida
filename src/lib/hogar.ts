@@ -1,5 +1,7 @@
 // Hogar e invitaciones: lógica pura (sin React ni Supabase).
 
+import { diaEnMadrid, diferenciaDias } from './fechas'
+
 export type ResultadoUnirse = 'ok' | 'invalido' | 'caducado' | 'usado' | 'ya_en_hogar' | 'demasiados_intentos'
 
 const MENSAJES: Record<Exclude<ResultadoUnirse, 'ok'>, string> = {
@@ -40,7 +42,9 @@ export function textoCaducaInvitacion(caducaEn: string, ahora: number): string {
   const ms = Date.parse(caducaEn) - ahora
   if (Number.isNaN(ms)) return ''
   if (ms <= 0) return 'Caducado'
-  const dias = Math.floor(ms / 86400000)
+  // Días de calendario en Madrid (no tramos de 24 h): a las 23:30, lo que
+  // caduca mañana a las 11:00 caduca «mañana», no «hoy».
+  const dias = diferenciaDias(diaEnMadrid(ahora), diaEnMadrid(caducaEn))
   if (dias === 0) return 'Caduca hoy'
   if (dias === 1) return 'Caduca mañana'
   return `Caduca en ${dias} días`

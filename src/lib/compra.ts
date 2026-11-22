@@ -50,7 +50,29 @@ export interface DatosArticulo {
   notas: string
 }
 
-const espacios = (texto: string) => texto.replace(/[\p{Cc}\p{Cf}]/gu, '').replace(/\s+/g, ' ').trim()
+/**
+ * Quita los caracteres de control e invisibles (\p{Cc}, \p{Cf}: inversión de
+ * texto, espacios de anchura cero…) salvo los que forman emojis: el ZWJ entre
+ * dos pictogramas (👨‍👩‍👧) y las etiquetas de las banderas de subdivisión.
+ * `conservar` deja pasar algún control (el salto de línea de las notas).
+ */
+function sinInvisibles(texto: string, conservar = ''): string {
+  return texto.replace(/[\p{Cc}\p{Cf}]/gu, (c, i: number, todo: string) => {
+    if (conservar.includes(c)) return c
+    if (c === '\u200D') {
+      const antes = todo.slice(0, i)
+      const despues = todo.slice(i + 1)
+      return /\p{Extended_Pictographic}(?:\u{FE0F}|\p{Emoji_Modifier})?$/u.test(antes) && /^\p{Extended_Pictographic}/u.test(despues) ? c : ''
+    }
+    // Etiquetas solo detrás de la bandera negra (🏴 + etiquetas = Escocia, Gales…): sueltas serían texto oculto
+    if (/[\u{E0020}-\u{E007F}]/u.test(c)) return /\u{1F3F4}[\u{E0020}-\u{E007F}]*$/u.test(todo.slice(0, i)) ? c : ''
+    return ''
+  })
+}
+
+// Primero los espacios (un salto de línea o un tabulador en el nombre separa
+// palabras, no las junta) y después lo invisible.
+const espacios = (texto: string) => sinInvisibles(texto.replace(/\s+/g, ' ')).replace(/\s+/g, ' ').trim()
 
 /** Valida y limpia lo que se escribe en el formulario. Lanza ErrorDeValidacion. */
 export function validarArticulo(datos: { nombre: string; cantidad?: string; seccion?: string; notas?: string }): DatosArticulo {
@@ -59,7 +81,7 @@ export function validarArticulo(datos: { nombre: string; cantidad?: string; secc
   if ([...nombre].length > NOMBRE_MAX) throw new ErrorDeValidacion(`El nombre puede tener como mucho ${NOMBRE_MAX} caracteres.`)
   const cantidad = espacios(datos.cantidad ?? '')
   if ([...cantidad].length > CANTIDAD_MAX) throw new ErrorDeValidacion(`La cantidad puede tener como mucho ${CANTIDAD_MAX} caracteres.`)
-  const notas = (datos.notas ?? '').replace(/[\p{Cc}\p{Cf}]/gu, (c) => (c === '\n' ? c : '')).trim()
+  const notas = sinInvisibles((datos.notas ?? '').replace(/\r\n?/g, '\n').replace(/\t/g, ' '), '\n').trim()
   if ([...notas].length > NOTAS_MAX) throw new ErrorDeValidacion(`Las notas pueden tener como mucho ${NOTAS_MAX} caracteres.`)
   const seccion = datos.seccion && esSeccion(datos.seccion) ? datos.seccion : null
   return { nombre, cantidad: cantidad || null, seccion, notas }
