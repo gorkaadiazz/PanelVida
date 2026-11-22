@@ -27,6 +27,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      agentes: {
+        Row: {
+          apps: string[]
+          created_at: string
+          id: string
+          nombre: string
+          ultimo_latido: string | null
+          updated_at: string
+          user_id: string
+          version: string | null
+        }
+        Insert: {
+          apps?: string[]
+          created_at?: string
+          id: string
+          nombre: string
+          ultimo_latido?: string | null
+          updated_at?: string
+          user_id: string
+          version?: string | null
+        }
+        Update: {
+          apps?: string[]
+          created_at?: string
+          id?: string
+          nombre?: string
+          ultimo_latido?: string | null
+          updated_at?: string
+          user_id?: string
+          version?: string | null
+        }
+        Relationships: []
+      }
       borrados_hogar: {
         Row: {
           fila_id: string
@@ -1524,6 +1557,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      crear_codigo_vinculacion: {
+        Args: never
+        Returns: { codigo: string; caduca_en: string }[]
+      }
       crear_invitacion: {
         Args: never
         Returns: { codigo: string; caduca_en: string }[]

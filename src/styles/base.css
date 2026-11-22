@@ -2317,3 +2317,27 @@ form.puente-dispositivo { display: flex; flex-direction: column; gap: var(--sp-3
   -webkit-user-select: all;   /* un toque largo selecciona el código entero para copiarlo a mano */
   user-select: all;
 }
+
+/* =========================================================
+   Fase 9 · Mando del PC
+   ========================================================= */
+.pc .card__titulo { display: inline-flex; align-items: center; gap: var(--sp-2); min-width: 0; }
+.pc .card__titulo svg { width: 22px; height: 22px; flex: none; color: var(--text-2); }
+.pc__punto { width: 8px; height: 8px; border-radius: 50%; background: var(--text-2); flex: none; }
+.pc__punto--on { background: var(--ok); }
+.pc__acciones { flex-wrap: wrap; }
+.pc__acciones .btn--sm { min-height: var(--tap); }
+.pc__comando {
+  margin: 0;
+  padding: var(--sp-3);
+  border-radius: var(--r-md);
+  background: var(--surface-sunken);
+  font-family: var(--font-num);
+  font-size: var(--fs-sm);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+.pc__comando:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.inicio-pcs { display: flex; flex-direction: column; gap: var(--sp-1); margin-bottom: var(--sp-2); }
+.inicio-pcs .pc__punto { display: inline-block; vertical-align: middle; }

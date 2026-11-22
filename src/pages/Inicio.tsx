@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from 'react'
+import { useEffect, useState, type CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
 import { nombreDeUsuario, useSesion } from '../auth/useSesion'
 import { AvisoError } from '../components/AvisoError'
@@ -8,6 +8,9 @@ import { prepararFoco } from '../components/foco'
 import { Racha } from '../components/Racha'
 import { IconoDinero, IconoEstudios, IconoCumple, IconoExterno, IconoFlecha, IconoHabitos, IconoIdea, IconoNegocio, IconoPlan, IconoPuente, IconoTareas } from '../components/iconos'
 import { useAccion } from '../components/useAccion'
+import { useEnLinea } from '../components/useEnLinea'
+import { estadoPC } from '../lib/agentes'
+import { listarPCs, type PC } from '../repos/agentes'
 import { useHoy } from '../components/useHoy'
 import { diferenciaDias, formatearFecha, type FechaDia } from '../lib/fechas'
 import { formatearEuros, mesDe, progresoMeta, resumenMes, resumir } from '../lib/dinero'
@@ -638,15 +641,28 @@ function TarjetaCasa() {
   const { fijados, recientes } = ordenarPuente(lista)
   const ultimo = [...recientes, ...fijados].sort((a, b) => b.created_at.localeCompare(a.created_at))[0]
   const [ahora] = useState(() => Date.now())
+  const pcs = usePCsResumen()
 
   return (
     <section className="card" aria-labelledby="inicio-casa">
       <div className="card__head">
         <h2 id="inicio-casa" className="card__titulo">
           <IconoPuente />
-          Puente
+          Casa
         </h2>
       </div>
+      {pcs && pcs.length > 0 && (
+        <ul className="inicio-pcs" role="list" aria-label="Tus PC">
+          {pcs.map((pc) => {
+            const estado = estadoPC(pc.ultimo_latido, ahora)
+            return (
+              <li key={pc.id} className="t-small">
+                <span className={`pc__punto${estado.encendido ? ' pc__punto--on' : ''}`} aria-hidden="true" /> {pc.nombre}: {estado.texto}
+              </li>
+            )
+          })}
+        </ul>
+      )}
       {cargando ? (
         <Esqueleto />
       ) : ultimo ? (
@@ -667,4 +683,22 @@ function TarjetaCasa() {
       </div>
     </section>
   )
+}
+
+/** Tus PC vinculados (solo con conexión; sin ella no se enseña nada). */
+function usePCsResumen(): PC[] | null {
+  const enLinea = useEnLinea()
+  const [pcs, setPcs] = useState<PC[] | null>(null)
+  useEffect(() => {
+    if (!enLinea) return
+    let vivo = true
+    listarPCs().then(
+      (l) => vivo && setPcs(l),
+      () => {},
+    )
+    return () => {
+      vivo = false
+    }
+  }, [enLinea])
+  return enLinea ? pcs : null
 }

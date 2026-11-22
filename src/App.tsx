@@ -28,6 +28,7 @@ const Deseos = pagina(() => import('./pages/Deseos'), 'Deseos')
 const Ideas = pagina(() => import('./pages/Ideas'), 'Ideas')
 const Puente = pagina(() => import('./pages/Puente'), 'Puente')
 const Compra = pagina(() => import('./pages/Compra'), 'Compra')
+const Mando = pagina(() => import('./pages/Mando'), 'Mando')
 const CuentaFamilia = pagina(() => import('./pages/Cuenta'), 'CuentaFamilia')
 const NoEncontrada = pagina(() => import('./pages/NoEncontrada'), 'NoEncontrada')
 
@@ -79,6 +80,7 @@ function Contenido({ errorInicial }: { errorInicial: string | null }) {
       <Routes>
         <Route element={<LayoutFamilia />}>
           <Route path="compra" element={<Compra />} />
+        <Route path="casa/mando" element={<Mando />} />
           <Route path="cuenta" element={<CuentaFamilia />} />
           <Route path="*" element={<Navigate to="/compra" replace />} />
         </Route>
