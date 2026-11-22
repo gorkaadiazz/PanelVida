@@ -29,10 +29,20 @@ export interface Grupo<A extends Aparato> {
  */
 export function agrupar<A extends Aparato>(aparatos: readonly A[]): Grupo<A>[] {
   const porId = new Map(aparatos.map((a) => [a.id, a]))
+  // Sigue las uniones hasta el principal. Si hay un ciclo (la base de datos no
+  // lo impide), el principal es el de id menor del ciclo: así todos los del
+  // ciclo caen en el mismo grupo y nadie sale dos veces.
   const raiz = (a: A): A => {
+    const camino: A[] = []
+    const vistos = new Set<string>()
     let actual = a
-    for (let i = 0; i < 10 && actual.unido_a && porId.has(actual.unido_a); i++) actual = porId.get(actual.unido_a)!
-    return actual
+    while (actual.unido_a && porId.has(actual.unido_a) && !vistos.has(actual.id)) {
+      camino.push(actual)
+      vistos.add(actual.id)
+      actual = porId.get(actual.unido_a)!
+    }
+    if (!vistos.has(actual.id)) return actual
+    return camino.slice(camino.indexOf(actual)).reduce((m, x) => (x.id < m.id ? x : m))
   }
   const grupos = new Map<string, Grupo<A>>()
   for (const a of aparatos) {

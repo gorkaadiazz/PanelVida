@@ -2356,21 +2356,30 @@ form.puente-dispositivo { display: flex; flex-direction: column; gap: var(--sp-3
 /* Mando del PC: botones en rejilla (2 columnas en el móvil, más en el PC) */
 .mando__grupo { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-2); }
 @media (min-width: 540px) { .mando__grupo { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
-.mando__boton { min-height: var(--tap); white-space: normal; text-align: center; }
-.mando__volumen { width: 100%; min-height: var(--tap); accent-color: var(--accent); }
-.mando__orden { min-height: 44px; }
-.mando__estado { white-space: normal; overflow: visible; text-align: right; }
+/* Apps con nombres largos (org.kde.dolphin…) parten dentro de su celda, nunca desbordan */
+.mando__boton { min-height: var(--tap); min-width: 0; padding-block: var(--sp-2); white-space: normal; overflow-wrap: anywhere; text-align: center; }
+/* Desactivado (PC apagado): además de atenuado, borde discontinuo y el motivo escrito encima */
+.mando__boton:disabled { border-style: dashed; }
+.mando__apagado { display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-2) var(--sp-3); border-radius: var(--r-md); background: var(--surface-sunken); }
+.mando__volumen { display: block; width: 100%; min-height: var(--tap); margin: 0; accent-color: var(--accent); cursor: pointer; touch-action: pan-y; }
+.mando__volumen:disabled { cursor: not-allowed; opacity: 0.45; }
+.mando__confirmar { padding: var(--sp-3); border-radius: var(--r-md); border: 1px solid var(--border); background: var(--surface-sunken); }
+.mando__estado { flex: 0 1 auto; max-width: 60%; white-space: normal; overflow: visible; overflow-wrap: anywhere; text-align: right; }
 
 /* =========================================================
    Fase 9 · Red de casa
    ========================================================= */
-.red__titulo-aviso { display: inline-flex; align-items: center; gap: var(--sp-2); color: var(--warn-ink); }
+.red__titulo-aviso { display: flex; align-items: center; gap: var(--sp-2); color: var(--warn-ink); }
 .red__titulo-aviso svg { width: 20px; height: 20px; }
 .red-aparato { align-items: flex-start; }
 /* Desconocido: borde a la izquierda además de la etiqueta de texto */
 .red-aparato--desconocido { border-left: 3px solid var(--warn); padding-left: var(--sp-3); }
-.red-aparato__nombre { font-weight: var(--fw-semibold); }
-.red-aparato__tag { margin-left: var(--sp-2); vertical-align: middle; white-space: normal; }
+/* Nombre y etiquetas en una fila que parte: a 360 px las etiquetas bajan alineadas */
+.red-aparato__nombre { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1) var(--sp-2); font-size: var(--fs-md); font-weight: var(--fw-semibold); line-height: var(--lh-snug); }
+.red-aparato__nombre:focus-visible { border-radius: var(--r-sm); }
+.red-aparato__texto { min-width: 0; max-width: 100%; }
+.red-aparato__tag { flex: none; }
+.red-aparato .num { overflow-wrap: anywhere; }
 .red-aparato__acciones { flex-wrap: wrap; gap: var(--sp-2); }
 .red-aparato__acciones .btn--sm { min-height: var(--tap); }
 .red-aparato__form { flex-wrap: wrap; gap: var(--sp-2); }
@@ -2378,3 +2387,5 @@ form.puente-dispositivo { display: flex; flex-direction: column; gap: var(--sp-3
 .red-historial__lista { display: flex; flex-direction: column; gap: 2px; margin: var(--sp-1) 0 0; padding: 0; list-style: none; }
 .inicio-red { display: flex; align-items: center; gap: var(--sp-2); color: var(--warn-ink); }
 .inicio-red svg { width: 18px; height: 18px; flex: none; }
+/* El enlace del aviso es un objetivo táctil de 44 px, no solo la línea de texto */
+.inicio-red a { display: inline-flex; align-items: center; min-height: var(--tap); min-width: 0; overflow-wrap: anywhere; }

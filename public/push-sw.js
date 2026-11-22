@@ -20,6 +20,7 @@ self.addEventListener('push', (evento) => {
   } catch {
     datos = {}
   }
+  if (typeof datos !== 'object' || datos === null) datos = {}
   const titulo = typeof datos.titulo === 'string' && datos.titulo ? datos.titulo.slice(0, 80) : 'Mi Panel'
   const cuerpo = typeof datos.cuerpo === 'string' ? datos.cuerpo.slice(0, 300) : ''
   evento.waitUntil(

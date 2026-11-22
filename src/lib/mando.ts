@@ -54,7 +54,7 @@ export const TEXTO_ESTADO: Record<EstadoVisible, string> = {
 
 /** «Volumen al 40 %», «Abrir Firefox», «Apagar». */
 export function describirComando(c: { accion: string; valor: string | null }): string {
-  const nombre = (NOMBRE_ACCION as Record<string, string>)[c.accion] ?? c.accion
+  const nombre = Object.hasOwn(NOMBRE_ACCION, c.accion) ? (NOMBRE_ACCION as Record<string, string>)[c.accion] : c.accion
   if (c.accion === 'volumen' && c.valor) return `Volumen al ${c.valor} %`
   if (c.accion === 'abrir_app' && c.valor) return `Abrir ${c.valor}`
   return nombre

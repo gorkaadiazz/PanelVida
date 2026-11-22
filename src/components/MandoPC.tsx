@@ -17,12 +17,23 @@ export function MandoPC({ pc, encendido, ahora, ejecutar }: { pc: PC; encendido:
   const [confirmar, setConfirmar] = useState<Accion | null>(null)
   const [volumen, setVolumen] = useState<number>(pc.volumen ?? 50)
   const arrastrando = useRef(false)
-  const botonConfirmar = useRef<HTMLButtonElement | null>(null)
+  // Teclado y lector de pantalla mueven el control a pasos: se espera a que
+  // paren un momento y se manda UNA orden con el valor final.
+  const espera = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const ultimoMandado = useRef<string | null>(pc.volumen === null ? null : String(pc.volumen))
+  const botonCancelar = useRef<HTMLButtonElement | null>(null)
+  const botones = useRef<Partial<Record<Accion, HTMLButtonElement | null>>>({})
 
   // El volumen real llega con el latido (si no se está moviendo el control)
   useEffect(() => {
-    if (!arrastrando.current && pc.volumen !== null) setVolumen(Math.min(100, pc.volumen))
+    if (!arrastrando.current && !espera.current && pc.volumen !== null) {
+      setVolumen(Math.min(100, pc.volumen))
+      ultimoMandado.current = String(Math.min(100, pc.volumen))
+    }
   }, [pc.volumen])
+  useEffect(() => () => {
+    if (espera.current) clearTimeout(espera.current)
+  }, [])
 
   const cargar = useCallback(() => {
     ultimasOrdenes(pc.id).then(setOrdenes, () => {})
@@ -37,41 +48,53 @@ export function MandoPC({ pc, encendido, ahora, ejecutar }: { pc: PC; encendido:
   const pulsar = (accion: Accion) => {
     if (CON_CONFIRMACION.has(accion)) {
       setConfirmar(accion)
-      requestAnimationFrame(() => botonConfirmar.current?.focus())
+      // El foco va a «Cancelar» (lo seguro): un doble Intro no apaga el PC
+      requestAnimationFrame(() => botonCancelar.current?.focus())
     } else mandar(accion)
+  }
+  /** Cierra la confirmación y devuelve el foco al botón que la abrió. */
+  const cerrarConfirmar = () => {
+    const accion = confirmar
+    setConfirmar(null)
+    if (accion) requestAnimationFrame(() => botones.current[accion]?.focus())
   }
   const apagado = !encendido
 
+  const mandarVolumen = (valor: number) => {
+    if (espera.current) clearTimeout(espera.current)
+    espera.current = null
+    const v = volumenValido(valor)
+    if (!v || v === ultimoMandado.current) return
+    ultimoMandado.current = v
+    mandar('volumen', v)
+  }
+  const mandarVolumenLuego = (valor: number) => {
+    if (espera.current) clearTimeout(espera.current)
+    espera.current = setTimeout(() => mandarVolumen(valor), 600)
+  }
+
   const boton = (accion: Accion, texto = NOMBRE_ACCION[accion], peligro = false) => (
-    <button key={accion} type="button" className={`btn ${peligro ? 'btn--danger-text btn--ghost' : 'btn--secondary'} mando__boton`} disabled={apagado} onClick={() => pulsar(accion)}>
+    <button
+      key={accion}
+      ref={(b) => {
+        botones.current[accion] = b
+      }}
+      type="button"
+      className={`btn ${peligro ? 'btn--danger-text btn--ghost' : 'btn--secondary'} mando__boton`}
+      disabled={apagado}
+      aria-describedby={apagado ? `${id}-apagado` : undefined}
+      onClick={() => pulsar(accion)}
+    >
       {texto}
     </button>
   )
 
   return (
     <div className="stack mando" style={{ '--gap': 'var(--sp-4)' } as CSSProperties}>
-      {apagado && <p className="t-small muted">El PC está apagado: los botones se activan cuando se encienda.</p>}
-
-      {confirmar && (
-        <div className="confirmar" role="group" aria-labelledby={`${id}-confirmar`}>
-          <span id={`${id}-confirmar`} className="break">
-            ¿{NOMBRE_ACCION[confirmar]} «{pc.nombre}»? Si hay algo sin guardar, se perderá.
-          </span>
-          <button
-            type="button"
-            ref={botonConfirmar}
-            className="btn btn--danger"
-            onClick={() => {
-              mandar(confirmar)
-              setConfirmar(null)
-            }}
-          >
-            {NOMBRE_ACCION[confirmar]}
-          </button>
-          <button type="button" className="btn btn--ghost" onClick={() => setConfirmar(null)}>
-            Cancelar
-          </button>
-        </div>
+      {apagado && (
+        <p id={`${id}-apagado`} className="t-small muted mando__apagado">
+          El PC está apagado: los botones se activan cuando se encienda.
+        </p>
       )}
 
       <section aria-labelledby={`${id}-energia`} className="stack" style={{ '--gap': 'var(--sp-2)' } as CSSProperties}>
@@ -84,6 +107,35 @@ export function MandoPC({ pc, encendido, ahora, ejecutar }: { pc: PC; encendido:
           {boton('reiniciar', undefined, true)}
           {boton('apagar', undefined, true)}
         </div>
+        {/* Justo debajo de los botones: no empuja la rejilla al aparecer */}
+        {confirmar && (
+          <div
+            className="confirmar mando__confirmar"
+            role="group"
+            aria-labelledby={`${id}-confirmar`}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') cerrarConfirmar()
+            }}
+          >
+            <span id={`${id}-confirmar`} className="break">
+              ¿{NOMBRE_ACCION[confirmar]} «{pc.nombre}»? Si hay algo sin guardar, se perderá.
+            </span>
+            <button
+              type="button"
+              className="btn btn--danger"
+              disabled={apagado}
+              onClick={() => {
+                mandar(confirmar)
+                cerrarConfirmar()
+              }}
+            >
+              {NOMBRE_ACCION[confirmar]}
+            </button>
+            <button type="button" ref={botonCancelar} className="btn btn--ghost" onClick={cerrarConfirmar}>
+              Cancelar
+            </button>
+          </div>
+        )}
       </section>
 
       <section aria-labelledby={`${id}-sonido`} className="stack" style={{ '--gap': 'var(--sp-2)' } as CSSProperties}>
@@ -103,21 +155,30 @@ export function MandoPC({ pc, encendido, ahora, ejecutar }: { pc: PC; encendido:
             step={5}
             value={volumen}
             disabled={apagado}
+            aria-describedby={apagado ? `${id}-apagado` : undefined}
             aria-valuetext={`${volumen} %`}
-            onPointerDown={() => {
+            // Nunca una orden por cada paso: con el dedo o el ratón se manda al
+            // soltar; con teclado o lector de pantalla, al parar 0,6 s (o al salir)
+            onPointerDown={(e) => {
               arrastrando.current = true
+              // Si se suelta fuera del control, el «soltar» llega igual
+              e.currentTarget.setPointerCapture?.(e.pointerId)
             }}
-            onChange={(e) => setVolumen(Number(e.target.value))}
-            // Se manda al soltar (no una orden por cada paso)
+            onChange={(e) => {
+              const v = Number(e.target.value)
+              setVolumen(v)
+              if (!arrastrando.current) mandarVolumenLuego(v)
+            }}
             onPointerUp={(e) => {
               arrastrando.current = false
-              const v = volumenValido(Number((e.target as HTMLInputElement).value))
-              if (v) mandar('volumen', v)
+              mandarVolumen(Number(e.currentTarget.value))
             }}
-            onKeyUp={(e) => {
-              if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'PageUp', 'PageDown'].includes(e.key)) return
-              const v = volumenValido(Number((e.target as HTMLInputElement).value))
-              if (v) mandar('volumen', v)
+            onPointerCancel={(e) => {
+              arrastrando.current = false
+              mandarVolumen(Number(e.currentTarget.value))
+            }}
+            onBlur={(e) => {
+              if (espera.current) mandarVolumen(Number(e.currentTarget.value))
             }}
           />
         </div>
@@ -148,7 +209,14 @@ export function MandoPC({ pc, encendido, ahora, ejecutar }: { pc: PC; encendido:
         ) : (
           <div className="mando__grupo">
             {pc.apps.map((app) => (
-              <button key={app} type="button" className="btn btn--secondary mando__boton" disabled={apagado} onClick={() => mandar('abrir_app', app)}>
+              <button
+                key={app}
+                type="button"
+                className="btn btn--secondary mando__boton"
+                disabled={apagado}
+                aria-describedby={apagado ? `${id}-apagado` : undefined}
+                onClick={() => mandar('abrir_app', app)}
+              >
                 {app}
               </button>
             ))}
@@ -157,7 +225,7 @@ export function MandoPC({ pc, encendido, ahora, ejecutar }: { pc: PC; encendido:
       </section>
 
       {ordenes.length > 0 && (
-        <section aria-labelledby={`${id}-ultimas`}>
+        <section aria-labelledby={`${id}-ultimas`} className="stack" style={{ '--gap': 'var(--sp-1)' } as CSSProperties}>
           <h3 id={`${id}-ultimas`} className="t-label">
             Últimas órdenes
           </h3>
