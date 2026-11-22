@@ -42,6 +42,18 @@ export default defineConfig({
         display: 'standalone',
         theme_color: '#f3f6f9',
         background_color: '#f3f6f9',
+        // «Compartir → Mi Panel» en Android: lo recoge public/share-sw.js y lo lleva al Puente
+        share_target: {
+          action: '/compartir',
+          method: 'POST',
+          enctype: 'multipart/form-data',
+          params: {
+            title: 'titulo',
+            text: 'texto',
+            url: 'enlace',
+            files: [{ name: 'archivos', accept: ['*/*'] }],
+          },
+        },
         icons: [
           { src: '/icons/icono-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
           { src: '/icons/icono-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
@@ -54,8 +66,8 @@ export default defineConfig({
         // de la API de Supabase (*.supabase.co) ni de ningún otro origen.
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
         navigateFallback: '/index.html',
-        // Avisos de los recordatorios (public/push-sw.js)
-        importScripts: ['push-sw.js'],
+        // Avisos de los recordatorios (public/push-sw.js) y «Compartir → Mi Panel» (public/share-sw.js)
+        importScripts: ['push-sw.js', 'share-sw.js'],
         cleanupOutdatedCaches: true,
       },
     }),
