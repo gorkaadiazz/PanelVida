@@ -23,14 +23,32 @@ create table public.hogares (
 );
 
 create table public.hogar_miembros (
+  -- Clave propia (y no (hogar_id, user_id)): así un borrado no enseña nunca
+  -- quién estaba en qué hogar.
+  id uuid primary key default gen_random_uuid(),
   hogar_id uuid not null references public.hogares (id) on delete cascade,
   user_id uuid not null references auth.users (id) on delete cascade,
   -- Nombre que ven los demás (el de Google al entrar)
   nombre text not null check (length(nombre) between 1 and 80),
   created_at timestamptz not null default now(),
-  primary key (hogar_id, user_id),
+  unique (hogar_id, user_id),
   unique (user_id) -- cada persona, en un solo hogar
 );
+
+-- Avisos «tu hogar ha cambiado» (entras, sales, te expulsan o cambian los
+-- miembros). Cada uno lee solo los suyos y la app los escucha en tiempo real
+-- filtrando por su user_id: así nadie se entera de lo de otros hogares.
+-- Sin clave foránea a auth.users a propósito: al borrar una cuenta, la
+-- cascada quita su fila de hogar_miembros y el trigger le apunta un aviso a
+-- ese usuario que ya no existe; con la clave foránea fallaría el borrado de
+-- la cuenta. Los avisos se borran solos al día.
+create table public.hogar_avisos (
+  id bigint generated always as identity primary key,
+  user_id uuid not null,
+  created_at timestamptz not null default now()
+);
+create index hogar_avisos_user_idx on public.hogar_avisos (user_id, created_at);
+create index hogar_avisos_fecha_idx on public.hogar_avisos (created_at);
 
 create table public.hogar_invitaciones (
   id uuid primary key default gen_random_uuid(),
@@ -79,7 +97,9 @@ as $$
   select exists (select 1 from public.hogares h where h.id = hogar and h.user_id = auth.uid());
 $$;
 
--- Nombre para enseñar a los demás miembros
+-- Nombre para enseñar a los demás miembros: el de la cuenta de Google
+-- (auth.identities), que el usuario NO puede cambiar. user_metadata sí lo
+-- puede cambiar él mismo (auth.updateUser), así que no se usa. Nunca el email.
 create or replace function public.nombre_de_usuario(usuario uuid)
 returns text
 language sql
@@ -88,11 +108,10 @@ security definer
 set search_path = ''
 as $$
   select left(coalesce(
-    nullif(btrim(u.raw_user_meta_data ->> 'full_name'), ''),
-    nullif(btrim(u.raw_user_meta_data ->> 'name'), ''),
-    nullif(split_part(u.email, '@', 1), ''),
-    'Alguien'), 80)
-  from auth.users u where u.id = usuario;
+    (select nullif(btrim(coalesce(i.identity_data ->> 'full_name', i.identity_data ->> 'name')), '')
+     from auth.identities i where i.user_id = usuario and i.provider = 'google'
+     order by i.created_at limit 1),
+    'Alguien'), 80);
 $$;
 
 revoke execute on function public.es_miembro(uuid) from public, anon;
@@ -117,6 +136,37 @@ $$;
 revoke execute on function public.dueno_entra_en_su_hogar() from public, anon, authenticated;
 create trigger dueno_entra_en_su_hogar after insert on public.hogares
   for each row execute function public.dueno_entra_en_su_hogar();
+
+-- Cada vez que entra o sale alguien, avisa a los afectados: a quien entra o
+-- sale y a los que siguen en el hogar (para que refresquen la lista de miembros)
+create or replace function public.avisar_cambio_de_hogar()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_usuario uuid;
+  v_hogar uuid;
+begin
+  if tg_op = 'DELETE' then
+    v_usuario := old.user_id;
+    v_hogar := old.hogar_id;
+  else
+    v_usuario := new.user_id;
+    v_hogar := new.hogar_id;
+  end if;
+  insert into public.hogar_avisos (user_id)
+  select v_usuario
+  union
+  select m.user_id from public.hogar_miembros m where m.hogar_id = v_hogar;
+  delete from public.hogar_avisos where created_at < now() - interval '1 day';
+  return null;
+end;
+$$;
+revoke execute on function public.avisar_cambio_de_hogar() from public, anon, authenticated;
+create trigger avisar_cambio_de_hogar after insert or delete on public.hogar_miembros
+  for each row execute function public.avisar_cambio_de_hogar();
 
 -- El dueño no cambia
 create or replace function public.hogar_mismo_dueno()
@@ -172,6 +222,12 @@ create policy "mis_invitaciones_delete" on public.hogar_invitaciones
   for delete to authenticated using ((select auth.uid()) = user_id);
 
 alter table public.hogar_intentos enable row level security;
+
+alter table public.hogar_avisos enable row level security;
+create policy "mis_avisos_select" on public.hogar_avisos
+  for select to authenticated using ((select auth.uid()) = user_id);
+revoke all on public.hogar_avisos from anon;
+revoke insert, update, delete, truncate, references, trigger on public.hogar_avisos from authenticated;
 
 revoke all on public.hogares, public.hogar_miembros, public.hogar_invitaciones, public.hogar_intentos from anon;
 revoke all on public.hogar_intentos from authenticated;

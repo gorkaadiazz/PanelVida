@@ -61,6 +61,11 @@ insert into auth.users (id, email, raw_user_meta_data) values
   ('bbbbbbbb-0000-4000-8000-00000000000b', 'casa-b@rls.test', '{"full_name": "Compañero"}'),
   ('ffffffff-0000-4000-8000-00000000000f', 'Casa-F@rls.test', '{"full_name": "Familiar"}');
 insert into public.cuentas_solo_lista (email) values ('casa-f@rls.test');
+-- El nombre que ven los demás miembros sale de la identidad de Google (no de user_metadata)
+insert into auth.identities (user_id, provider, identity_data) values
+  ('aaaaaaaa-0000-4000-8000-00000000000a', 'google', '{"full_name": "Autor"}'),
+  ('bbbbbbbb-0000-4000-8000-00000000000b', 'google', '{"full_name": "Compañero"}'),
+  ('ffffffff-0000-4000-8000-00000000000f', 'google', '{"full_name": "Familiar"}');
 
 -- -----------------------------------------------------------------------------
 -- @caso: puente: B no ve, edita ni borra lo de A, no crea a su nombre y anon no lee
@@ -702,6 +707,211 @@ select pg_temp.comprobar((select veces from public.compra_frecuentes where clave
 select pg_temp.comprobar((select count(*) from public.puente) = 0 and (select count(*) from public.compra_mia) = 0, 'F ve el Puente o Mi lista de A');
 reset role;
 select pg_temp.comprobar(not exists (select 1 from public.compra_frecuentes where user_id = 'aaaaaaaa-0000-4000-8000-00000000000a'), 'cuenta para A lo que marcó F');
+
+-- @caso: familiar (tester): no lee NINGUNA tabla con la política restrictiva, aunque haya filas suyas
+reset role;
+-- Una fila a nombre de F en CADA tabla con la restrictiva (como si las hubiera puesto el administrador)
+insert into public.habitos (id, user_id, nombre) values ('f0000000-0000-4000-8000-0000000000a1', 'ffffffff-0000-4000-8000-00000000000f', 'x');
+insert into public.habito_marcas (user_id, habito_id, fecha) values ('ffffffff-0000-4000-8000-00000000000f', 'f0000000-0000-4000-8000-0000000000a1', '2026-11-22');
+insert into public.tareas (user_id, texto) values ('ffffffff-0000-4000-8000-00000000000f', 'x');
+insert into public.movimientos (user_id, tipo, concepto, importe_centimos, fecha) values ('ffffffff-0000-4000-8000-00000000000f', 'gasto', 'x', 100, '2026-11-22');
+insert into public.movimientos_fijos (user_id, tipo, concepto, importe_centimos, categoria, dia, desde)
+  values ('ffffffff-0000-4000-8000-00000000000f', 'gasto', 'x', 100, 'salud', 5, '2026-11');
+insert into public.traspasos (user_id, sentido, importe_centimos, fecha) values ('ffffffff-0000-4000-8000-00000000000f', 'sacar', 100, '2026-11-22');
+insert into public.revisiones (user_id, tipo, inicio, fin, datos) values ('ffffffff-0000-4000-8000-00000000000f', 'semanal', '2026-11-16', '2026-11-22', '{}');
+insert into public.ideas (user_id, texto) values ('ffffffff-0000-4000-8000-00000000000f', 'x');
+insert into public.cumpleanos (user_id, nombre, dia, mes) values ('ffffffff-0000-4000-8000-00000000000f', 'x', 1, 1);
+insert into public.planes (user_id, titulo) values ('ffffffff-0000-4000-8000-00000000000f', 'x');
+insert into public.deseos (user_id, articulo, precio_centimos) values ('ffffffff-0000-4000-8000-00000000000f', 'x', 100);
+insert into public.clientes_web (user_id, nombre) values ('ffffffff-0000-4000-8000-00000000000f', 'x');
+insert into public.suscripciones_push (user_id, endpoint, p256dh, auth) values ('ffffffff-0000-4000-8000-00000000000f', 'https://push.example/x', repeat('p', 87), repeat('a', 22));
+insert into public.puente (user_id, tipo, contenido) values ('ffffffff-0000-4000-8000-00000000000f', 'texto', 'x');
+-- Si mañana se añade una tabla con la restrictiva, este caso pide añadir aquí su fila
+do $$
+declare t text; filas bigint;
+begin
+  for t in select distinct tablename from pg_policies where schemaname = 'public' and policyname = 'solo_cuentas_normales' loop
+    execute format('select count(*) from public.%I where user_id = %L', t, 'ffffffff-0000-4000-8000-00000000000f') into filas;
+    if filas = 0 then raise exception 'RLS FALLA: falta una fila de F en % para probarla', t; end if;
+  end loop;
+end $$;
+select pg_temp.como('ffffffff-0000-4000-8000-00000000000f');
+do $$
+declare t text; filas bigint;
+begin
+  for t in select distinct tablename from pg_policies where schemaname = 'public' and policyname = 'solo_cuentas_normales' loop
+    begin
+      execute format('select count(*) from public.%I', t) into filas;
+    exception when insufficient_privilege then filas := 0;
+    end;
+    if filas <> 0 then raise exception 'RLS FALLA: el familiar lee % filas de %', filas, t; end if;
+    update resultados set n = n + 1;
+  end loop;
+end $$;
+-- `borrados` la comparte la web de exámenes (sin la restrictiva): F solo ve los de sus filas, nunca los de A
+reset role;
+insert into public.ideas (id, user_id, texto) values ('a0000000-0000-4000-8000-0000000000a9', 'aaaaaaaa-0000-4000-8000-00000000000a', 'de A');
+delete from public.ideas;
+select pg_temp.como('ffffffff-0000-4000-8000-00000000000f');
+select pg_temp.comprobar(not exists (select 1 from public.borrados where fila_id = 'a0000000-0000-4000-8000-0000000000a9')
+  and not exists (select 1 from public.borrados where user_id <> 'ffffffff-0000-4000-8000-00000000000f'), 'el familiar ve borrados de A');
+-- Ni sube nada al Puente (Storage)
+select pg_temp.debe_fallar($q$insert into storage.objects (bucket_id, name, metadata)
+  values ('puente', 'ffffffff-0000-4000-8000-00000000000f/x/f', '{"size": 1}')$q$, array['42501'], 'el familiar sube un archivo al Puente');
+
+-- @caso: mi lista (tester): ni los miembros del mismo hogar ven la Mi lista ni los frecuentes de los demás
+reset role;
+insert into public.hogares (id, user_id) values ('a0000000-0000-4000-8000-0000000000b0', 'aaaaaaaa-0000-4000-8000-00000000000a');
+insert into public.hogar_miembros (hogar_id, user_id, nombre) values ('a0000000-0000-4000-8000-0000000000b0', 'ffffffff-0000-4000-8000-00000000000f', 'Familiar');
+select pg_temp.como('aaaaaaaa-0000-4000-8000-00000000000a');
+insert into public.compra_mia (id, nombre, comprado, comprado_en) values ('a0000000-0000-4000-8000-0000000000c9', 'Regalo para F', true, now());
+select pg_temp.como('ffffffff-0000-4000-8000-00000000000f');
+insert into public.compra_mia (id, nombre) values ('f0000000-0000-4000-8000-0000000000c9', 'Secreto de F');
+select pg_temp.comprobar((select count(*) from public.compra_mia) = 1, 'F ve la Mi lista de otro miembro');
+select pg_temp.comprobar((select count(*) from public.compra_frecuentes) = 0, 'F ve los frecuentes de otro miembro');
+update public.compra_mia set nombre = 'pirata' where id = 'a0000000-0000-4000-8000-0000000000c9';
+delete from public.compra_mia where id = 'a0000000-0000-4000-8000-0000000000c9';
+select pg_temp.debe_fallar($q$insert into public.compra_mia (id, nombre) values ('a0000000-0000-4000-8000-0000000000c9', 'x') on conflict (id) do update set nombre = 'pirata'$q$,
+  array['42501'], 'F pisa con un upsert la Mi lista de otro miembro');
+select pg_temp.como('aaaaaaaa-0000-4000-8000-00000000000a');
+select pg_temp.comprobar((select count(*) from public.compra_mia) = 1 and (select nombre from public.compra_mia) = 'Regalo para F', 'A ve la Mi lista de F o F ha tocado la de A');
+
+-- @caso: lista de casa (tester): un miembro no apunta a nombre de otro, ni en un hogar ajeno, ni cambia quién lo apuntó
+reset role;
+insert into public.hogares (id, user_id) values ('a0000000-0000-4000-8000-0000000000b0', 'aaaaaaaa-0000-4000-8000-00000000000a');
+insert into public.hogares (id, user_id) values ('b0000000-0000-4000-8000-0000000000b0', 'bbbbbbbb-0000-4000-8000-00000000000b');
+insert into public.hogar_miembros (hogar_id, user_id, nombre) values ('a0000000-0000-4000-8000-0000000000b0', 'ffffffff-0000-4000-8000-00000000000f', 'Familiar');
+select pg_temp.como('ffffffff-0000-4000-8000-00000000000f');
+select pg_temp.debe_fallar($q$insert into public.compra_casa (hogar_id, nombre, user_id) values ('a0000000-0000-4000-8000-0000000000b0', 'x', 'aaaaaaaa-0000-4000-8000-00000000000a')$q$,
+  array['42501'], 'F apunta a nombre de A');
+select pg_temp.debe_fallar($q$insert into public.compra_casa (hogar_id, nombre) values ('b0000000-0000-4000-8000-0000000000b0', 'x')$q$,
+  array['42501'], 'F apunta en el hogar de B');
+insert into public.compra_casa (id, hogar_id, nombre) values ('f0000000-0000-4000-8000-0000000000e9', 'a0000000-0000-4000-8000-0000000000b0', 'Pan');
+select pg_temp.como('aaaaaaaa-0000-4000-8000-00000000000a');
+update public.compra_casa set user_id = 'aaaaaaaa-0000-4000-8000-00000000000a', created_at = '2000-01-01' where id = 'f0000000-0000-4000-8000-0000000000e9';
+reset role;
+select pg_temp.comprobar((select user_id from public.compra_casa where id = 'f0000000-0000-4000-8000-0000000000e9') = 'ffffffff-0000-4000-8000-00000000000f'
+  and (select created_at from public.compra_casa where id = 'f0000000-0000-4000-8000-0000000000e9') > '2001-01-01', 'cambia quién lo apuntó o cuándo');
+-- Los borrados de un hogar no se ven desde otro
+select pg_temp.como('bbbbbbbb-0000-4000-8000-00000000000b');
+insert into public.compra_casa (id, hogar_id, nombre) values ('b0000000-0000-4000-8000-0000000000e9', 'b0000000-0000-4000-8000-0000000000b0', 'De B');
+delete from public.compra_casa where id = 'b0000000-0000-4000-8000-0000000000e9';
+select pg_temp.comprobar((select count(*) from public.borrados_hogar) = 1, 'B no ve su borrado');
+select pg_temp.como('ffffffff-0000-4000-8000-00000000000f');
+select pg_temp.comprobar((select count(*) from public.borrados_hogar) = 0, 'F ve los borrados del hogar de B');
+select pg_temp.comprobar((select count(*) from public.compra_casa) = 1, 'F ve la lista de otro hogar');
+-- Una versión antigua (updated_at anterior) de otro miembro no pisa la nueva
+select pg_temp.como('aaaaaaaa-0000-4000-8000-00000000000a');
+update public.compra_casa set cantidad = 'nueva', updated_at = now() + interval '1 hour' where id = 'f0000000-0000-4000-8000-0000000000e9';
+select pg_temp.como('ffffffff-0000-4000-8000-00000000000f');
+insert into public.compra_casa (id, hogar_id, nombre, cantidad, updated_at) values ('f0000000-0000-4000-8000-0000000000e9', 'a0000000-0000-4000-8000-0000000000b0', 'Pan', 'vieja', now())
+  on conflict (id) do update set cantidad = excluded.cantidad, updated_at = excluded.updated_at;
+reset role;
+select pg_temp.comprobar((select cantidad from public.compra_casa where id = 'f0000000-0000-4000-8000-0000000000e9') = 'nueva', 'una versión antigua pisa la nueva');
+
+-- @caso: lista de casa (tester): el expulsado que sube sus cambios pendientes (upsert del motor) recibe un error de RLS y no cambia nada
+reset role;
+insert into public.hogares (id, user_id) values ('a0000000-0000-4000-8000-0000000000b0', 'aaaaaaaa-0000-4000-8000-00000000000a');
+insert into public.hogar_miembros (hogar_id, user_id, nombre) values ('a0000000-0000-4000-8000-0000000000b0', 'ffffffff-0000-4000-8000-00000000000f', 'Familiar');
+select pg_temp.como('aaaaaaaa-0000-4000-8000-00000000000a');
+insert into public.compra_casa (id, hogar_id, nombre) values ('a0000000-0000-4000-8000-0000000000e7', 'a0000000-0000-4000-8000-0000000000b0', 'Leche');
+delete from public.hogar_miembros where user_id = 'ffffffff-0000-4000-8000-00000000000f';
+select pg_temp.como('ffffffff-0000-4000-8000-00000000000f');
+select pg_temp.debe_fallar($q$insert into public.compra_casa (id, hogar_id, nombre, cantidad, updated_at)
+  values ('a0000000-0000-4000-8000-0000000000e7', 'a0000000-0000-4000-8000-0000000000b0', 'Leche', 'venganza', now() + interval '1 day')
+  on conflict (id) do update set cantidad = excluded.cantidad, updated_at = excluded.updated_at$q$, array['42501'], 'el expulsado edita con un upsert');
+select pg_temp.debe_fallar($q$insert into public.compra_casa (hogar_id, nombre) values ('a0000000-0000-4000-8000-0000000000b0', 'nuevo')
+  on conflict (id) do nothing$q$, array['42501'], 'el expulsado apunta con un upsert');
+select pg_temp.comprobar(public.es_miembro('a0000000-0000-4000-8000-0000000000b0') = false, 'es_miembro dice que el expulsado sigue');
+reset role;
+select pg_temp.comprobar((select cantidad from public.compra_casa where id = 'a0000000-0000-4000-8000-0000000000e7') is null
+  and (select count(*) from public.compra_casa) = 1, 'el expulsado ha cambiado la lista');
+
+-- @caso: invitación (tester): un código usado no sirve ni al expulsado ni a otro; caduca justo en su hora; borrar el hogar lo anula
+reset role;
+select pg_temp.como('aaaaaaaa-0000-4000-8000-00000000000a');
+insert into public.hogares (id) values ('a0000000-0000-4000-8000-0000000000b0');
+create temporary table cod as select * from public.crear_invitacion();
+create temporary table cod2 as select * from public.crear_invitacion();
+create temporary table cod3 as select * from public.crear_invitacion();
+grant select on cod, cod2, cod3 to authenticated;
+select pg_temp.como('ffffffff-0000-4000-8000-00000000000f');
+select pg_temp.comprobar(public.unirse_hogar((select codigo from cod)) = 'ok', 'F no entra');
+-- F (miembro, no dueño) no crea ni ve ni anula invitaciones
+select pg_temp.debe_fallar($q$select public.crear_invitacion()$q$, array['42501'], 'un miembro crea invitaciones');
+select pg_temp.comprobar((select count(*) from public.hogar_invitaciones) = 0, 'un miembro ve las invitaciones');
+delete from public.hogar_invitaciones;
+-- Le expulsan y prueba otra vez con el mismo código
+select pg_temp.como('aaaaaaaa-0000-4000-8000-00000000000a');
+select pg_temp.comprobar((select count(*) from public.hogar_invitaciones) = 3, 'un miembro ha anulado invitaciones');
+delete from public.hogar_miembros where user_id = 'ffffffff-0000-4000-8000-00000000000f';
+select pg_temp.como('ffffffff-0000-4000-8000-00000000000f');
+select pg_temp.comprobar(public.unirse_hogar((select codigo from cod)) = 'usado', 'el expulsado vuelve con el código usado');
+-- Caduca justo ahora: ya no vale (caduca_en <= now())
+reset role;
+update public.hogar_invitaciones set caduca_en = now()
+  where codigo_hash = sha256(convert_to(public.normalizar_codigo((select codigo from cod2)), 'UTF8'));
+select pg_temp.como('bbbbbbbb-0000-4000-8000-00000000000b');
+select pg_temp.comprobar(public.unirse_hogar((select codigo from cod2)) = 'caducado', 'un código vale en el instante en que caduca');
+-- A borra el hogar: el último código ya no existe
+select pg_temp.como('aaaaaaaa-0000-4000-8000-00000000000a');
+delete from public.hogares;
+select pg_temp.como('bbbbbbbb-0000-4000-8000-00000000000b');
+select pg_temp.comprobar(public.unirse_hogar((select codigo from cod3)) = 'invalido', 'un código de un hogar borrado sirve');
+reset role;
+select pg_temp.comprobar(not exists (select 1 from public.hogar_miembros), 'alguien ha entrado');
+
+-- @caso: invitación (tester): con el tope de intentos alcanzado ni siquiera un código bueno sirve
+reset role;
+select pg_temp.como('aaaaaaaa-0000-4000-8000-00000000000a');
+insert into public.hogares (id) values ('a0000000-0000-4000-8000-0000000000b0');
+create temporary table cod as select * from public.crear_invitacion();
+grant select on cod to authenticated;
+select pg_temp.como('bbbbbbbb-0000-4000-8000-00000000000b');
+do $$ begin for i in 1..10 loop perform public.unirse_hogar('ZZZZZ-ZZZZ' || i); end loop; end $$;
+select pg_temp.comprobar(public.unirse_hogar((select codigo from cod)) = 'demasiados_intentos', 'el bueno entra tras 10 fallos');
+-- Pasada la hora, sí
+reset role;
+update public.hogar_intentos set cuando = now() - interval '61 minutes';
+select pg_temp.como('bbbbbbbb-0000-4000-8000-00000000000b');
+select pg_temp.comprobar(public.unirse_hogar((select codigo from cod)) = 'ok', 'pasada la hora el código bueno no sirve');
+-- Nadie lee los intentos
+select pg_temp.debe_fallar($q$select * from public.hogar_intentos$q$, array['42501'], 'B lee hogar_intentos');
+
+-- @caso: hogar (tester): las funciones de ayuda no se pueden usar para espiar
+reset role;
+insert into public.hogares (id, user_id) values ('a0000000-0000-4000-8000-0000000000b0', 'aaaaaaaa-0000-4000-8000-00000000000a');
+select pg_temp.como('anon');
+select pg_temp.debe_fallar($q$select public.es_miembro('a0000000-0000-4000-8000-0000000000b0')$q$, array['42501'], 'anon usa es_miembro');
+select pg_temp.como('bbbbbbbb-0000-4000-8000-00000000000b');
+select pg_temp.comprobar(public.es_miembro('a0000000-0000-4000-8000-0000000000b0') = false, 'B es miembro de un hogar ajeno');
+select pg_temp.comprobar(public.es_dueno_hogar('a0000000-0000-4000-8000-0000000000b0') = false, 'B es dueño de un hogar ajeno');
+select pg_temp.debe_fallar($q$select public.nombre_de_usuario('aaaaaaaa-0000-4000-8000-00000000000a')$q$, array['42501'], 'B pregunta el nombre de cualquiera');
+select pg_temp.debe_fallar($q$select public.despues_de_borrar_hogar()$q$, array['42501', '0A000'], 'B llama a una función de trigger');
+select pg_temp.comprobar((select count(*) from public.hogar_avisos) = 0, 'B ve avisos ajenos');
+-- B no se puede apuntar en hogar_miembros ni cambiar su nombre en el hogar de otro
+select pg_temp.debe_fallar($q$update public.hogar_miembros set nombre = 'x'$q$, array['42501'], 'B cambia hogar_miembros');
+select pg_temp.debe_fallar($q$insert into public.hogar_avisos (user_id) values ('aaaaaaaa-0000-4000-8000-00000000000a')$q$, array['42501'], 'B crea avisos');
+
+-- @caso: hogar: se puede borrar la cuenta de un miembro y la del dueño (los avisos no lo impiden)
+reset role;
+select pg_temp.como('aaaaaaaa-0000-4000-8000-00000000000a');
+insert into public.hogares (id) values ('a0000000-0000-4000-8000-0000000000b0');
+create temporary table cod as select * from public.crear_invitacion();
+grant select on cod to authenticated;
+select pg_temp.como('ffffffff-0000-4000-8000-00000000000f');
+select pg_temp.comprobar(public.unirse_hogar((select codigo from cod)) = 'ok', 'F no entra');
+select pg_temp.como('bbbbbbbb-0000-4000-8000-00000000000b');
+select pg_temp.comprobar((select count(*) from public.hogar_avisos) = 0, 'B ve avisos ajenos');
+reset role;
+-- Borrar la cuenta del miembro
+delete from auth.users where id = 'ffffffff-0000-4000-8000-00000000000f';
+select pg_temp.comprobar(not exists (select 1 from public.hogar_miembros where user_id = 'ffffffff-0000-4000-8000-00000000000f'), 'queda el miembro borrado');
+-- Al dueño le llega el aviso de que alguien ha salido
+select pg_temp.comprobar(exists (select 1 from public.hogar_avisos where user_id = 'aaaaaaaa-0000-4000-8000-00000000000a'), 'el dueño no recibe aviso');
+-- Borrar la cuenta del dueño se lleva el hogar
+delete from auth.users where id = 'aaaaaaaa-0000-4000-8000-00000000000a';
+select pg_temp.comprobar(not exists (select 1 from public.hogares) and not exists (select 1 from public.hogar_miembros), 'queda el hogar del dueño borrado');
 
 -- @fin
 rollback;

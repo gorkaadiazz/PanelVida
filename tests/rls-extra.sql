@@ -141,12 +141,12 @@ select pg_temp.comprobar(not exists (
 -- @caso: las tablas con user_id tienen las 4 políticas de authenticated
 reset role;
 -- uso_ia, borrados y compra_frecuentes son de solo lectura a propósito (las escribe el servidor);
--- hogar_miembros, hogar_invitaciones y hogar_intentos se escriben solo con funciones (unirse_hogar, crear_invitacion)
+-- hogar_miembros, hogar_invitaciones, hogar_intentos y hogar_avisos se escriben solo con funciones y triggers
 select pg_temp.comprobar(not exists (
   select 1
   from information_schema.columns col
   where col.table_schema = 'public' and col.column_name = 'user_id'
-    and col.table_name not in ('uso_ia', 'borrados', 'compra_frecuentes', 'hogar_miembros', 'hogar_invitaciones', 'hogar_intentos')
+    and col.table_name not in ('uso_ia', 'borrados', 'compra_frecuentes', 'hogar_miembros', 'hogar_invitaciones', 'hogar_intentos', 'hogar_avisos')
     -- compra_casa tiene sus 4 políticas, pero por miembro del hogar (no por user_id): tests/rls-casa.sql
     and (select count(distinct p.cmd) from pg_policies p
          where p.schemaname = 'public' and p.tablename = col.table_name

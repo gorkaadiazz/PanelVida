@@ -56,6 +56,26 @@ create index borrados_hogar_fila_idx on public.borrados_hogar (tabla, fila_id);
 -- Triggers
 -- -----------------------------------------------------------------------------
 
+-- La regla «gana el updated_at más reciente» se fía de la hora que manda la
+-- app. En una lista COMPARTIDA, alguien podría mandar una fecha del año 9999
+-- y nadie más podría cambiar ese artículo. Se acota a «ahora + 5 minutos»
+-- antes de comparar («acotar…» va antes que «antes_de_guardar»: orden alfabético).
+create or replace function public.acotar_updated_at()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  if new.updated_at > now() + interval '5 minutes' then
+    new.updated_at := now() + interval '5 minutes';
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.acotar_updated_at() from public, anon, authenticated;
+create trigger acotar_updated_at before insert or update on public.compra_casa
+  for each row execute function public.acotar_updated_at();
+
 create trigger antes_de_guardar before insert or update on public.compra_casa
   for each row execute function public.antes_de_guardar();
 
@@ -70,12 +90,12 @@ begin
     new.hogar_id := old.hogar_id;
     if new.comprado and old.comprado then
       new.marcado_por := old.marcado_por;
-      new.comprado_en := coalesce(new.comprado_en, old.comprado_en);
+      new.comprado_en := least(coalesce(new.comprado_en, old.comprado_en), now());
     end if;
   end if;
   if new.comprado and (tg_op = 'INSERT' or not old.comprado) then
     new.marcado_por := auth.uid();
-    new.comprado_en := coalesce(new.comprado_en, now());
+    new.comprado_en := least(coalesce(new.comprado_en, now()), now());
   elsif not new.comprado then
     new.marcado_por := null;
     new.comprado_en := null;
@@ -189,13 +209,23 @@ revoke truncate, references, trigger on public.compra_casa from authenticated;
 revoke insert, update, delete, truncate, references, trigger on public.borrados_hogar from authenticated;
 
 -- -----------------------------------------------------------------------------
--- Realtime: los cambios de los demás llegan al momento (Realtime aplica RLS)
+-- Realtime: los cambios de los demás llegan al momento
+--
+-- Realtime aplica el RLS a INSERT y UPDATE, pero NO a los DELETE (manda la
+-- clave de la fila borrada a todos los suscritos). Por eso la app no escucha
+-- ningún DELETE: se entera de los borrados por los INSERT en borrados_hogar
+-- y en borrados (los del Puente, filtrando por su user_id) y de los cambios
+-- de hogar por hogar_avisos. hogar_miembros no se publica.
 -- -----------------------------------------------------------------------------
 
 do $$
 begin
   if exists (select 1 from pg_publication where pubname = 'supabase_realtime') then
-    execute 'alter publication supabase_realtime add table public.compra_casa, public.borrados_hogar, public.hogar_miembros';
+    execute 'alter publication supabase_realtime add table public.compra_casa, public.borrados_hogar, public.hogar_avisos';
+    -- `borrados` es de la web de exámenes: solo se añade a la publicación (no cambia la tabla)
+    if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'borrados') then
+      execute 'alter publication supabase_realtime add table public.borrados';
+    end if;
   end if;
 end;
 $$;
