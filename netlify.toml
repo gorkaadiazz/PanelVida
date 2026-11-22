@@ -6,6 +6,11 @@
 [build]
   command = "npm run build"
   publish = "dist"
+  # Solo se publica si cambia algo de la web. Si un push solo toca docs,
+  # tests, migraciones, Edge Functions o el agente del PC, Netlify no
+  # construye nada (ahorra deploys del plan gratuito). El comando sale con 0
+  # (= no construir) cuando no hay cambios en estas rutas desde el último deploy.
+  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- src public index.html vite.config.ts package.json package-lock.json tsconfig.json tsconfig.app.json tsconfig.node.json netlify.toml"
 
 [build.environment]
   NODE_VERSION = "24"
