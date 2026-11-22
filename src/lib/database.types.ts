@@ -27,6 +27,78 @@ export type Database = {
   }
   public: {
     Tables: {
+      borrados_hogar: {
+        Row: {
+          fila_id: string
+          hogar_id: string
+          id: number
+          sync_at: string
+          tabla: string
+        }
+        Insert: {
+          fila_id: string
+          hogar_id: string
+          id?: number
+          sync_at?: string
+          tabla: string
+        }
+        Update: {
+          fila_id?: string
+          hogar_id?: string
+          id?: number
+          sync_at?: string
+          tabla?: string
+        }
+        Relationships: []
+      }
+      compra_casa: {
+        Row: {
+          cantidad: string | null
+          comprado: boolean
+          comprado_en: string | null
+          created_at: string
+          hogar_id: string
+          id: string
+          marcado_por: string | null
+          nombre: string
+          notas: string
+          seccion: string | null
+          sync_at: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cantidad?: string | null
+          comprado?: boolean
+          comprado_en?: string | null
+          created_at?: string
+          hogar_id: string
+          id?: string
+          marcado_por?: string | null
+          nombre: string
+          notas?: string
+          seccion?: string | null
+          sync_at?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          cantidad?: string | null
+          comprado?: boolean
+          comprado_en?: string | null
+          created_at?: string
+          hogar_id?: string
+          id?: string
+          marcado_por?: string | null
+          nombre?: string
+          notas?: string
+          seccion?: string | null
+          sync_at?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       hogar_invitaciones: {
         Row: {
           caduca_en: string

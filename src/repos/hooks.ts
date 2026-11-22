@@ -13,7 +13,7 @@ import { listarIdeas, type Idea } from './ideas'
 import { listarMovimientos, type Movimiento } from './movimientos'
 import { obtenerPerfil, type Perfil } from './perfil'
 import { listarPuente, type ElementoPuente } from './puente'
-import { listarMiLista, type ArticuloMio } from './compra'
+import { listarListaCasa, listarMiLista, type ArticuloCasa, type ArticuloMio } from './compra'
 import { listar } from './base'
 import type { Frecuente } from '../lib/compra'
 import { listarPlanes, type Plan } from './planes'
@@ -107,4 +107,9 @@ export function useMiLista(): Consulta<ArticuloMio[]> {
 /** Lo que más se compra (para las sugerencias). */
 export function useFrecuentes(): Consulta<Frecuente[]> {
   return useConsulta(['compra_frecuentes'], () => listar('compra_frecuentes'))
+}
+
+/** La Lista de casa (compartida con el hogar). */
+export function useListaCasa(): Consulta<ArticuloCasa[]> {
+  return useConsulta(['compra_casa'], listarListaCasa)
 }

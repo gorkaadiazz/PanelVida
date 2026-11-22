@@ -71,7 +71,7 @@ afterEach(async () => {
 
 describe('la sesión escucha el tiempo real', () => {
   it('se escucha la tabla puente y un aviso hace que baje lo nuevo sin recargar', async () => {
-    expect(TABLAS_EN_TIEMPO_REAL).toContain('puente')
+    expect(TABLAS_EN_TIEMPO_REAL).toContainEqual({ tabla: 'puente', porUsuario: true })
     iniciarSync('usuario-1')
     await hasta(() => estadoSync().fase === 'sincronizado', 'primera sincronización')
     expect(escucha.llamadas).toBe(1)
@@ -127,7 +127,7 @@ describe('escucharCambios (cliente de mentira)', () => {
   it('escucha todos los eventos de cada tabla en public y avisa sin pasar datos', () => {
     const f = clienteFalso()
     const alCambiar = vi.fn()
-    escucharReal(f.cliente, 'u1', ['puente', 'otra'], alCambiar)
+    escucharReal(f.cliente, 'u1', [{ tabla: 'puente', porUsuario: true }, { tabla: 'otra', porUsuario: true }], alCambiar)
     expect(f.ons.map((o) => [o.evento, o.filtro])).toEqual([
       ['postgres_changes', { event: '*', schema: 'public', table: 'puente', filter: 'user_id=eq.u1' }],
       // Con filtro Realtime no entrega los DELETE: van aparte, sin filtro
@@ -144,7 +144,7 @@ describe('escucharCambios (cliente de mentira)', () => {
   it('al conectarse (o reconectarse) sincroniza; un error de canal no', () => {
     const f = clienteFalso()
     const alCambiar = vi.fn()
-    escucharReal(f.cliente, 'u1', ['puente'], alCambiar)
+    escucharReal(f.cliente, 'u1', [{ tabla: 'puente', porUsuario: true }], alCambiar)
     f.estado('CHANNEL_ERROR')
     f.estado('TIMED_OUT')
     expect(alCambiar).not.toHaveBeenCalled()
@@ -154,8 +154,8 @@ describe('escucharCambios (cliente de mentira)', () => {
 
   it('cada escucha usa un canal con nombre distinto y se puede quitar', () => {
     const f = clienteFalso()
-    const parar = escucharReal(f.cliente, 'u1', ['puente'], () => {})
-    escucharReal(f.cliente, 'u1', ['puente'], () => {})
+    const parar = escucharReal(f.cliente, 'u1', [{ tabla: 'puente', porUsuario: true }], () => {})
+    escucharReal(f.cliente, 'u1', [{ tabla: 'puente', porUsuario: true }], () => {})
     const [n1, n2] = f.cliente.channel.mock.calls.map((c) => (c as unknown[])[0])
     expect(n1).not.toBe(n2)
     parar()

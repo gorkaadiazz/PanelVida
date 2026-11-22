@@ -16,6 +16,8 @@ export interface EstadoHogar {
  */
 export function useHogar(): EstadoHogar {
   const version = useSyncExternalStore(suscribirDatos, () => versionDe([CAMBIO_HOGAR]), () => 0)
+  // El motor avisa cuando cambia el hogar (entras, sales o te expulsan)
+  const cambioEnServidor = useSyncExternalStore(suscribirDatos, () => versionDe(['hogar_sincronizado']), () => 0)
   const [hogar, setHogar] = useState<Hogar | null | undefined>(undefined)
   const [pedir, setPedir] = useState(0)
 
@@ -37,7 +39,7 @@ export function useHogar(): EstadoHogar {
     const alVolver = () => setPedir((n) => n + 1)
     window.addEventListener('online', alVolver)
     return () => window.removeEventListener('online', alVolver)
-  }, [pedir])
+  }, [pedir, cambioEnServidor])
 
   return { hogar, refrescar: () => setPedir((n) => n + 1) }
 }

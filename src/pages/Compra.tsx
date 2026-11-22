@@ -10,8 +10,21 @@ import { PanelHogar, SinHogar } from '../components/GestionHogar'
 import { ListaCompra } from '../components/ListaCompra'
 import { Pagina } from '../components/Pagina'
 import { useAccion } from '../components/useAccion'
-import { apuntarEnMiLista, borrarDeMiLista, editarEnMiLista, marcarEnMiLista, quitarCompradosDeMiLista } from '../repos/compra'
-import { useFrecuentes, useMiLista } from '../repos/hooks'
+import {
+  apuntarEnCasa,
+  apuntarEnMiLista,
+  borrarDeCasa,
+  borrarDeMiLista,
+  editarEnCasa,
+  editarEnMiLista,
+  marcarEnCasa,
+  marcarEnMiLista,
+  quitarCompradosDeCasa,
+  quitarCompradosDeMiLista,
+} from '../repos/compra'
+import { useFrecuentes, useListaCasa, useMiLista } from '../repos/hooks'
+import { nombreDeMiembro } from '../lib/hogar'
+import type { Hogar } from '../repos/hogar'
 import { useHogar } from '../repos/useHogar'
 import { useEstadoSync } from '../sync/hooks'
 
@@ -85,6 +98,40 @@ function ListaDeCasa({ ejecutar }: { ejecutar: Ejecutar }) {
   return (
     <div className="stack">
       <PanelHogar hogar={hogar} yo={usuario?.id ?? ''} ejecutar={ejecutar} />
+      <ArticulosDeCasa hogar={hogar} yo={usuario?.id ?? ''} ejecutar={ejecutar} />
     </div>
+  )
+}
+
+function ArticulosDeCasa({ hogar, yo, ejecutar }: { hogar: Hogar; yo: string; ejecutar: Ejecutar }) {
+  const lista = useListaCasa()
+  const frecuentes = useFrecuentes()
+  const { primeraDescargaHecha } = useEstadoSync()
+  // Solo las de este hogar (por si quedara algo de uno anterior mientras se sincroniza)
+  const articulos = (lista.datos ?? []).filter((a) => a.hogar_id === hogar.id)
+  return (
+    <>
+      {lista.error && <AvisoError mensaje="No se ha podido leer la Lista de casa de este dispositivo. Recarga la página." />}
+      <ListaCompra
+        id="casa"
+        articulos={articulos}
+        frecuentes={frecuentes.datos ?? []}
+        cargando={lista.cargando || (articulos.length === 0 && !primeraDescargaHecha)}
+        ejecutar={ejecutar}
+        apuntar={(d) => apuntarEnCasa(hogar.id, d)}
+        editar={editarEnCasa}
+        marcar={(id, comprado) => marcarEnCasa(id, comprado, yo)}
+        borrar={borrarDeCasa}
+        quitarComprados={quitarCompradosDeCasa}
+        detalle={(a) => {
+          const quien = a.comprado ? nombreDeMiembro(a.marcado_por, hogar.miembros, yo) : null
+          return quien ? `Lo marcó ${quien}` : null
+        }}
+        vacio={{
+          titulo: 'La Lista de casa está vacía',
+          texto: 'Lo que apuntéis aquí lo ve todo el hogar al momento. También funciona sin conexión.',
+        }}
+      />
+    </>
   )
 }

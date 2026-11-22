@@ -31,6 +31,10 @@ export interface Remoto {
   descargar(tabla: string, desde: string | null, desplazamiento: number, limite: number): Promise<FilaRemota[]>
   /** Borrados apuntados después de `desde`, por orden, paginados. */
   descargarBorrados(desde: string, desplazamiento: number, limite: number): Promise<Borrado[]>
+  /** El hogar en el que está el usuario (null si en ninguno). Solo si hay tablas compartidas. */
+  miHogar?(): Promise<string | null>
+  /** Borrados de las tablas compartidas (borrados_hogar), como descargarBorrados. */
+  descargarBorradosHogar?(desde: string, desplazamiento: number, limite: number): Promise<Borrado[]>
 }
 
 /**
@@ -79,6 +83,26 @@ export function crearRemotoSupabase(cliente: unknown): Remoto {
       return (data ?? []) as unknown as FilaRemota[]
     },
 
+    async miHogar() {
+      // Cada persona está como mucho en un hogar, y el RLS solo deja ver los
+      // miembros del propio: cualquier fila dice cuál es.
+      const { data, error } = await api.from('hogar_miembros').select('hogar_id').limit(1)
+      if (error) throw error
+      return (data?.[0]?.hogar_id as string | undefined) ?? null
+    },
+
+    async descargarBorradosHogar(desde, desplazamiento, limite) {
+      const { data, error } = await api
+        .from('borrados_hogar')
+        .select('tabla, fila_id, sync_at')
+        .gt('sync_at', desde)
+        .order('sync_at')
+        .order('id')
+        .range(desplazamiento, desplazamiento + limite - 1)
+      if (error) throw error
+      return (data ?? []) as Borrado[]
+    },
+
     async descargarBorrados(desde, desplazamiento, limite) {
       const { data, error } = await api
         .from('borrados')
@@ -93,8 +117,17 @@ export function crearRemotoSupabase(cliente: unknown): Remoto {
   }
 }
 
-/** Tablas de las que se escuchan los cambios en tiempo real (Supabase Realtime). */
-export const TABLAS_EN_TIEMPO_REAL = ['puente'] as const
+/**
+ * Tablas de las que se escuchan los cambios en tiempo real (Supabase Realtime).
+ * porUsuario: se filtra por user_id (las propias); las del hogar no, porque
+ * las filas son de varios (el RLS de Realtime ya filtra por miembro).
+ */
+export const TABLAS_EN_TIEMPO_REAL: readonly { tabla: string; porUsuario: boolean }[] = [
+  { tabla: 'puente', porUsuario: true },
+  { tabla: 'compra_casa', porUsuario: false },
+  { tabla: 'borrados_hogar', porUsuario: false },
+  { tabla: 'hogar_miembros', porUsuario: false },
+]
 
 /**
  * Escucha en tiempo real los cambios de esas tablas y llama a `alCambiar`
@@ -102,10 +135,19 @@ export const TABLAS_EN_TIEMPO_REAL = ['puente'] as const
  * por el motor y la copia local). Realtime aplica las políticas RLS: cada uno
  * solo recibe avisos de sus filas. Devuelve la función para dejar de escuchar.
  */
-export function escucharCambios(cliente: unknown, usuarioId: string, tablas: readonly string[], alCambiar: () => void): () => void {
+export function escucharCambios(
+  cliente: unknown,
+  usuarioId: string,
+  tablas: readonly { tabla: string; porUsuario: boolean }[],
+  alCambiar: () => void,
+): () => void {
   const api = cliente as SupabaseClient
   let canal = api.channel(`cambios-${crypto.randomUUID()}`)
-  for (const tabla of tablas) {
+  for (const { tabla, porUsuario } of tablas) {
+    if (!porUsuario) {
+      canal = canal.on('postgres_changes', { event: '*', schema: 'public', table: tabla }, () => alCambiar())
+      continue
+    }
     // El filtro por usuario ahorra avisos ajenos. Ojo: Realtime NO aplica RLS
     // a los DELETE (llegan los de todos, solo con el id). No importa porque
     // aquí no se usa lo que llega: solo se sincroniza, y eso sí pasa por RLS.

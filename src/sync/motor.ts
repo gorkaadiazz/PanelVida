@@ -317,8 +317,36 @@ export function crearMotor({ base, remoto, enLinea, tablas = TABLAS }: OpcionesM
     // vaya al día: si no, sus filas antiguas no llegarían nunca.
     const completas = new Set((await base.leerMeta<string[]>('tablas_descargadas')) ?? [])
 
+    // Tablas compartidas con el hogar (Lista de casa): si has entrado en un
+    // hogar, sus filas antiguas tienen un sync_at anterior a la última
+    // descarga y no llegarían nunca; si te han expulsado, el servidor ya no
+    // las devuelve pero seguirían en la copia local. En los dos casos: se
+    // vacían aquí y se vuelven a bajar enteras.
+    const compartidas = tablas.filter((t) => t.compartida).map((t) => t.nombre)
     const fallos = new Map<string, unknown>()
+    const miHogar = remoto.miHogar?.bind(remoto)
+    if (compartidas.length && miHogar) {
+      // Si falla (p. ej. falta la migración), solo se quedan sin bajar las compartidas
+      await aislado(compartidas[0], fallos, async () => {
+        const hogar = await miHogar()
+        comprobar()
+        const anterior = await base.leerMeta<string | null>('hogar_sincronizado')
+        if (anterior === undefined || anterior !== hogar) {
+          await vaciarCompartidas(compartidas)
+          for (const nombre of compartidas) {
+            completas.delete(nombre)
+            cambiadas.add(nombre)
+          }
+          await base.guardarMeta('hogar_sincronizado', hogar)
+          // La pantalla vuelve a preguntar por el hogar (repos/useHogar.ts)
+          avisarCambio(['hogar_sincronizado'], 'remoto')
+        }
+      })
+      for (const nombre of compartidas) if (fallos.has(compartidas[0])) fallos.set(nombre, fallos.get(compartidas[0]))
+    }
+
     for (const def of tablas) {
+      if (fallos.has(def.nombre)) continue
       const desdeTabla = completas.has(def.nombre) ? desde : null
       await aislado(def.nombre, fallos, async () => {
         for (let pos = 0; ; pos += PAGINA_DESCARGA) {
@@ -341,6 +369,20 @@ export function crearMotor({ base, remoto, enLinea, tablas = TABLAS }: OpcionesM
         for (const b of borrados) maxima = masReciente(maxima, b.sync_at)
         if (borrados.length < PAGINA_DESCARGA) break
       }
+    }
+
+    // Borrados de las tablas compartidas (los ven todos los miembros del hogar)
+    const borradosHogar = remoto.descargarBorradosHogar?.bind(remoto)
+    if (desde && compartidas.length && borradosHogar && !fallos.has(compartidas[0])) {
+      await aislado(compartidas[0], fallos, async () => {
+        for (let pos = 0; ; pos += PAGINA_DESCARGA) {
+          const borrados = await borradosHogar(desde, pos, PAGINA_DESCARGA)
+          comprobar()
+          for (const tabla of await aplicarBorrados(borrados.filter((b) => compartidas.includes(b.tabla)))) cambiadas.add(tabla)
+          for (const b of borrados) maxima = masReciente(maxima, b.sync_at)
+          if (borrados.length < PAGINA_DESCARGA) break
+        }
+      })
     }
 
     await base.tx([ALMACEN_META], 'readwrite', (t) => {
@@ -376,6 +418,19 @@ export function crearMotor({ base, remoto, enLinea, tablas = TABLAS }: OpcionesM
         n += 1
       }
       return n
+    })
+  }
+
+  /**
+   * Vacía de la copia local las tablas compartidas y sus cambios pendientes
+   * (al cambiar de hogar ya no se podrían subir: el servidor los rechazaría).
+   */
+  async function vaciarCompartidas(nombres: readonly string[]) {
+    await base.tx([...nombres, ALMACEN_COLA], 'readwrite', async (t) => {
+      for (const nombre of nombres) t.objectStore(nombre).clear()
+      const cola = t.objectStore(ALMACEN_COLA)
+      const pendientes = await pedir<EntradaCola[]>(cola.getAll() as IDBRequest<EntradaCola[]>)
+      for (const p of pendientes) if (nombres.includes(p.tabla)) cola.delete(p.clave)
     })
   }
 

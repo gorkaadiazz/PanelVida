@@ -47,6 +47,12 @@ export interface DefTabla<N extends string = string> {
    * si no, un lote con filas con y sin la columna mandaría NULL.
    */
   porDefecto?: Readonly<Record<string, unknown>>
+  /**
+   * Compartida con el hogar (Lista de casa): sus filas las ven todos los
+   * miembros, sus borrados llegan por `borrados_hogar` y, si cambia el hogar
+   * (entras en uno o te expulsan), se vacía y se vuelve a bajar entera.
+   */
+  compartida?: boolean
 }
 
 export const TABLAS = [
@@ -79,6 +85,13 @@ export const TABLAS = [
   },
   // Fase 9: Lista de la compra privada («Mi lista»). La usan también las cuentas «solo lista».
   { nombre: 'compra_mia', columnas: ['nombre', 'cantidad', 'seccion', 'notas', 'comprado', 'comprado_en'] },
+  // Lista de casa (compartida con el hogar). marcado_por y user_id los pone el servidor.
+  {
+    nombre: 'compra_casa',
+    columnas: ['hogar_id', 'nombre', 'cantidad', 'seccion', 'notas', 'comprado', 'comprado_en'],
+    indices: ['hogar_id'],
+    compartida: true,
+  },
   // Lo que más se compra (lo cuenta un trigger del servidor al marcar comprado): solo se lee, para las sugerencias
   { nombre: 'compra_frecuentes', columnas: ['nombre', 'seccion', 'veces', 'ultima'], soloLectura: true },
   // Fase 8: bandeja de ideas
