@@ -598,5 +598,110 @@ update public.hogares set user_id = 'bbbbbbbb-0000-4000-8000-00000000000b', nomb
 reset role;
 select pg_temp.comprobar((select user_id from public.hogares) = 'aaaaaaaa-0000-4000-8000-00000000000a', 'el dueño ha cambiado');
 
+-- @caso: lista de casa: los miembros la ven y la editan; alguien de fuera no ve nada
+reset role;
+insert into public.hogares (id, user_id) values ('a0000000-0000-4000-8000-0000000000b0', 'aaaaaaaa-0000-4000-8000-00000000000a');
+insert into public.hogar_miembros (hogar_id, user_id, nombre) values ('a0000000-0000-4000-8000-0000000000b0', 'ffffffff-0000-4000-8000-00000000000f', 'Familiar');
+select pg_temp.como('aaaaaaaa-0000-4000-8000-00000000000a');
+insert into public.compra_casa (id, hogar_id, nombre, seccion) values ('a0000000-0000-4000-8000-0000000000e0', 'a0000000-0000-4000-8000-0000000000b0', 'Leche', 'lacteos');
+-- F (familiar, miembro) la ve, la edita y la marca
+select pg_temp.como('ffffffff-0000-4000-8000-00000000000f');
+select pg_temp.comprobar((select count(*) from public.compra_casa) = 1, 'F no ve la lista de casa');
+update public.compra_casa set cantidad = '2 l', comprado = true where id = 'a0000000-0000-4000-8000-0000000000e0';
+insert into public.compra_casa (hogar_id, nombre) values ('a0000000-0000-4000-8000-0000000000b0', 'Pan');
+reset role;
+select pg_temp.comprobar((select cantidad from public.compra_casa where id = 'a0000000-0000-4000-8000-0000000000e0') = '2 l', 'F no puede editar');
+select pg_temp.comprobar((select marcado_por from public.compra_casa where id = 'a0000000-0000-4000-8000-0000000000e0') = 'ffffffff-0000-4000-8000-00000000000f'
+  and (select comprado_en from public.compra_casa where id = 'a0000000-0000-4000-8000-0000000000e0') is not null, 'no queda quién lo marcó');
+select pg_temp.comprobar((select user_id from public.compra_casa where id = 'a0000000-0000-4000-8000-0000000000e0') = 'aaaaaaaa-0000-4000-8000-00000000000a', 'cambia quién lo apuntó');
+-- B (de fuera) no ve ni toca nada, ni puede meter artículos en el hogar
+select pg_temp.como('bbbbbbbb-0000-4000-8000-00000000000b');
+select pg_temp.comprobar((select count(*) from public.compra_casa) = 0, 'B ve la lista de casa');
+update public.compra_casa set nombre = 'pirata';
+delete from public.compra_casa;
+select pg_temp.debe_fallar($q$insert into public.compra_casa (hogar_id, nombre) values ('a0000000-0000-4000-8000-0000000000b0', 'x')$q$, array['42501'], 'B apunta en un hogar ajeno');
+select pg_temp.comprobar((select count(*) from public.borrados_hogar) = 0, 'B ve los borrados del hogar');
+select pg_temp.como('anon');
+select pg_temp.debe_fallar($q$select * from public.compra_casa$q$, array['42501'], 'anon lee la lista de casa');
+reset role;
+select pg_temp.comprobar((select count(*) from public.compra_casa) = 2 and not exists (select 1 from public.compra_casa where nombre = 'pirata'), 'B ha tocado la lista');
+
+-- @caso: lista de casa: marcado_por no se puede falsear ni se puede mover un artículo a otro hogar
+reset role;
+insert into public.hogares (id, user_id) values ('a0000000-0000-4000-8000-0000000000b0', 'aaaaaaaa-0000-4000-8000-00000000000a');
+insert into public.hogares (id, user_id) values ('b0000000-0000-4000-8000-0000000000b0', 'bbbbbbbb-0000-4000-8000-00000000000b');
+insert into public.hogar_miembros (hogar_id, user_id, nombre) values ('a0000000-0000-4000-8000-0000000000b0', 'ffffffff-0000-4000-8000-00000000000f', 'Familiar');
+select pg_temp.como('ffffffff-0000-4000-8000-00000000000f');
+insert into public.compra_casa (id, hogar_id, nombre, comprado, marcado_por)
+  values ('f0000000-0000-4000-8000-0000000000e0', 'a0000000-0000-4000-8000-0000000000b0', 'Sal', true, 'aaaaaaaa-0000-4000-8000-00000000000a');
+update public.compra_casa set hogar_id = 'b0000000-0000-4000-8000-0000000000b0' where id = 'f0000000-0000-4000-8000-0000000000e0';
+reset role;
+select pg_temp.comprobar((select marcado_por from public.compra_casa where id = 'f0000000-0000-4000-8000-0000000000e0') = 'ffffffff-0000-4000-8000-00000000000f', 'se puede falsear marcado_por');
+select pg_temp.comprobar((select hogar_id from public.compra_casa where id = 'f0000000-0000-4000-8000-0000000000e0') = 'a0000000-0000-4000-8000-0000000000b0', 'el artículo cambia de hogar');
+-- Desmarcar borra quién lo marcó
+select pg_temp.como('aaaaaaaa-0000-4000-8000-00000000000a');
+update public.compra_casa set comprado = false where id = 'f0000000-0000-4000-8000-0000000000e0';
+reset role;
+select pg_temp.comprobar((select marcado_por is null and comprado_en is null from public.compra_casa where id = 'f0000000-0000-4000-8000-0000000000e0'), 'desmarcar deja quién lo marcó');
+
+-- @caso: lista de casa: un borrado le llega a todos los miembros (borrados_hogar) y no revive
+reset role;
+insert into public.hogares (id, user_id) values ('a0000000-0000-4000-8000-0000000000b0', 'aaaaaaaa-0000-4000-8000-00000000000a');
+insert into public.hogar_miembros (hogar_id, user_id, nombre) values ('a0000000-0000-4000-8000-0000000000b0', 'ffffffff-0000-4000-8000-00000000000f', 'Familiar');
+select pg_temp.como('aaaaaaaa-0000-4000-8000-00000000000a');
+insert into public.compra_casa (id, hogar_id, nombre) values ('a0000000-0000-4000-8000-0000000000e1', 'a0000000-0000-4000-8000-0000000000b0', 'Huevos');
+-- F borra algo que no es suyo
+select pg_temp.como('ffffffff-0000-4000-8000-00000000000f');
+delete from public.compra_casa where id = 'a0000000-0000-4000-8000-0000000000e1';
+-- A se entera por borrados_hogar (en `borrados` no hay nada: no es de nadie en concreto)
+select pg_temp.como('aaaaaaaa-0000-4000-8000-00000000000a');
+select pg_temp.comprobar(exists (select 1 from public.borrados_hogar where tabla = 'compra_casa' and fila_id = 'a0000000-0000-4000-8000-0000000000e1'), 'A no se entera del borrado');
+-- A, sin conexión, lo había editado: al subirlo no revive
+insert into public.compra_casa (id, hogar_id, nombre) values ('a0000000-0000-4000-8000-0000000000e1', 'a0000000-0000-4000-8000-0000000000b0', 'Huevos (12)')
+  on conflict (id) do update set nombre = excluded.nombre;
+reset role;
+select pg_temp.comprobar(not exists (select 1 from public.compra_casa where id = 'a0000000-0000-4000-8000-0000000000e1'), 'un artículo borrado revive');
+select pg_temp.debe_fallar($q$set local role authenticated; insert into public.borrados_hogar (hogar_id, tabla, fila_id) values ('a0000000-0000-4000-8000-0000000000b0', 'x', gen_random_uuid())$q$,
+  array['42501'], 'un usuario escribe en borrados_hogar');
+
+-- @caso: lista de casa: un expulsado deja de verla al momento, también los borrados; si se borra el hogar se va todo
+reset role;
+insert into public.hogares (id, user_id) values ('a0000000-0000-4000-8000-0000000000b0', 'aaaaaaaa-0000-4000-8000-00000000000a');
+insert into public.hogar_miembros (hogar_id, user_id, nombre) values ('a0000000-0000-4000-8000-0000000000b0', 'ffffffff-0000-4000-8000-00000000000f', 'Familiar');
+select pg_temp.como('ffffffff-0000-4000-8000-00000000000f');
+insert into public.compra_casa (id, hogar_id, nombre) values ('f0000000-0000-4000-8000-0000000000e2', 'a0000000-0000-4000-8000-0000000000b0', 'Lo puso F');
+select pg_temp.como('aaaaaaaa-0000-4000-8000-00000000000a');
+insert into public.compra_casa (id, hogar_id, nombre) values ('a0000000-0000-4000-8000-0000000000e3', 'a0000000-0000-4000-8000-0000000000b0', 'Borrado');
+delete from public.compra_casa where id = 'a0000000-0000-4000-8000-0000000000e3';
+delete from public.hogar_miembros where user_id = 'ffffffff-0000-4000-8000-00000000000f';
+select pg_temp.como('ffffffff-0000-4000-8000-00000000000f');
+select pg_temp.comprobar((select count(*) from public.compra_casa) = 0, 'el expulsado sigue viendo la lista (ni siquiera lo que él puso)');
+select pg_temp.comprobar((select count(*) from public.borrados_hogar) = 0, 'el expulsado sigue viendo los borrados');
+update public.compra_casa set nombre = 'venganza';
+delete from public.compra_casa;
+select pg_temp.debe_fallar($q$insert into public.compra_casa (hogar_id, nombre) values ('a0000000-0000-4000-8000-0000000000b0', 'x')$q$, array['42501'], 'el expulsado apunta');
+reset role;
+select pg_temp.comprobar((select nombre from public.compra_casa where id = 'f0000000-0000-4000-8000-0000000000e2') = 'Lo puso F', 'el expulsado ha tocado la lista');
+-- A borra el hogar: se van la lista y sus borrados
+select pg_temp.como('aaaaaaaa-0000-4000-8000-00000000000a');
+delete from public.hogares where id = 'a0000000-0000-4000-8000-0000000000b0';
+reset role;
+select pg_temp.comprobar(not exists (select 1 from public.compra_casa) and not exists (select 1 from public.borrados_hogar), 'quedan restos del hogar borrado');
+
+-- @caso: lista de casa: marcar cuenta en lo más comprado de quien marca, y un familiar no lee nada más
+reset role;
+insert into public.hogares (id, user_id) values ('a0000000-0000-4000-8000-0000000000b0', 'aaaaaaaa-0000-4000-8000-00000000000a');
+insert into public.hogar_miembros (hogar_id, user_id, nombre) values ('a0000000-0000-4000-8000-0000000000b0', 'ffffffff-0000-4000-8000-00000000000f', 'Familiar');
+insert into public.puente (user_id, tipo, contenido) values ('aaaaaaaa-0000-4000-8000-00000000000a', 'texto', 'secreto de A');
+insert into public.compra_mia (user_id, nombre) values ('aaaaaaaa-0000-4000-8000-00000000000a', 'privado de A');
+select pg_temp.como('aaaaaaaa-0000-4000-8000-00000000000a');
+insert into public.compra_casa (id, hogar_id, nombre) values ('a0000000-0000-4000-8000-0000000000e4', 'a0000000-0000-4000-8000-0000000000b0', 'Arroz');
+select pg_temp.como('ffffffff-0000-4000-8000-00000000000f');
+update public.compra_casa set comprado = true where id = 'a0000000-0000-4000-8000-0000000000e4';
+select pg_temp.comprobar((select veces from public.compra_frecuentes where clave = 'arroz') = 1, 'no cuenta para F');
+select pg_temp.comprobar((select count(*) from public.puente) = 0 and (select count(*) from public.compra_mia) = 0, 'F ve el Puente o Mi lista de A');
+reset role;
+select pg_temp.comprobar(not exists (select 1 from public.compra_frecuentes where user_id = 'aaaaaaaa-0000-4000-8000-00000000000a'), 'cuenta para A lo que marcó F');
+
 -- @fin
 rollback;
