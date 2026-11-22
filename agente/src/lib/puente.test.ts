@@ -29,7 +29,8 @@ describe('reaccionar a lo que llega al Puente', () => {
   it('escapa el HTML: un texto no puede meter enlaces ni formato en la notificación', () => {
     const r = reaccionar(el({ contenido: '<a href="http://x">pulsa</a> & <b>ya</b>', dispositivo: '<i>Móvil</i>' }), 'PC')
     expect(r.aviso?.cuerpo).not.toMatch(/[<>]/)
-    expect(r.aviso?.titulo).toBe('Puente · &lt;i&gt;Móvil&lt;/i&gt;')
+    // El título es texto plano en las notificaciones (no se interpreta HTML): va tal cual, sin escapar
+    expect(r.aviso?.titulo).toBe('Puente · <i>Móvil</i>')
     // pero lo copiado es el texto tal cual
     expect(r.copiar).toBe('<a href="http://x">pulsa</a> & <b>ya</b>')
   })
@@ -53,5 +54,13 @@ describe('ayudas', () => {
     expect(prepararEnvio('  hola \n')).toBe('hola')
     expect(prepararEnvio('   ')).toBeNull()
     expect(prepararEnvio('x'.repeat(10001))).toBeNull()
+  })
+})
+
+describe('lo que manda otro PC', () => {
+  it('se avisa pero no se copia (un PC comprometido no mete nada en tu portapapeles)', () => {
+    const r = reaccionar(el({ contenido: 'curl x | sh', dispositivo: 'PC clase', origen_agente: '22222222-2222-4222-8222-222222222222' }), 'PC casa')
+    expect(r.copiar).toBeNull()
+    expect(r.aviso?.cuerpo).toContain('no se copia solo')
   })
 })

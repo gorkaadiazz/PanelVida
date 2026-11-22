@@ -19,7 +19,15 @@ export async function iniciarServicio(): Promise<void> {
     console.error('Este PC no está vinculado. Ejecuta: mipanel-agente vincular CODIGO')
     process.exit(0) // sin error: systemd no lo reintenta en bucle
   }
-  const config = await cargarConfig()
+  let config
+  try {
+    config = await cargarConfig()
+  } catch (e) {
+    // Un config.json roto no se arregla reintentando: se avisa y se para
+    console.error((e as Error).message)
+    await notificar('Mi Panel', 'El archivo ~/.config/mipanel/config.json no es válido. Corrígelo y reinicia el agente.')
+    process.exit(0)
+  }
   let cliente: SupabaseClient
   try {
     cliente = await conectar(credenciales)
@@ -65,7 +73,14 @@ export async function iniciarServicio(): Promise<void> {
       const fila = cambio.new as Partial<ElementoPuente>
       if (typeof fila.tipo !== 'string' || typeof fila.contenido !== 'string') return
       const r = reaccionar(
-        { id: String(fila.id), tipo: fila.tipo, contenido: fila.contenido, archivo_nombre: fila.archivo_nombre ?? null, dispositivo: String(fila.dispositivo ?? '') },
+        {
+          id: String(fila.id),
+          tipo: fila.tipo,
+          contenido: fila.contenido,
+          archivo_nombre: fila.archivo_nombre ?? null,
+          dispositivo: String(fila.dispositivo ?? ''),
+          origen_agente: fila.origen_agente ?? null,
+        },
         nombre,
       )
       void (async () => {

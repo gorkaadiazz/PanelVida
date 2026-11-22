@@ -14,7 +14,8 @@ export async function conectar(c: Credenciales): Promise<SupabaseClient> {
   const { error } = await cliente.auth.signInWithPassword({ email: c.email, password: c.password })
   if (error) {
     // Credenciales que ya no valen: lo han desvinculado desde la app
-    if (error.status === 400 || /invalid login/i.test(error.message)) throw new Desvinculado('Este PC ya no está vinculado.')
+    // (solo con ese código: otro 400, p. ej. el proveedor Email desactivado, es un fallo de configuración)
+    if (error.code === 'invalid_credentials') throw new Desvinculado('Este PC ya no está vinculado.')
     throw error
   }
   return cliente

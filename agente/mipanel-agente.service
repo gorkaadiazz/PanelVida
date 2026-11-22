@@ -17,6 +17,10 @@ RestartSec=30
 # Lo que cree, solo para ti; y sin poder ganar privilegios (setuid…)
 UMask=0077
 NoNewPrivileges=yes
+# Topes por si algo se disparara (normalmente usa ~80 MB y casi nada de CPU)
+MemoryHigh=150M
+MemoryMax=200M
+CPUQuota=20%
 
 [Install]
 WantedBy=graphical-session.target

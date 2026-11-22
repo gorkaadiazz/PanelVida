@@ -98,7 +98,7 @@ export function leerCredenciales(json: unknown): Credenciales | null {
   if (typeof json !== 'object' || json === null) return null
   const d = json as Record<string, unknown>
   if (!esUrlSupabase(d.supabaseUrl) || !esTexto(d.anonKey) || !esTexto(d.email) || !esTexto(d.password) || !esTexto(d.agenteId) || !esTexto(d.nombre)) return null
-  if (!/^[0-9a-f-]{36}$/i.test(d.agenteId) || d.password.length < 20 || !d.email.endsWith('@agente.invalid')) return null
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(d.agenteId) || d.password.length < 20 || !d.email.endsWith('@agente.invalid')) return null
   return { supabaseUrl: d.supabaseUrl, anonKey: d.anonKey, email: d.email, password: d.password, agenteId: d.agenteId, nombre: d.nombre }
 }
 
