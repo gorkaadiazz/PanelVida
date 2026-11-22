@@ -54,10 +54,13 @@ end;
 $$;
 
 -- A = el autor, B = otra persona
-insert into public.emails_permitidos (email) values ('casa-a@rls.test'), ('casa-b@rls.test');
-insert into auth.users (id, email) values
-  ('aaaaaaaa-0000-4000-8000-00000000000a', 'casa-a@rls.test'),
-  ('bbbbbbbb-0000-4000-8000-00000000000b', 'casa-b@rls.test');
+-- F = un familiar (cuenta «solo lista»)
+insert into public.emails_permitidos (email) values ('casa-a@rls.test'), ('casa-b@rls.test'), ('casa-f@rls.test');
+insert into auth.users (id, email, raw_user_meta_data) values
+  ('aaaaaaaa-0000-4000-8000-00000000000a', 'casa-a@rls.test', '{"full_name": "Autor"}'),
+  ('bbbbbbbb-0000-4000-8000-00000000000b', 'casa-b@rls.test', '{"full_name": "Compañero"}'),
+  ('ffffffff-0000-4000-8000-00000000000f', 'Casa-F@rls.test', '{"full_name": "Familiar"}');
+insert into public.cuentas_solo_lista (email) values ('casa-f@rls.test');
 
 -- -----------------------------------------------------------------------------
 -- @caso: puente: B no ve, edita ni borra lo de A, no crea a su nombre y anon no lee
@@ -409,6 +412,97 @@ insert into public.puente (id, tipo, archivo_ruta, archivo_nombre, archivo_bytes
 select pg_temp.debe_fallar($q$insert into storage.objects (bucket_id, name, metadata)
   values ('puente', 'aaaaaaaa-0000-4000-8000-00000000000a/a0000000-0000-4000-8000-0000000000fb/f', '{"size": 10}')$q$,
   array['42501'], 'subir con el bucket lleno');
+
+-- @caso: cuentas: tipo_cuenta distingue la cuenta normal de la «solo lista» (sin mirar mayúsculas) y nadie lee la lista de familiares
+reset role;
+select pg_temp.como('aaaaaaaa-0000-4000-8000-00000000000a');
+select pg_temp.comprobar(public.tipo_cuenta() = 'normal', 'A no es normal');
+select pg_temp.debe_fallar($q$select * from public.cuentas_solo_lista$q$, array['42501'], 'A lee cuentas_solo_lista');
+select pg_temp.debe_fallar($q$insert into public.cuentas_solo_lista (email) values ('yo@x.es')$q$, array['42501'], 'A se apunta a cuentas_solo_lista');
+select pg_temp.como('ffffffff-0000-4000-8000-00000000000f');
+select pg_temp.comprobar(public.tipo_cuenta() = 'solo_lista', 'F no es solo lista');
+select pg_temp.debe_fallar($q$delete from public.cuentas_solo_lista$q$, array['42501'], 'F se quita de cuentas_solo_lista');
+select pg_temp.como('anon');
+select pg_temp.debe_fallar($q$select public.tipo_cuenta()$q$, array['42501'], 'anon pregunta tipo_cuenta');
+
+-- @caso: familiar: no puede leer ni escribir ninguna otra tabla de Mi Panel
+reset role;
+-- Aunque hubiera filas suyas (puestas por el administrador), no las ve
+insert into public.habitos (user_id, nombre) values ('ffffffff-0000-4000-8000-00000000000f', 'de F');
+insert into public.tareas (user_id, texto) values ('ffffffff-0000-4000-8000-00000000000f', 'de F');
+select pg_temp.como('ffffffff-0000-4000-8000-00000000000f');
+select pg_temp.comprobar((select count(*) from public.habitos) = 0 and (select count(*) from public.tareas) = 0, 'F ve hábitos o tareas');
+select pg_temp.debe_fallar($q$insert into public.habitos (nombre) values ('x')$q$, array['42501'], 'F crea un hábito');
+select pg_temp.debe_fallar($q$insert into public.tareas (texto) values ('x')$q$, array['42501'], 'F crea una tarea');
+select pg_temp.debe_fallar($q$insert into public.movimientos (tipo, concepto, importe_centimos, fecha) values ('gasto', 'x', 100, '2026-11-22')$q$, array['42501'], 'F apunta un gasto');
+select pg_temp.debe_fallar($q$insert into public.puente (tipo, contenido) values ('texto', 'x')$q$, array['42501'], 'F usa el Puente');
+select pg_temp.debe_fallar($q$insert into public.ideas (texto) values ('x')$q$, array['42501'], 'F apunta una idea');
+-- Todas las tablas de Mi Panel tienen la política restrictiva
+reset role;
+select pg_temp.comprobar((select count(*) from pg_policies where schemaname = 'public' and policyname = 'solo_cuentas_normales'
+  and permissive = 'RESTRICTIVE') = 14, 'falta la política solo_cuentas_normales en alguna tabla');
+-- Y ninguna tabla de Mi Panel con RLS se queda sin ella, salvo las de la compra y las de la web de exámenes
+select pg_temp.comprobar(not exists (
+  select 1 from pg_tables t
+  where t.schemaname = 'public' and t.rowsecurity
+    and t.tablename not in ('compra_mia', 'emails_permitidos', 'cuentas_solo_lista', 'borrados', 'perfiles', 'modulos', 'resultados_aprendizaje',
+      'evaluaciones', 'evaluacion_ra', 'temas', 'archivos', 'chuletas', 'faltas', 'fe_registros', 'examenes_ia', 'flashcards', 'pomodoro_sesiones', 'uso_ia')
+    and t.tablename not like 'hogar%' and t.tablename not like 'compra_%' and t.tablename not like 'borrados_%'
+    and not exists (select 1 from pg_policies p where p.tablename = t.tablename and p.policyname = 'solo_cuentas_normales')),
+  'una tabla nueva de Mi Panel sin la política restrictiva');
+
+-- @caso: familiar: inicializar_cuenta no le crea nada; a una cuenta normal sí
+reset role;
+select pg_temp.como('ffffffff-0000-4000-8000-00000000000f');
+select pg_temp.comprobar(public.inicializar_cuenta() = false, 'inicializar_cuenta crea algo a F');
+reset role;
+select pg_temp.comprobar(not exists (select 1 from public.perfiles where user_id = 'ffffffff-0000-4000-8000-00000000000f')
+  and not exists (select 1 from public.modulos where user_id = 'ffffffff-0000-4000-8000-00000000000f'), 'F tiene perfil o módulos');
+select pg_temp.como('bbbbbbbb-0000-4000-8000-00000000000b');
+select pg_temp.comprobar(public.inicializar_cuenta() = true, 'B no se inicializa');
+
+-- @caso: mi lista: es privada (nadie más la ve ni la toca) y el familiar la puede usar
+reset role;
+select pg_temp.como('ffffffff-0000-4000-8000-00000000000f');
+insert into public.compra_mia (id, nombre, cantidad, seccion) values ('f0000000-0000-4000-8000-0000000000c1', 'Leche', '2 l', 'lacteos');
+update public.compra_mia set comprado = true, comprado_en = now() where id = 'f0000000-0000-4000-8000-0000000000c1';
+select pg_temp.como('aaaaaaaa-0000-4000-8000-00000000000a');
+insert into public.compra_mia (id, nombre) values ('a0000000-0000-4000-8000-0000000000c1', 'Pan');
+select pg_temp.comprobar((select count(*) from public.compra_mia) = 1, 'A ve la lista de F');
+update public.compra_mia set nombre = 'pirata' where id = 'f0000000-0000-4000-8000-0000000000c1';
+delete from public.compra_mia where id = 'f0000000-0000-4000-8000-0000000000c1';
+select pg_temp.debe_fallar($q$insert into public.compra_mia (nombre, user_id) values ('x', 'ffffffff-0000-4000-8000-00000000000f')$q$, array['42501'], 'A escribe en la lista de F');
+select pg_temp.como('anon');
+select pg_temp.debe_fallar($q$select * from public.compra_mia$q$, array['42501'], 'anon lee la lista');
+reset role;
+select pg_temp.comprobar((select nombre from public.compra_mia where id = 'f0000000-0000-4000-8000-0000000000c1') = 'Leche', 'A ha tocado la lista de F');
+
+-- @caso: mi lista: nombre obligatorio, sección de la lista, comprado_en solo si está comprado
+reset role;
+select pg_temp.como('aaaaaaaa-0000-4000-8000-00000000000a');
+select pg_temp.debe_fallar($q$insert into public.compra_mia (nombre) values ('  ')$q$, array['23514'], 'nombre vacío');
+select pg_temp.debe_fallar($q$insert into public.compra_mia (nombre, seccion) values ('x', 'joyeria')$q$, array['23514'], 'sección fuera de la lista');
+select pg_temp.debe_fallar($q$insert into public.compra_mia (nombre, comprado_en) values ('x', now())$q$, array['23514'], 'comprado_en sin comprar');
+select pg_temp.debe_fallar($q$insert into public.compra_mia (nombre, cantidad) values ('x', '')$q$, array['23514'], 'cantidad vacía (debe ser null)');
+insert into public.compra_mia (nombre, cantidad, seccion, notas) values ('Manzanas', '1 kg', 'fruta_verdura', 'de las rojas');
+
+-- @caso: frecuentes: marcar como comprado lo cuenta a nombre de quien marca; solo se lee, y solo lo propio
+reset role;
+select pg_temp.como('aaaaaaaa-0000-4000-8000-00000000000a');
+insert into public.compra_mia (id, nombre, seccion) values ('a0000000-0000-4000-8000-0000000000d1', 'Plátanos', 'fruta_verdura');
+select pg_temp.comprobar((select count(*) from public.compra_frecuentes) = 0, 'cuenta algo sin comprar');
+update public.compra_mia set comprado = true, comprado_en = now() where id = 'a0000000-0000-4000-8000-0000000000d1';
+-- desmarcar y volver a marcar cuenta otra vez; editar el nombre de algo ya comprado no
+update public.compra_mia set comprado = false, comprado_en = null where id = 'a0000000-0000-4000-8000-0000000000d1';
+update public.compra_mia set comprado = true, comprado_en = now() where id = 'a0000000-0000-4000-8000-0000000000d1';
+update public.compra_mia set notas = 'x' where id = 'a0000000-0000-4000-8000-0000000000d1';
+insert into public.compra_mia (nombre, comprado, comprado_en) values ('  PLATANOS ', true, now());
+select pg_temp.comprobar((select veces from public.compra_frecuentes where clave = 'platanos') = 3, 'no cuenta 3 veces los plátanos');
+select pg_temp.comprobar((select seccion from public.compra_frecuentes where clave = 'platanos') = 'fruta_verdura', 'pierde la sección');
+select pg_temp.debe_fallar($q$insert into public.compra_frecuentes (clave, nombre) values ('x', 'x')$q$, array['42501'], 'A escribe en frecuentes');
+select pg_temp.debe_fallar($q$update public.compra_frecuentes set veces = 999$q$, array['42501'], 'A cambia frecuentes');
+select pg_temp.como('bbbbbbbb-0000-4000-8000-00000000000b');
+select pg_temp.comprobar((select count(*) from public.compra_frecuentes) = 0, 'B ve los frecuentes de A');
 
 -- @fin
 rollback;

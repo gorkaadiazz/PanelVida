@@ -140,12 +140,12 @@ select pg_temp.comprobar(not exists (
 
 -- @caso: las tablas con user_id tienen las 4 políticas de authenticated
 reset role;
--- uso_ia y borrados son de solo lectura a propósito (las escribe el servidor)
+-- uso_ia, borrados y compra_frecuentes son de solo lectura a propósito (las escribe el servidor)
 select pg_temp.comprobar(not exists (
   select 1
   from information_schema.columns col
   where col.table_schema = 'public' and col.column_name = 'user_id'
-    and col.table_name not in ('uso_ia', 'borrados')
+    and col.table_name not in ('uso_ia', 'borrados', 'compra_frecuentes')
     and (select count(distinct p.cmd) from pg_policies p
          where p.schemaname = 'public' and p.tablename = col.table_name
            and p.cmd in ('SELECT', 'INSERT', 'UPDATE', 'DELETE')
@@ -1102,9 +1102,9 @@ select pg_temp.comprobar(not exists (select 1 from public.ideas where id = 'a000
   and not exists (select 1 from public.tareas where id = 'a0000000-0000-4000-8000-000000000c02')
   and not exists (select 1 from public.cumpleanos where id = 'a0000000-0000-4000-8000-000000000c03'),
   'una fila borrada ha vuelto a aparecer');
--- Y las tablas de Mi Panel lo tienen todas (13 con puente, fase 9)
+-- Y las tablas de Mi Panel lo tienen todas (14 con puente y compra_mia, fase 9)
 select pg_temp.comprobar((select count(distinct event_object_table) from information_schema.triggers
-  where trigger_schema = 'public' and trigger_name = 'no_revivir_borrado') = 13, 'falta no_revivir_borrado en alguna tabla');
+  where trigger_schema = 'public' and trigger_name = 'no_revivir_borrado') = 14, 'falta no_revivir_borrado en alguna tabla');
 
 -- @caso: borrar un usuario de auth.users borra en cascada todas sus filas
 reset role;
