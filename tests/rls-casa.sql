@@ -453,6 +453,8 @@ select pg_temp.comprobar(not exists (
     and t.tablename not in ('compra_mia', 'emails_permitidos', 'cuentas_solo_lista', 'borrados', 'perfiles', 'modulos', 'resultados_aprendizaje',
       'evaluaciones', 'evaluacion_ra', 'temas', 'archivos', 'chuletas', 'faltas', 'fe_registros', 'examenes_ia', 'flashcards', 'pomodoro_sesiones', 'uso_ia')
     and t.tablename not like 'hogar%' and t.tablename not like 'compra_%' and t.tablename not like 'borrados_%'
+    -- del agente: agentes (cada agente lee su fila), codigos_vinculacion (su propia restrictiva) y vinculacion_intentos (nadie)
+    and t.tablename not in ('agentes', 'codigos_vinculacion', 'vinculacion_intentos')
     and not exists (select 1 from pg_policies p where p.tablename = t.tablename and p.policyname = 'solo_cuentas_normales')),
   'una tabla nueva de Mi Panel sin la política restrictiva');
 
@@ -912,6 +914,119 @@ select pg_temp.comprobar(exists (select 1 from public.hogar_avisos where user_id
 -- Borrar la cuenta del dueño se lleva el hogar
 delete from auth.users where id = 'aaaaaaaa-0000-4000-8000-00000000000a';
 select pg_temp.comprobar(not exists (select 1 from public.hogares) and not exists (select 1 from public.hogar_miembros), 'queda el hogar del dueño borrado');
+
+-- @caso: agente: no lee ninguna tabla de Mi Panel ni de la compra; solo su fila y el Puente de su dueño
+reset role;
+-- Como la Edge Function: su email se permite justo para crearlo y se quita después
+insert into public.emails_permitidos (email) values ('agente-1@agente.invalid');
+insert into auth.users (id, email, raw_app_meta_data) values ('99999999-0000-4000-8000-000000000009', 'agente-1@agente.invalid', '{"tipo": "agente"}');
+delete from public.emails_permitidos where email = 'agente-1@agente.invalid';
+insert into public.agentes (id, user_id, nombre) values ('99999999-0000-4000-8000-000000000009', 'aaaaaaaa-0000-4000-8000-00000000000a', 'PC casa');
+insert into public.habitos (user_id, nombre) values ('aaaaaaaa-0000-4000-8000-00000000000a', 'de A');
+insert into public.tareas (user_id, texto) values ('aaaaaaaa-0000-4000-8000-00000000000a', 'de A');
+insert into public.movimientos (user_id, tipo, concepto, importe_centimos, fecha) values ('aaaaaaaa-0000-4000-8000-00000000000a', 'gasto', 'x', 100, '2026-11-22');
+insert into public.compra_mia (user_id, nombre) values ('aaaaaaaa-0000-4000-8000-00000000000a', 'de A');
+insert into public.puente (user_id, tipo, contenido) values ('aaaaaaaa-0000-4000-8000-00000000000a', 'texto', 'para el PC');
+insert into public.puente (user_id, tipo, contenido) values ('bbbbbbbb-0000-4000-8000-00000000000b', 'texto', 'de B');
+insert into public.agentes (id, user_id, nombre) select '88888888-0000-4000-8000-000000000008', 'bbbbbbbb-0000-4000-8000-00000000000b', 'PC de B'
+  where false; -- (solo para documentar: otro agente sería de otro dueño)
+select pg_temp.como('99999999-0000-4000-8000-000000000009');
+select pg_temp.comprobar(public.tipo_cuenta() = 'agente', 'no es agente');
+select pg_temp.comprobar((select count(*) from public.habitos) = 0 and (select count(*) from public.tareas) = 0
+  and (select count(*) from public.movimientos) = 0 and (select count(*) from public.compra_mia) = 0, 'el agente lee datos de su dueño');
+select pg_temp.comprobar((select array_agg(contenido) from public.puente) = array['para el PC'], 'el agente no ve solo el Puente de su dueño');
+select pg_temp.comprobar((select count(*) from public.agentes) = 1, 'el agente no ve solo su fila');
+select pg_temp.debe_fallar($q$insert into public.puente (tipo, contenido, user_id) values ('texto', 'x', 'aaaaaaaa-0000-4000-8000-00000000000a')$q$, array['42501'], 'el agente escribe en el Puente directamente');
+update public.puente set contenido = 'cambiado';
+delete from public.puente;
+select pg_temp.debe_fallar($q$insert into public.tareas (texto) values ('x')$q$, array['42501'], 'el agente crea tareas');
+select pg_temp.debe_fallar($q$insert into public.compra_mia (nombre) values ('x')$q$, array['42501'], 'el agente usa la lista');
+select pg_temp.debe_fallar($q$insert into public.hogares (nombre) values ('x')$q$, array['42501'], 'el agente crea un hogar');
+-- Su fila no la puede tocar (ni el nombre ni el latido) salvo con agente_latido
+select pg_temp.debe_fallar($q$update public.agentes set ultimo_latido = now() + interval '1 year'$q$, array['42501'], 'el agente falsea su latido');
+update public.agentes set nombre = 'otro';
+select pg_temp.debe_fallar($q$select public.crear_codigo_vinculacion()$q$, array['42501'], 'el agente vincula otro PC');
+reset role;
+select pg_temp.comprobar((select contenido from public.puente where user_id = 'aaaaaaaa-0000-4000-8000-00000000000a') = 'para el PC', 'el agente ha tocado el Puente');
+select pg_temp.comprobar((select nombre from public.agentes) = 'PC casa' and (select ultimo_latido from public.agentes) is null, 'el agente ha cambiado su fila');
+
+-- @caso: agente: latido y mandar al Puente solo con sus funciones; desvincular le quita todo al momento
+reset role;
+-- Como la Edge Function: su email se permite justo para crearlo y se quita después
+insert into public.emails_permitidos (email) values ('agente-1@agente.invalid');
+insert into auth.users (id, email, raw_app_meta_data) values ('99999999-0000-4000-8000-000000000009', 'agente-1@agente.invalid', '{"tipo": "agente"}');
+delete from public.emails_permitidos where email = 'agente-1@agente.invalid';
+insert into public.agentes (id, user_id, nombre) values ('99999999-0000-4000-8000-000000000009', 'aaaaaaaa-0000-4000-8000-00000000000a', 'PC casa');
+select pg_temp.como('99999999-0000-4000-8000-000000000009');
+select public.agente_latido(array['Firefox', ' Steam ', '', E'mal\nnombre'], '0.1.0');
+select public.agente_enviar_puente('  https://ejemplo.com/x  ');
+select public.agente_enviar_puente(E'linea 1\nlinea 2');
+select pg_temp.debe_fallar($q$select public.agente_enviar_puente('   ')$q$, array['23514'], 'mandar vacío');
+reset role;
+select pg_temp.comprobar((select apps from public.agentes) = array['Firefox', 'Steam'] and (select ultimo_latido from public.agentes) is not null, 'el latido no guarda bien');
+select pg_temp.comprobar((select count(*) from public.puente where user_id = 'aaaaaaaa-0000-4000-8000-00000000000a' and dispositivo = 'PC casa') = 2
+  and exists (select 1 from public.puente where tipo = 'enlace' and contenido = 'https://ejemplo.com/x'), 'agente_enviar_puente no manda bien');
+-- Una cuenta normal no puede usar las funciones del agente
+select pg_temp.como('aaaaaaaa-0000-4000-8000-00000000000a');
+select pg_temp.debe_fallar($q$select public.agente_latido('{}', null)$q$, array['42501'], 'una cuenta normal usa agente_latido');
+select pg_temp.debe_fallar($q$select public.agente_enviar_puente('x')$q$, array['42501'], 'una cuenta normal usa agente_enviar_puente');
+-- El dueño lo desvincula (borra la fila): al momento, el agente ya no ve ni hace nada, y sigue sin ser cuenta normal
+delete from public.agentes where id = '99999999-0000-4000-8000-000000000009';
+select pg_temp.como('99999999-0000-4000-8000-000000000009');
+select pg_temp.comprobar(public.tipo_cuenta() = 'agente', 'un agente desvinculado pasa a ser cuenta normal');
+select pg_temp.comprobar((select count(*) from public.puente) = 0, 'el agente desvinculado sigue viendo el Puente');
+select pg_temp.debe_fallar($q$select public.agente_latido('{}', null)$q$, array['42501'], 'el agente desvinculado manda latidos');
+select pg_temp.debe_fallar($q$select public.agente_enviar_puente('x')$q$, array['42501'], 'el agente desvinculado manda al Puente');
+select pg_temp.debe_fallar($q$insert into public.tareas (texto) values ('x')$q$, array['42501'], 'el agente desvinculado crea tareas');
+
+-- @caso: agentes: el dueño ve y renombra sus PC; nadie más los ve; nadie los crea desde la app
+reset role;
+-- Como la Edge Function: su email se permite justo para crearlo y se quita después
+insert into public.emails_permitidos (email) values ('agente-1@agente.invalid');
+insert into auth.users (id, email, raw_app_meta_data) values ('99999999-0000-4000-8000-000000000009', 'agente-1@agente.invalid', '{"tipo": "agente"}');
+delete from public.emails_permitidos where email = 'agente-1@agente.invalid';
+insert into public.agentes (id, user_id, nombre) values ('99999999-0000-4000-8000-000000000009', 'aaaaaaaa-0000-4000-8000-00000000000a', 'PC casa');
+select pg_temp.como('aaaaaaaa-0000-4000-8000-00000000000a');
+update public.agentes set nombre = 'Sobremesa';
+select pg_temp.debe_fallar($q$update public.agentes set ultimo_latido = now()$q$, array['42501'], 'el dueño falsea el latido');
+select pg_temp.debe_fallar($q$update public.agentes set user_id = 'bbbbbbbb-0000-4000-8000-00000000000b'$q$, array['42501'], 'el dueño regala su PC');
+select pg_temp.debe_fallar($q$insert into public.agentes (id, user_id, nombre) values ('bbbbbbbb-0000-4000-8000-00000000000b', 'aaaaaaaa-0000-4000-8000-00000000000a', 'x')$q$, array['42501'], 'crear un agente desde la app');
+select pg_temp.como('bbbbbbbb-0000-4000-8000-00000000000b');
+select pg_temp.comprobar((select count(*) from public.agentes) = 0, 'B ve los PC de A');
+delete from public.agentes;
+select pg_temp.como('ffffffff-0000-4000-8000-00000000000f');
+select pg_temp.debe_fallar($q$select public.crear_codigo_vinculacion()$q$, array['42501'], 'un familiar vincula un PC');
+reset role;
+select pg_temp.comprobar((select nombre from public.agentes) = 'Sobremesa', 'el dueño no puede renombrar o B ha borrado');
+
+-- @caso: vincular: código de un solo uso que caduca en 10 minutos; solo la service role lo gasta; tope de intentos
+reset role;
+select pg_temp.como('aaaaaaaa-0000-4000-8000-00000000000a');
+create temporary table cv as select * from public.crear_codigo_vinculacion();
+grant select on cv to authenticated, service_role;
+select pg_temp.comprobar((select codigo from cv) ~ '^[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$', 'formato del código');
+select pg_temp.comprobar((select caduca_en from cv) between now() + interval '9 minutes' and now() + interval '11 minutes', 'no caduca en 10 minutos');
+select pg_temp.debe_fallar($q$select codigo_hash from public.codigos_vinculacion$q$, array['42501'], 'leer el hash');
+select pg_temp.debe_fallar($q$select public.usar_codigo_vinculacion((select codigo from cv))$q$, array['42501'], 'un usuario gasta el código');
+select public.crear_codigo_vinculacion(); select public.crear_codigo_vinculacion();
+select pg_temp.debe_fallar($q$select public.crear_codigo_vinculacion()$q$, array['23514'], 'un cuarto código activo');
+select pg_temp.como('service');
+select pg_temp.comprobar(public.usar_codigo_vinculacion(lower((select codigo from cv))) = 'aaaaaaaa-0000-4000-8000-00000000000a', 'el código no sirve');
+select pg_temp.comprobar(public.usar_codigo_vinculacion((select codigo from cv)) is null, 'el código sirve dos veces');
+reset role;
+select pg_temp.como('aaaaaaaa-0000-4000-8000-00000000000a');
+create temporary table cv2 as select * from public.crear_codigo_vinculacion();
+grant select on cv2 to service_role;
+reset role;
+update public.codigos_vinculacion set caduca_en = now() - interval '1 second' where usado_en is null;
+select pg_temp.como('service');
+select pg_temp.comprobar(public.usar_codigo_vinculacion((select codigo from cv2)) is null, 'un código caducado sirve');
+do $$ begin for i in 1..30 loop perform public.usar_codigo_vinculacion('ZZZZZZZ' || i); end loop; end $$;
+reset role;
+update public.codigos_vinculacion set caduca_en = now() + interval '5 minutes' where id = (select id from public.codigos_vinculacion where usado_en is null limit 1);
+-- con 30 fallos en 10 minutos, nada sirve (ni un código bueno)
+select pg_temp.como('service');
+select pg_temp.comprobar(public.usar_codigo_vinculacion((select codigo from cv2)) is null, 'no hay tope de intentos');
 
 -- @fin
 rollback;
