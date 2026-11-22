@@ -1102,9 +1102,9 @@ select pg_temp.comprobar(not exists (select 1 from public.ideas where id = 'a000
   and not exists (select 1 from public.tareas where id = 'a0000000-0000-4000-8000-000000000c02')
   and not exists (select 1 from public.cumpleanos where id = 'a0000000-0000-4000-8000-000000000c03'),
   'una fila borrada ha vuelto a aparecer');
--- Y las tablas de Mi Panel lo tienen todas
+-- Y las tablas de Mi Panel lo tienen todas (13 con puente, fase 9)
 select pg_temp.comprobar((select count(distinct event_object_table) from information_schema.triggers
-  where trigger_schema = 'public' and trigger_name = 'no_revivir_borrado') = 12, 'falta no_revivir_borrado en alguna tabla');
+  where trigger_schema = 'public' and trigger_name = 'no_revivir_borrado') = 13, 'falta no_revivir_borrado en alguna tabla');
 
 -- @caso: borrar un usuario de auth.users borra en cascada todas sus filas
 reset role;
