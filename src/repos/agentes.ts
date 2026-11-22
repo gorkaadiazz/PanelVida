@@ -11,6 +11,8 @@ export interface PC {
   ultimo_latido: string | null
   apps: string[]
   version: string | null
+  volumen: number | null
+  silenciado: boolean | null
   created_at: string
 }
 
@@ -22,7 +24,7 @@ function comprobarConexion() {
 
 export async function listarPCs(): Promise<PC[]> {
   comprobarConexion()
-  const { data, error } = await supabase.from('agentes').select('id, nombre, ultimo_latido, apps, version, created_at').order('created_at')
+  const { data, error } = await supabase.from('agentes').select('id, nombre, ultimo_latido, apps, version, volumen, silenciado, created_at').order('created_at')
   if (error) {
     console.error('PC vinculados', error)
     throw new ErrorDeValidacion('No se han podido leer tus PC.')

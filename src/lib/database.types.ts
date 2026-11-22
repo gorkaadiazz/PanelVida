@@ -27,6 +27,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      comandos: {
+        Row: {
+          accion: string
+          agente_id: string
+          caduca_en: string
+          created_at: string
+          estado: string
+          id: string
+          mensaje: string | null
+          terminado_en: string | null
+          user_id: string
+          valor: string | null
+        }
+        Insert: {
+          accion: string
+          agente_id: string
+          caduca_en?: string
+          created_at?: string
+          estado?: string
+          id?: string
+          mensaje?: string | null
+          terminado_en?: string | null
+          user_id?: string
+          valor?: string | null
+        }
+        Update: {
+          accion?: string
+          agente_id?: string
+          caduca_en?: string
+          created_at?: string
+          estado?: string
+          id?: string
+          mensaje?: string | null
+          terminado_en?: string | null
+          user_id?: string
+          valor?: string | null
+        }
+        Relationships: []
+      }
       agentes: {
         Row: {
           apps: string[]
@@ -37,6 +76,8 @@ export type Database = {
           updated_at: string
           user_id: string
           version: string | null
+          volumen: number | null
+          silenciado: boolean | null
         }
         Insert: {
           apps?: string[]
@@ -47,6 +88,8 @@ export type Database = {
           updated_at?: string
           user_id: string
           version?: string | null
+          volumen?: number | null
+          silenciado?: boolean | null
         }
         Update: {
           apps?: string[]
@@ -57,6 +100,8 @@ export type Database = {
           updated_at?: string
           user_id?: string
           version?: string | null
+          volumen?: number | null
+          silenciado?: boolean | null
         }
         Relationships: []
       }

@@ -7,6 +7,7 @@ import { AvisoError } from '../components/AvisoError'
 import { Pagina } from '../components/Pagina'
 import { Vacio } from '../components/Vacio'
 import { IconoCopiar, IconoPC } from '../components/iconos'
+import { MandoPC } from '../components/MandoPC'
 import { useAccion } from '../components/useAccion'
 import { useEnLinea } from '../components/useEnLinea'
 import { comandoVincular, cuentaAtras, estadoPC } from '../lib/agentes'
@@ -134,6 +135,8 @@ function TarjetaPC({
           {estado.texto}
         </span>
       </div>
+
+      <MandoPC pc={pc} encendido={estado.encendido} ahora={ahora} ejecutar={ejecutar} />
 
       {modo === 'renombrar' ? (
         <form
