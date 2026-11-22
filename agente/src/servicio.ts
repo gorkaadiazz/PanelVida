@@ -11,9 +11,11 @@ import { copiar, notificar } from './escritorio.ts'
 import { reaccionar, type ElementoPuente } from './lib/puente.ts'
 import { ACCIONES_SIN_VUELTA, mensajeError, traducir } from './lib/acciones.ts'
 import { ejecutar, sesionGrafica, volumenActual } from './mando.ts'
+import { escanear } from './red.ts'
 
 export const VERSION = '0.2.0'
 const LATIDO_MS = 60_000
+const RED_MS = 5 * 60_000
 
 export async function iniciarServicio(): Promise<void> {
   const credenciales = await cargarCredenciales()
@@ -154,9 +156,39 @@ export async function iniciarServicio(): Promise<void> {
       if (estado === 'SUBSCRIBED') void pendientes()
     })
 
+  // 4. Vigilante de la red: cada 5 minutos, solo en casa
+  if (!config.macRouter) console.log('Red: sin macRouter en config.json, no se escanea (mira: mipanel-agente red).')
+  let escaneando = false
+  async function vigilarRed() {
+    if (escaneando || !config.macRouter) return
+    escaneando = true
+    try {
+      const escaneo = await escanear(config.macRouter)
+      if (!escaneo) return // fuera de casa
+      const { data: sinAvisar, error: e } = await cliente.rpc('agente_red', { dispositivos: escaneo.dispositivos })
+      if (e) return console.warn('Red:', e.message)
+      if (typeof sinAvisar === 'number' && sinAvisar > 0) {
+        const { data: sesionActual } = await cliente.auth.getSession()
+        const r = await fetch(`${credenciales!.supabaseUrl}/functions/v1/aviso-red`, {
+          method: 'POST',
+          headers: { authorization: `Bearer ${sesionActual.session?.access_token ?? ''}`, apikey: credenciales!.anonKey },
+        })
+        if (!r.ok) console.warn('Red: no se ha podido avisar', r.status)
+      }
+    } catch (err) {
+      console.warn('Red:', (err as Error).message)
+    } finally {
+      escaneando = false
+    }
+  }
+  const primerEscaneo = setTimeout(() => void vigilarRed(), 30_000)
+  const temporizadorRed = setInterval(() => void vigilarRed(), RED_MS)
+
   // Parada limpia (systemctl --user stop)
   const parar = async () => {
     clearInterval(temporizador)
+    clearTimeout(primerEscaneo)
+    clearInterval(temporizadorRed)
     await cliente.removeChannel(canal)
     await cliente.removeChannel(canalMando)
     await cliente.auth.signOut()

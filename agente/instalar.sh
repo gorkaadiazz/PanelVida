@@ -28,6 +28,14 @@ find "$DESTINO/src" -name '*.test.ts' -delete
 chmod 755 "$DESTINO/bin/mipanel-agente.ts"
 (cd "$DESTINO" && npm ci --omit=dev --no-audit --no-fund --silent)
 
+echo "== Lista de fabricantes (IEEE) para el vigilante de la red"
+if curl -fsSL --max-time 60 https://standards-oui.ieee.org/oui/oui.csv -o "$DESTINO/oui.csv.tmp"; then
+  mv "$DESTINO/oui.csv.tmp" "$DESTINO/oui.csv"
+else
+  rm -f "$DESTINO/oui.csv.tmp"
+  echo "   No se ha podido descargar (sin ella, la red no enseña fabricantes). Puedes repetir la instalación más tarde."
+fi
+
 echo "== Comandos en $BIN"
 mkdir -p "$BIN"
 cat > "$BIN/mipanel-agente" <<SCRIPT

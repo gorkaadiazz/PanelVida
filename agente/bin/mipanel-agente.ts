@@ -4,6 +4,7 @@
 //   mipanel-agente iniciar                           el servicio (lo arranca systemd)
 //   mipanel-agente enviar                            manda el portapapeles al Puente (mipanel-enviar)
 //   mipanel-agente estado                            dice si está vinculado y la configuración
+//   mipanel-agente red                               la MAC de tu router (para macRouter en config.json)
 //   mipanel-agente desvincular                       desvincula este PC y borra sus credenciales
 
 import { execFile } from 'node:child_process'
@@ -15,6 +16,7 @@ import { leerPortapapeles, notificar } from '../src/escritorio.ts'
 import { leerCredenciales, normalizarCodigoVincular } from '../src/lib/config.ts'
 import { prepararEnvio } from '../src/lib/puente.ts'
 import { iniciarServicio } from '../src/servicio.ts'
+import { routerActual } from '../src/red.ts'
 
 const ejecutar = promisify(execFile)
 const [orden, ...args] = process.argv.slice(2)
@@ -87,6 +89,19 @@ async function estado() {
   console.log(`Router de casa: ${config.macRouter ?? '(sin configurar)'}`)
 }
 
+async function red() {
+  const config = await cargarConfig()
+  const router = await routerActual()
+  if (!router) {
+    console.log('No hay conexión a ninguna red ahora mismo.')
+    return
+  }
+  console.log(`Router (puerta de enlace): ${router.ip} por ${router.dev}`)
+  console.log(`MAC del router: ${router.mac ?? '(no se ha podido leer)'}`)
+  if (router.mac && config.macRouter === router.mac) console.log('Es tu red de casa: el vigilante escanea aquí.')
+  else if (router.mac) console.log(`Si es tu red de casa, pon en ${ARCHIVO_CONFIG}:\n  "macRouter": "${router.mac}"\ny reinicia: systemctl --user restart mipanel-agente`)
+}
+
 async function desvincular() {
   const credenciales = await cargarCredenciales()
   if (!credenciales) {
@@ -113,10 +128,10 @@ async function desvincular() {
   console.log('Desvinculado. Credenciales borradas.')
 }
 
-const ordenes: Record<string, () => Promise<void>> = { vincular, iniciar: iniciarServicio, enviar, estado, desvincular }
+const ordenes: Record<string, () => Promise<void>> = { vincular, iniciar: iniciarServicio, enviar, estado, red, desvincular }
 const elegida = ordenes[orden ?? '']
 if (!elegida || !Object.hasOwn(ordenes, orden ?? '')) {
-  console.log('Uso: mipanel-agente vincular CODIGO [nombre] | iniciar | enviar | estado | desvincular')
+  console.log('Uso: mipanel-agente vincular CODIGO [nombre] | iniciar | enviar | estado | red | desvincular')
   process.exit(orden ? 2 : 0)
 }
 elegida().catch((e: unknown) => {
