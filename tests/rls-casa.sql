@@ -445,7 +445,7 @@ select pg_temp.debe_fallar($q$insert into public.ideas (texto) values ('x')$q$, 
 -- Todas las tablas de Mi Panel tienen la política restrictiva
 reset role;
 select pg_temp.comprobar((select count(*) from pg_policies where schemaname = 'public' and policyname = 'solo_cuentas_normales'
-  and permissive = 'RESTRICTIVE') = 14, 'falta la política solo_cuentas_normales en alguna tabla');
+  and permissive = 'RESTRICTIVE') = 15, 'falta la política solo_cuentas_normales en alguna tabla');
 -- Y ninguna tabla de Mi Panel con RLS se queda sin ella, salvo las de la compra y las de la web de exámenes
 select pg_temp.comprobar(not exists (
   select 1 from pg_tables t
@@ -728,6 +728,11 @@ insert into public.deseos (user_id, articulo, precio_centimos) values ('ffffffff
 insert into public.clientes_web (user_id, nombre) values ('ffffffff-0000-4000-8000-00000000000f', 'x');
 insert into public.suscripciones_push (user_id, endpoint, p256dh, auth) values ('ffffffff-0000-4000-8000-00000000000f', 'https://push.example/x', repeat('p', 87), repeat('a', 22));
 insert into public.puente (user_id, tipo, contenido) values ('ffffffff-0000-4000-8000-00000000000f', 'texto', 'x');
+-- comandos necesita un PC «de F» (como si el administrador lo hubiera creado)
+insert into public.emails_permitidos (email) values ('agente-f@agente.invalid');
+insert into auth.users (id, email, raw_app_meta_data) values ('f9999999-0000-4000-8000-000000000009', 'agente-f@agente.invalid', '{"tipo": "agente"}');
+insert into public.agentes (id, user_id, nombre) values ('f9999999-0000-4000-8000-000000000009', 'ffffffff-0000-4000-8000-00000000000f', 'PC de F');
+insert into public.comandos (user_id, agente_id, accion) values ('ffffffff-0000-4000-8000-00000000000f', 'f9999999-0000-4000-8000-000000000009', 'bloquear');
 -- Si mañana se añade una tabla con la restrictiva, este caso pide añadir aquí su fila
 do $$
 declare t text; filas bigint;
@@ -1087,6 +1092,97 @@ select pg_temp.comprobar((select array_agg(h) from public.agentes_huerfanos() h)
 reset role;
 select pg_temp.comprobar(not exists (select 1 from public.emails_permitidos where email = 'agente-viejo@agente.invalid')
   and exists (select 1 from public.emails_permitidos where email = 'agente-nuevo@agente.invalid'), 'no limpia bien los emails de agente');
+
+-- @caso: mando: el dueño manda órdenes a SU PC (lista fija); nadie más; el agente no las crea
+reset role;
+insert into public.emails_permitidos (email) values ('agente-1@agente.invalid');
+insert into auth.users (id, email, raw_app_meta_data) values ('99999999-0000-4000-8000-000000000009', 'agente-1@agente.invalid', '{"tipo": "agente"}');
+insert into public.agentes (id, user_id, nombre, apps) values ('99999999-0000-4000-8000-000000000009', 'aaaaaaaa-0000-4000-8000-00000000000a', 'PC casa', array['Firefox']);
+select pg_temp.como('aaaaaaaa-0000-4000-8000-00000000000a');
+insert into public.comandos (agente_id, accion) values ('99999999-0000-4000-8000-000000000009', 'bloquear');
+insert into public.comandos (agente_id, accion, valor) values ('99999999-0000-4000-8000-000000000009', 'volumen', '40');
+insert into public.comandos (agente_id, accion, valor) values ('99999999-0000-4000-8000-000000000009', 'abrir_app', 'Firefox');
+select pg_temp.debe_fallar($q$insert into public.comandos (agente_id, accion, valor) values ('99999999-0000-4000-8000-000000000009', 'abrir_app', 'rm -rf ~')$q$, array['23514'], 'abrir una app que el PC no conoce');
+select pg_temp.debe_fallar($q$insert into public.comandos (agente_id, accion, valor) values ('99999999-0000-4000-8000-000000000009', 'ejecutar', 'ls')$q$, array['23514'], 'una acción fuera de la lista');
+select pg_temp.debe_fallar($q$insert into public.comandos (agente_id, accion, valor) values ('99999999-0000-4000-8000-000000000009', 'volumen', '101')$q$, array['23514'], 'volumen fuera de rango');
+select pg_temp.debe_fallar($q$insert into public.comandos (agente_id, accion, valor) values ('99999999-0000-4000-8000-000000000009', 'apagar', 'ahora')$q$, array['23514'], 'apagar con valor');
+select pg_temp.debe_fallar($q$update public.comandos set estado = 'hecho'$q$, array['42501'], 'el dueño cambia el estado');
+-- B no manda órdenes al PC de A ni las ve
+select pg_temp.como('bbbbbbbb-0000-4000-8000-00000000000b');
+select pg_temp.debe_fallar($q$insert into public.comandos (agente_id, accion) values ('99999999-0000-4000-8000-000000000009', 'apagar')$q$, array['42501'], 'B apaga el PC de A');
+select pg_temp.debe_fallar($q$insert into public.comandos (user_id, agente_id, accion) values ('aaaaaaaa-0000-4000-8000-00000000000a', '99999999-0000-4000-8000-000000000009', 'apagar')$q$, array['42501'], 'B manda a nombre de A');
+select pg_temp.comprobar((select count(*) from public.comandos) = 0, 'B ve las órdenes de A');
+-- El familiar tampoco
+select pg_temp.como('ffffffff-0000-4000-8000-00000000000f');
+select pg_temp.debe_fallar($q$insert into public.comandos (agente_id, accion) values ('99999999-0000-4000-8000-000000000009', 'apagar')$q$, array['42501'], 'el familiar apaga el PC');
+-- El agente ve las suyas pero no crea ni cambia ninguna directamente
+select pg_temp.como('99999999-0000-4000-8000-000000000009');
+select pg_temp.comprobar((select count(*) from public.comandos) = 3, 'el agente no ve sus órdenes');
+select pg_temp.debe_fallar($q$insert into public.comandos (user_id, agente_id, accion) values ('aaaaaaaa-0000-4000-8000-00000000000a', '99999999-0000-4000-8000-000000000009', 'apagar')$q$, array['42501'], 'el agente se manda órdenes');
+select pg_temp.debe_fallar($q$update public.comandos set estado = 'hecho'$q$, array['42501'], 'el agente cambia estados directamente');
+select pg_temp.como('anon');
+select pg_temp.debe_fallar($q$select * from public.comandos$q$, array['42501'], 'anon lee órdenes');
+
+-- @caso: mando: el agente coge cada orden una sola vez, solo si no ha caducado (30 s), y cuenta el resultado
+reset role;
+insert into public.emails_permitidos (email) values ('agente-1@agente.invalid'), ('agente-2@agente.invalid');
+insert into auth.users (id, email, raw_app_meta_data) values
+  ('99999999-0000-4000-8000-000000000009', 'agente-1@agente.invalid', '{"tipo": "agente"}'),
+  ('88888888-0000-4000-8000-000000000008', 'agente-2@agente.invalid', '{"tipo": "agente"}');
+insert into public.agentes (id, user_id, nombre) values
+  ('99999999-0000-4000-8000-000000000009', 'aaaaaaaa-0000-4000-8000-00000000000a', 'PC casa'),
+  ('88888888-0000-4000-8000-000000000008', 'bbbbbbbb-0000-4000-8000-00000000000b', 'PC de B');
+select pg_temp.como('aaaaaaaa-0000-4000-8000-00000000000a');
+insert into public.comandos (id, agente_id, accion, caduca_en, estado) values ('c0000000-0000-4000-8000-000000000001', '99999999-0000-4000-8000-000000000009', 'bloquear', now() + interval '1 year', 'hecho');
+insert into public.comandos (id, agente_id, accion) values ('c0000000-0000-4000-8000-000000000002', '99999999-0000-4000-8000-000000000009', 'play_pausa');
+reset role;
+select pg_temp.comprobar((select estado = 'pendiente' and caduca_en <= now() + interval '31 seconds' from public.comandos where id = 'c0000000-0000-4000-8000-000000000001'),
+  'la app decide el estado o la caducidad');
+-- La primera ya caducó (como si el PC hubiera estado apagado)
+update public.comandos set caduca_en = now() - interval '1 second' where id = 'c0000000-0000-4000-8000-000000000001';
+-- El agente de B no puede coger las de A
+select pg_temp.como('88888888-0000-4000-8000-000000000008');
+select pg_temp.comprobar((select count(*) from public.agente_tomar_comando('c0000000-0000-4000-8000-000000000002')) = 0, 'el agente de B coge una orden de A');
+select pg_temp.comprobar((select count(*) from public.comandos) = 0, 'el agente de B ve órdenes de A');
+select pg_temp.como('99999999-0000-4000-8000-000000000009');
+select pg_temp.comprobar((select array_agg(x) from public.agente_comandos_pendientes() x) = array['c0000000-0000-4000-8000-000000000002'::uuid], 'pendientes mal');
+select pg_temp.comprobar((select accion from public.agente_tomar_comando('c0000000-0000-4000-8000-000000000002')) = 'play_pausa', 'no la coge');
+select pg_temp.comprobar((select count(*) from public.agente_tomar_comando('c0000000-0000-4000-8000-000000000002')) = 0, 'la coge dos veces');
+select pg_temp.comprobar((select count(*) from public.agente_tomar_comando('c0000000-0000-4000-8000-000000000001')) = 0, 'ejecuta una orden caducada');
+select public.agente_resultado('c0000000-0000-4000-8000-000000000002', true, E'Hecho\n');
+select public.agente_resultado('c0000000-0000-4000-8000-000000000001', true, 'trampa');
+reset role;
+select pg_temp.comprobar((select estado from public.comandos where id = 'c0000000-0000-4000-8000-000000000001') = 'caducado', 'la caducada no queda caducada');
+select pg_temp.comprobar((select estado || '|' || mensaje from public.comandos where id = 'c0000000-0000-4000-8000-000000000002') = 'hecho|Hecho ', 'el resultado no se guarda bien');
+-- Una cuenta normal no usa las funciones del agente
+select pg_temp.como('aaaaaaaa-0000-4000-8000-00000000000a');
+select pg_temp.debe_fallar($q$select public.agente_tomar_comando('c0000000-0000-4000-8000-000000000002')$q$, array['42501'], 'una cuenta normal coge órdenes');
+select pg_temp.debe_fallar($q$select public.agente_resultado('c0000000-0000-4000-8000-000000000002', true)$q$, array['42501'], 'una cuenta normal pone resultados');
+
+-- @caso: mando: tope de 30 órdenes por minuto y PC; desvincular borra sus órdenes
+reset role;
+insert into public.emails_permitidos (email) values ('agente-1@agente.invalid');
+insert into auth.users (id, email, raw_app_meta_data) values ('99999999-0000-4000-8000-000000000009', 'agente-1@agente.invalid', '{"tipo": "agente"}');
+insert into public.agentes (id, user_id, nombre) values ('99999999-0000-4000-8000-000000000009', 'aaaaaaaa-0000-4000-8000-00000000000a', 'PC casa');
+select pg_temp.como('aaaaaaaa-0000-4000-8000-00000000000a');
+insert into public.comandos (agente_id, accion) select '99999999-0000-4000-8000-000000000009', 'volumen_subir' from generate_series(1, 30);
+select pg_temp.debe_fallar($q$insert into public.comandos (agente_id, accion) values ('99999999-0000-4000-8000-000000000009', 'volumen_subir')$q$, array['23514'], 'la orden 31 en un minuto');
+delete from public.agentes where id = '99999999-0000-4000-8000-000000000009';
+select pg_temp.comprobar((select count(*) from public.comandos) = 0, 'quedan órdenes de un PC desvinculado');
+
+-- @caso: mando: el latido guarda el volumen (0-150) y si está silenciado
+reset role;
+insert into public.emails_permitidos (email) values ('agente-1@agente.invalid');
+insert into auth.users (id, email, raw_app_meta_data) values ('99999999-0000-4000-8000-000000000009', 'agente-1@agente.invalid', '{"tipo": "agente"}');
+insert into public.agentes (id, user_id, nombre) values ('99999999-0000-4000-8000-000000000009', 'aaaaaaaa-0000-4000-8000-00000000000a', 'PC casa');
+select pg_temp.como('99999999-0000-4000-8000-000000000009');
+select public.agente_latido(array['Firefox'], '0.2.0', 45, true);
+reset role;
+select pg_temp.comprobar((select volumen = 45 and silenciado from public.agentes), 'no guarda el volumen');
+select pg_temp.como('99999999-0000-4000-8000-000000000009');
+select public.agente_latido('{}', null, 999, null);
+reset role;
+select pg_temp.comprobar((select volumen is null from public.agentes), 'acepta un volumen imposible');
 
 -- @fin
 rollback;
