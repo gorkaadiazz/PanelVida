@@ -7,8 +7,8 @@ El agente es un programa pequeño que se queda funcionando en tu PC de casa
   notificación y, si es texto o un enlace, lo copia al portapapeles.
   `mipanel-enviar` manda al Puente lo que tengas copiado.
 - **Encendido / apagado:** cada minuto avisa de que está vivo.
-- **Mando del PC** (sección 4) y **vigilante de la red** (sección 5): más
-  adelante.
+- **Mando del PC:** apagar, volumen, música, abrir apps (sección 5).
+- **Vigilante de la red:** qué aparatos hay en tu wifi de casa (sección 6).
 
 Nunca hace falta `sudo` y no se guarda ninguna clave importante en el PC: el
 agente tiene **su propia cuenta**, que solo puede hacer lo del agente.
@@ -101,7 +101,58 @@ journalctl --user -u mipanel-agente -f      # el registro en directo (Ctrl+C par
 3. Ponle un atajo, por ejemplo **Meta + Mayús + C**.
 4. Copia un texto, pulsa el atajo y te sale «Mandado al Puente».
 
-## 5. Desvincular o desinstalar
+## 5. Mando del PC
+
+En la app, **Mando del PC**: energía (bloquear, suspender, reiniciar y apagar,
+con confirmación), volumen (botones y control deslizante), música (anterior,
+play/pausa, siguiente) y abrir apps.
+
+- Usa `wpctl` (viene con PipeWire/WirePlumber), `playerctl`, `loginctl` y
+  `systemctl`. En CachyOS con KDE suelen estar; si no:
+  ```
+  sudo pacman -S --needed wireplumber playerctl
+  ```
+- **Apps que se pueden abrir:** solo las de `~/.config/mipanel/config.json`,
+  con el programa y sus argumentos (sin shell):
+  ```json
+  "apps": {
+    "Firefox": ["firefox"],
+    "Steam": ["steam"],
+    "Dolphin": ["dolphin"]
+  }
+  ```
+  Después: `systemctl --user restart mipanel-agente`. Los nombres salen solos
+  en la app.
+- Cada orden **caduca a los 30 segundos**: si el PC estaba apagado, al
+  encenderse no hace órdenes viejas.
+
+## 6. Vigilante de la red
+
+Cada 5 minutos el agente mira qué aparatos hay en tu red, **solo si el PC está
+en casa**. Para que sepa cuál es tu casa:
+
+1. Conectado a tu wifi de casa, ejecuta:
+   ```
+   mipanel-agente red
+   ```
+   Te dice la MAC de tu router y la línea que hay que poner.
+2. Pon en `~/.config/mipanel/config.json`: `"macRouter": "74:93:da:08:ad:d0"`
+   (la tuya) y reinicia: `systemctl --user restart mipanel-agente`.
+3. En la app, **Red de casa**: los desconocidos salen arriba. Márcalos como
+   conocidos, ponles nombre o únelos («Es el mismo que…») si son una MAC
+   aleatoria de un móvil que ya conoces.
+4. Si apareces un aparato que no se había visto nunca, te llega una
+   notificación (hace falta tener activados los recordatorios en ese
+   dispositivo, Cuenta → Recordatorios). Una sola vez por aparato.
+
+**Cómo escanea sin root:** manda un paquete UDP vacío a cada dirección de tu
+red; para enviarlo, el kernel pregunta por ARP «¿quién tiene esta IP?», y los
+aparatos encendidos contestan con su MAC (aunque ignoren el ping). Después
+lee la tabla de vecinos del kernel (`ip -j neigh`). La alternativa,
+`arp-scan`, necesita permisos de red en bruto (`setcap cap_net_raw`), que
+cualquier usuario del PC podría usar a través de ese programa.
+
+## 7. Desvincular o desinstalar
 
 - **Desde la app:** Mando del PC → Desvincular. Deja de funcionar al momento.
 - **Desde el PC:** `mipanel-agente desvincular` (avisa al servidor y borra las

@@ -1,6 +1,6 @@
 # Mi Panel: estado del proyecto
 
-Actualizado el 22/11/2026: fase 9 (Casa), secciones 1 (Puente), 2 (Lista de la compra) y 3 (agente del PC) hechas. Pasos para activarlas en `docs/CASA.md`.
+Actualizado el 22/11/2026: fase 9 (Casa), las cinco secciones hechas (Puente, Lista de la compra, agente del PC, Mando y Red). Pasos para activarlas en `docs/CASA.md`.
 
 ## Resumen
 
@@ -13,7 +13,7 @@ Actualizado el 22/11/2026: fase 9 (Casa), secciones 1 (Puente), 2 (Lista de la c
 | 5 | Dinero y Negocio web | **Aprobada** por seguridad y tester (revisada por diseño). Falta probarla en navegador real |
 | 6 | Examen IA y borrar cuenta | **No se hace**: el examen IA está en la web de exámenes; «Borrar mi cuenta» se ha quitado (borraría también los datos de esa web) |
 | 7 | Despliegue | Hecho: publicada en Netlify (14/11/2026) |
-| 9 | Casa: Puente, Lista de la compra, agente del PC, Mando y Red | **En curso**: secciones 1, 2 y 3 (Puente, Lista de la compra, agente del PC) aprobadas; siguen Mando y Red |
+| 9 | Casa: Puente, Lista de la compra, agente del PC, Mando y Red | **Hecha**: Puente, Lista de la compra, agente del PC, Mando y Red de casa |
 
 Comprobaciones ahora mismo: `npm test -- --run` 473/473, `npm run test:sql` 41/41, `npm run lint`, `npm run typecheck` y `npm run build` sin errores.
 
@@ -138,6 +138,11 @@ Comprobaciones ahora mismo: `npm test -- --run` 473/473, `npm run test:sql` 41/4
 - App: **Mando del PC** (vincular con código de 10 min, encendido/apagado, renombrar, desvincular) y PC en la tarjeta Casa de Inicio.
 - Seguridad (dos rechazos): el agente se cierra en TODAS las tablas, Storage y Gemini; `tipo_cuenta()` mira el token; solo Google o agentes crean cuentas (trigger en `auth.users`); lo que manda otro PC no se copia. Tester: un agente podía entrar en un hogar (unirse_hogar), comando de vincular seguro en bash con `!`.
 - Migración 20261122000500. **Pendiente al aplicarla:** vincular un PC de prueba en el Supabase real (comprobar que el trigger `solo_google_o_agentes` deja crear el usuario del agente).
+
+### Fase 9, secciones 4 y 5: Mando del PC y Red de casa (22/11/2026)
+- **Mando:** tabla `comandos` (12 acciones fijas, caducan a los 30 s con la hora del servidor), el agente las coge una sola vez (`agente_tomar_comando`) y cuenta el resultado; botones de energía (apagar y reiniciar con confirmación), volumen con el real en el latido, música y apps de `config.json`.
+- **Red:** el agente escanea sin privilegios (UDP + `ip -j neigh`) cada 5 min y solo en casa (MAC del router); `red_dispositivos` y `red_conexiones` (intervalos, 30 días); aviso por Web Push una vez por aparato (Edge Function `aviso-red`); unir MAC aleatorias; aviso en Inicio. `mipanel-agente red` dice la MAC del router.
+- Migraciones 20261122000600 y 000700.
 
 ### Fases siguientes
 - **Fase 7, despliegue:** en Netlify (origen propio), no en GitHub Pages. Pasos en `docs/DESPLEGAR.md`.

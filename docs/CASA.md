@@ -258,3 +258,63 @@ no podía ver nada tuyo, seguía siendo una cuenta para todo lo demás** (la web
 de exámenes, Storage, Gemini), y **que un token sigue valiendo una hora
 aunque se borre el usuario**. Mínimo privilegio no es solo «no ve mis datos»:
 es «no puede hacer nada que no necesite».
+
+---
+
+## 4. Mando del PC
+
+### Qué hace
+- En **Mando del PC**, cada PC encendido tiene botones: bloquear, suspender,
+  reiniciar y apagar (estos dos con confirmación), volumen (botones y control
+  deslizante con el volumen real), música (anterior, play/pausa, siguiente) y
+  abrir las apps de tu `config.json`.
+- Se ve el resultado de las últimas órdenes: hecho, error o caducado.
+- Con el PC apagado, los botones se desactivan.
+
+### Pasos
+1. Migración `supabase/migrations/20261122000600_mando.sql`.
+2. Reinstalar el agente: `bash agente/instalar.sh` (y poner las apps en
+   `config.json`, ver [AGENTE.md](AGENTE.md)).
+
+### Decisiones (para clase)
+- **Lista fija dos veces:** el `check` de la tabla solo admite 12 acciones, y
+  el agente vuelve a traducir cada una con SU tabla. De la base de datos solo
+  llega el nombre de la acción, nunca un comando.
+- **Caducidad de 30 s con la hora del servidor** (no la del móvil), y el
+  agente «coge» cada orden con una función que la marca: aunque le llegue dos
+  veces (reconexión), se ejecuta una sola vez.
+- **Apagar y reiniciar cuentan el resultado antes de ejecutarse:** después
+  ya no hay PC que conteste.
+
+## 5. Vigilante de la red de casa
+
+### Qué hace
+- Cada 5 minutos, si el PC está en casa (MAC del router), el agente mira qué
+  aparatos hay y lo manda. En **Red de casa**: nombre, fabricante, IP, MAC,
+  conectado o no, primera y última vez; los **desconocidos arriba** con la
+  etiqueta «Desconocido».
+- Notificación (los mismos avisos que los recordatorios) cuando aparece un
+  aparato que no se había visto nunca, una sola vez por aparato.
+- Unir una MAC aleatoria nueva con un aparato conocido.
+- Historial de los últimos 30 días (lo viejo se borra solo).
+- Aviso en Inicio si hay algún desconocido conectado.
+
+### Pasos
+1. Migración `supabase/migrations/20261122000700_red.sql`.
+2. Edge Function: `npx supabase functions deploy aviso-red --no-verify-jwt`.
+3. En el PC: `mipanel-agente red` y poner `macRouter` en `config.json`.
+4. Para recibir el aviso: Cuenta → Recordatorios activados en el móvil.
+
+### Decisiones (para clase)
+- **Escaneo sin privilegios** (UDP + tabla de vecinos) en vez de `arp-scan`
+  con `setcap` (ver [AGENTE.md](AGENTE.md)).
+- **Solo en casa:** primero se pregunta solo por el router; si su MAC no es la
+  tuya, no se barre ninguna red ajena (la de clase, un bar…).
+- **Historial por intervalos** (desde-hasta) y no una fila cada 5 minutos:
+  con 15 aparatos serían más de 4.000 filas al día.
+- **Avisar una sola vez:** el aparato nuevo llega con `avisado = false`; la
+  Edge Function lo marca **antes** de enviar (si se llamara dos veces a la
+  vez, la segunda ya no lo encuentra).
+- **MAC aleatorias:** los móviles cambian de MAC por privacidad (el «bit
+  local» del primer byte lo delata). Por eso un móvil conocido puede salir como
+  nuevo y se puede unir con el conocido.
