@@ -2209,3 +2209,15 @@ form.puente-dispositivo { display: flex; flex-direction: column; gap: var(--sp-3
 .app--familia { display: block; }
 .app-main--familia { padding-bottom: var(--sp-8); }
 .familia-sync { margin-bottom: var(--sp-2); }
+
+/* Hogar (Lista de casa) */
+.pestanas--dos { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (min-width: 540px) {
+  .pestanas--dos { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 24rem; }
+}
+.hogar-codigo { font-variant-numeric: tabular-nums; letter-spacing: 0.08em; text-transform: uppercase; }
+.hogar-panel summary { cursor: pointer; min-height: var(--tap); display: flex; align-items: center; }
+.hogar-panel__titulo { display: inline-flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
+.hogar-panel__titulo svg { width: 22px; height: 22px; color: var(--text-2); }
+.hogar-invitacion { display: flex; flex-direction: column; gap: var(--sp-2); padding: var(--sp-3); border-radius: var(--r-md); background: var(--surface-sunken); }
+.hogar-invitacion__codigo { font-size: var(--fs-xl); font-weight: var(--fw-semibold); letter-spacing: 0.1em; }

@@ -27,6 +27,84 @@ export type Database = {
   }
   public: {
     Tables: {
+      hogar_invitaciones: {
+        Row: {
+          caduca_en: string
+          codigo_hash: string
+          created_at: string
+          hogar_id: string
+          id: string
+          usado_en: string | null
+          usado_por: string | null
+          user_id: string
+        }
+        Insert: {
+          caduca_en: string
+          codigo_hash: string
+          created_at?: string
+          hogar_id: string
+          id?: string
+          usado_en?: string | null
+          usado_por?: string | null
+          user_id?: string
+        }
+        Update: {
+          caduca_en?: string
+          codigo_hash?: string
+          created_at?: string
+          hogar_id?: string
+          id?: string
+          usado_en?: string | null
+          usado_por?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      hogar_miembros: {
+        Row: {
+          created_at: string
+          hogar_id: string
+          nombre: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          hogar_id: string
+          nombre: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          hogar_id?: string
+          nombre?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      hogares: {
+        Row: {
+          created_at: string
+          id: string
+          nombre: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          nombre?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          nombre?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       compra_frecuentes: {
         Row: {
           clave: string
@@ -1374,6 +1452,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      crear_invitacion: {
+        Args: never
+        Returns: { codigo: string; caduca_en: string }[]
+      }
+      unirse_hogar: {
+        Args: { codigo: string }
+        Returns: string
+      }
       tipo_cuenta: {
         Args: never
         Returns: string | null
