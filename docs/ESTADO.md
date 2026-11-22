@@ -1,6 +1,6 @@
 # Mi Panel: estado del proyecto
 
-Actualizado el 22/11/2026: fase 9 (Casa), sección 1 (Puente) hecha. Pasos para activarla en `docs/CASA.md`.
+Actualizado el 22/11/2026: fase 9 (Casa), secciones 1 (Puente) y 2 (Lista de la compra) hechas. Pasos para activarlas en `docs/CASA.md`.
 
 ## Resumen
 
@@ -13,7 +13,7 @@ Actualizado el 22/11/2026: fase 9 (Casa), sección 1 (Puente) hecha. Pasos para 
 | 5 | Dinero y Negocio web | **Aprobada** por seguridad y tester (revisada por diseño). Falta probarla en navegador real |
 | 6 | Examen IA y borrar cuenta | **No se hace**: el examen IA está en la web de exámenes; «Borrar mi cuenta» se ha quitado (borraría también los datos de esa web) |
 | 7 | Despliegue | Hecho: publicada en Netlify (14/11/2026) |
-| 9 | Casa: Puente, Lista de la compra, agente del PC, Mando y Red | **En curso**: sección 1 (Puente) aprobada; siguen Lista de la compra, agente, Mando y Red |
+| 9 | Casa: Puente, Lista de la compra, agente del PC, Mando y Red | **En curso**: secciones 1 (Puente) y 2 (Lista de la compra) aprobadas; siguen agente, Mando y Red |
 
 Comprobaciones ahora mismo: `npm test -- --run` 473/473, `npm run test:sql` 41/41, `npm run lint`, `npm run typecheck` y `npm run build` sin errores.
 
@@ -124,6 +124,13 @@ Comprobaciones ahora mismo: `npm test -- --run` 473/473, `npm run test:sql` 41/4
 - En «Más» y en la barra lateral, bloque **Casa**; tarjeta «Puente» en Inicio.
 - Seguridad (rechazó la primera versión): el tope de 300 MB cuenta los bytes reales de Storage, como mucho 3 archivos por subir, cada fila recibe un solo archivo y el archivo solo se borra sin fila. Tester: arreglos de «ayer» en el cambio de hora, emojis partidos y fijar con 3 subidas pendientes.
 - Migración 20261122000100 (antes de subir la web). Pasos: `docs/CASA.md`.
+
+### Fase 9, sección 2: Lista de la compra (22/11/2026)
+- **Mi lista** (privada) y **Lista de casa** (del hogar), agrupadas por sección del súper, marcar de un toque, «Quitar los comprados», sugerencias con lo que más compras (`compra_frecuentes`, la rellena el servidor). Funciona sin conexión.
+- **Hogar:** lo crea una cuenta normal; invitación con código de un solo uso que caduca en 7 días (solo se guarda su hash, 10 intentos fallidos por hora); ver miembros, expulsar (pierde el acceso al momento), salir y borrar el hogar.
+- **Familia («solo lista»):** emails en `cuentas_solo_lista` (además de `emails_permitidos`). Política RESTRICTIVE `solo_cuentas_normales` en las 14 tablas de Mi Panel; la app les abre solo la lista.
+- **Sincronización:** `compra_casa` es `compartida`: borrados por `borrados_hogar`, y el motor la vacía y la vuelve a bajar entera al cambiar de hogar. Realtime nunca escucha DELETE (no aplica RLS a los borrados).
+- Migraciones 20261122000200, 000300 y 000400. Seguridad, tester y diseño APROBADO (seguridad encontró la fuga de miembros por Realtime, el nombre falseable con user_metadata, el `updated_at` del año 9999 y un trigger que impedía borrar cuentas; tester, emojis compuestos rotos y caducidad en días de Madrid).
 
 ### Fases siguientes
 - **Fase 7, despliegue:** en Netlify (origen propio), no en GitHub Pages. Pasos en `docs/DESPLEGAR.md`.

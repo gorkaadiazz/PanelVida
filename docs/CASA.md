@@ -111,3 +111,101 @@ hay detrás. Las migraciones se aplican **antes** de subir la web nueva.
   archivo, y lo no fijado se borra a los 7 días.
 - Realtime y Edge Functions: muy lejos del límite (una llamada a la limpieza
   a la hora, unas 720 al mes de las 500.000 gratis).
+
+---
+
+## 2. Lista de la compra
+
+### Qué hace
+- Dos pestañas: **Mi lista** (solo tuya) y **Lista de casa** (la ve todo el hogar).
+- Cada artículo: nombre, cantidad, sección del súper y notas. Se agrupan por
+  sección en el orden en que se recorre el súper.
+- Marcar como comprado de un toque. En la de casa pone quién lo marcó.
+  «Quitar los comprados» pide confirmación.
+- Sugerencias al escribir con lo que más has comprado.
+- Funciona **sin conexión** (el súper sin cobertura) y se sube al volver. En la
+  de casa, lo que cambian los demás llega al momento.
+- **Hogar:** lo creas tú, generas un **código de invitación** (dura 7 días y
+  sirve una vez), tu familiar lo escribe y entra. Puedes ver los miembros,
+  expulsar a alguien (deja de verla al instante) y borrar el hogar.
+- **Tu familia** entra con su cuenta de Google y solo ve la Lista de la compra
+  (Mi lista y Lista de casa). Nada de hábitos, dinero ni Casa.
+
+### Pasos
+1. **Migraciones, en este orden:**
+   ```
+   supabase/migrations/20261122000200_cuentas_y_mi_lista.sql
+   supabase/migrations/20261122000300_hogares.sql
+   supabase/migrations/20261122000400_compra_casa.sql
+   ```
+2. **Comprueba Realtime:** en **Database → Publications → supabase_realtime**
+   tienen que estar `compra_casa`, `borrados_hogar`, `hogar_avisos` y `borrados`.
+3. **Sube la web** (`git push`).
+4. **Añade a tu familia** (SQL Editor), cada email en las DOS tablas, en
+   minúsculas:
+   ```sql
+   insert into public.emails_permitidos (email) values ('familiar@gmail.com');
+   insert into public.cuentas_solo_lista (email) values ('familiar@gmail.com');
+   ```
+   Si solo lo pones en `emails_permitidos`, entrará como una cuenta normal
+   (vería un Mi Panel vacío, suyo, como tus compañeros).
+
+### Cómo probarlo
+1. En tu cuenta: **Más → Lista de la compra → Lista de casa → Crear hogar**.
+2. Abre el panel del hogar → **Crear un código de invitación** y cópialo.
+3. Con la cuenta de tu familiar (otro navegador o en privado): entra, se abre
+   directamente la lista; **Lista de casa → escribe el código → Entrar**.
+4. Apunta algo en un dispositivo: aparece en el otro en un par de segundos.
+   Márcalo como comprado: en el otro pone «Marcado por …».
+5. Modo avión en el móvil: apunta y marca cosas; al volver la conexión, suben.
+6. Expulsa a tu familiar desde el panel: en su dispositivo la Lista de casa
+   desaparece y vuelve a pedir un código.
+7. Prueba que el familiar no ve nada más: en su navegador, escribe a mano
+   `/habitos` o `/dinero` en la dirección: le lleva a la lista.
+
+### Decisiones (para clase)
+- **Marcar a la familia sin tocar las tablas de la web de exámenes:** una
+  tabla nueva `cuentas_solo_lista` (como `emails_permitidos`) y una función
+  `tipo_cuenta()`. Ocultar los menús es solo comodidad; la seguridad es una
+  política **RESTRICTIVE** en cada tabla de Mi Panel. Postgres une las
+  políticas *permissive* con OR y las *restrictive* con AND, así que se añade
+  una condición a todas sin tocar las cuatro que ya había.
+- **Dos tablas y no una:** `compra_mia` tiene las 4 políticas de siempre;
+  `compra_casa` tiene las del hogar. Un error en las compartidas no puede
+  destapar la privada.
+- **`es_miembro(hogar_id)` es `security definer` con `search_path` fijo:**
+  si las políticas consultaran `hogar_miembros` directamente, las políticas de
+  `hogar_miembros` se volverían a consultar a sí mismas. Se escribe como
+  `(select public.es_miembro(...))` para que Postgres la calcule una vez por
+  consulta y no una por fila.
+- **Expulsar es inmediato** porque el permiso se comprueba en cada consulta
+  (no hay un «token de hogar» que siga valiendo).
+- **Código de invitación:** 10 caracteres sin letras que se confundan
+  (sin I, O, 0 ni 1), unos 50 bits de azar. En la base de datos solo se
+  guarda su hash: quien lea la tabla no puede usarlo. Como mucho 10 intentos
+  fallidos por hora. La función devuelve un texto en vez de dar error para
+  que el intento fallido quede apuntado (un error desharía la transacción y
+  también el apunte).
+- **Cómo encaja con la sincronización:**
+  - los borrados de la Lista de casa van a `borrados_hogar`, que leen todos
+    los miembros (en `borrados` solo los vería quien creó la fila);
+  - si entras en un hogar, sus artículos antiguos tienen un `sync_at` anterior
+    a tu última descarga y no llegarían: el motor detecta que tu hogar ha
+    cambiado y vuelve a bajar la lista entera. Si te expulsan, la vacía;
+  - «quién lo marcó» lo pone el servidor con tu cuenta real: no se puede
+    falsear.
+- **Realtime y los borrados:** Realtime aplica el RLS a lo nuevo y a lo
+  editado, pero **no a los borrados**: a quien escuche le manda la clave de
+  cualquier fila borrada, sea de quien sea. Seguridad vio que, escuchando
+  `hogar_miembros`, cualquiera sabría quién sale o es expulsado de cada hogar.
+  Por eso la app nunca escucha borrados: se entera por los INSERT en
+  `borrados_hogar`, en `borrados` (filtrado por tu usuario) y en `hogar_avisos`.
+- **El nombre que ven los demás** sale de tu cuenta de Google
+  (`auth.identities`), que no puedes cambiar desde la app. El de
+  `user_metadata` sí se puede cambiar, y alguien podría hacerse pasar por otro.
+- **«Gana el cambio más reciente»** se fía de la hora del dispositivo. En una
+  lista compartida, alguien podría mandar una fecha del año 9999 y bloquear un
+  artículo para siempre; el servidor la limita a «ahora + 5 minutos».
+- **Sugerencias:** «Quitar los comprados» borra los artículos, así que el
+  historial vive aparte, en `compra_frecuentes`, que rellena el servidor al
+  marcar algo como comprado.
