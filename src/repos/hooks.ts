@@ -12,6 +12,7 @@ import { listarFijos, type Fijo } from './fijos'
 import { listarIdeas, type Idea } from './ideas'
 import { listarMovimientos, type Movimiento } from './movimientos'
 import { obtenerPerfil, type Perfil } from './perfil'
+import { listarPuente, type ElementoPuente } from './puente'
 import { listarPlanes, type Plan } from './planes'
 import { listarRevisiones, type Revision } from './revisiones'
 import { listarHabitos, listarMarcas, type Habito, type Marca } from './habitos'
@@ -88,4 +89,9 @@ export function usePerfil(): Consulta<Perfil | null> {
 /** Revisiones de ahorro, la más reciente primero. */
 export function useRevisiones(): Consulta<Revision[]> {
   return useConsulta(['revisiones'], listarRevisiones)
+}
+
+/** Todo lo del Puente (sin ordenar: lib/puente lo ordena). */
+export function usePuente(): Consulta<ElementoPuente[]> {
+  return useConsulta(['puente'], listarPuente)
 }

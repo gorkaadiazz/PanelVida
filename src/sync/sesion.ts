@@ -13,12 +13,14 @@ import { alCambioLocal, avisarTodo, ponerEstado, reiniciarEstado } from './aviso
 import { abrirBase, usarBase, type BaseLocal } from './bd'
 import { contarPendientes } from './cola'
 import { crearMotor, type Motor } from './motor'
-import { crearRemotoSupabase } from './remoto'
+import { TABLAS_EN_TIEMPO_REAL, crearRemotoSupabase, escucharCambios } from './remoto'
 import { olvidarEsteDispositivo } from '../repos/recordatorios'
 
 /** Los cambios seguidos se agrupan: se suben al poco de dejar de tocar. */
 const ESPERA_TRAS_CAMBIO_MS = 1500
 const INTERVALO_MS = 60_000
+/** Varios avisos de tiempo real seguidos se juntan en una sola sincronización. */
+const ESPERA_TIEMPO_REAL_MS = 300
 /** Al cerrar sesión, lo que se espera como mucho al último intento de subir cambios. */
 const ESPERA_ULTIMA_SUBIDA_MS = 5000
 
@@ -90,11 +92,19 @@ function arrancarMotor(sesion: SesionSync, base: BaseLocal) {
   window.addEventListener('focus', alVolverALaApp)
   document.addEventListener('visibilitychange', alVolverALaApp)
   const intervalo = setInterval(alVolverALaApp, INTERVALO_MS)
+  // Tiempo real (Puente…): cada aviso solo lanza una sincronización enseguida.
+  let dejarDeEscucharRemoto = () => {}
+  try {
+    dejarDeEscucharRemoto = escucharCambios(supabase, sesion.usuarioId, TABLAS_EN_TIEMPO_REAL, () => programar(ESPERA_TIEMPO_REAL_MS))
+  } catch (error) {
+    console.warn('Sin tiempo real', error)
+  }
 
   sesion.soltar = () => {
     clearTimeout(temporizador)
     clearInterval(intervalo)
     dejarDeEscucharCambios()
+    dejarDeEscucharRemoto()
     window.removeEventListener('online', alVolverLaRed)
     window.removeEventListener('offline', alPerderLaRed)
     window.removeEventListener('focus', alVolverALaApp)

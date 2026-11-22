@@ -92,3 +92,33 @@ export function crearRemotoSupabase(cliente: unknown): Remoto {
     },
   }
 }
+
+/** Tablas de las que se escuchan los cambios en tiempo real (Supabase Realtime). */
+export const TABLAS_EN_TIEMPO_REAL = ['puente'] as const
+
+/**
+ * Escucha en tiempo real los cambios de esas tablas y llama a `alCambiar`
+ * (sin datos: quien escucha simplemente sincroniza, así todo sigue pasando
+ * por el motor y la copia local). Realtime aplica las políticas RLS: cada uno
+ * solo recibe avisos de sus filas. Devuelve la función para dejar de escuchar.
+ */
+export function escucharCambios(cliente: unknown, usuarioId: string, tablas: readonly string[], alCambiar: () => void): () => void {
+  const api = cliente as SupabaseClient
+  let canal = api.channel(`cambios-${crypto.randomUUID()}`)
+  for (const tabla of tablas) {
+    // El filtro por usuario ahorra avisos ajenos. Ojo: Realtime NO aplica RLS
+    // a los DELETE (llegan los de todos, solo con el id). No importa porque
+    // aquí no se usa lo que llega: solo se sincroniza, y eso sí pasa por RLS.
+    canal = canal.on('postgres_changes', { event: '*', schema: 'public', table: tabla, filter: `user_id=eq.${usuarioId}` }, () => alCambiar())
+    // Con filtro, Realtime no entrega los DELETE: se escuchan aparte, sin
+    // filtro. Solo dicen «algo se ha borrado» y se sincroniza.
+    canal = canal.on('postgres_changes', { event: 'DELETE', schema: 'public', table: tabla }, () => alCambiar())
+  }
+  canal.subscribe((estado) => {
+    // Al (re)conectar puede haberse perdido algún aviso: se sincroniza igualmente.
+    if (estado === 'SUBSCRIBED') alCambiar()
+  })
+  return () => {
+    void api.removeChannel(canal)
+  }
+}

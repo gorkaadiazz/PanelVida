@@ -71,6 +71,12 @@ export const TABLAS = [
   { nombre: 'traspasos', columnas: ['sentido', 'importe_centimos', 'fecha'], indices: ['fecha'] },
   // Revisiones semanales y mensuales de ahorro (las calcula la app: lib/revision.ts)
   { nombre: 'revisiones', columnas: ['tipo', 'inicio', 'fin', 'datos', 'vista'] },
+  // Fase 9: Puente móvil ⇄ PC. El archivo se sube aparte a Storage (repos/puente.ts);
+  // aquí solo viaja la fila. Realtime avisa de lo nuevo (sync/sesion.ts).
+  {
+    nombre: 'puente',
+    columnas: ['tipo', 'contenido', 'archivo_ruta', 'archivo_nombre', 'archivo_tipo', 'archivo_bytes', 'dispositivo', 'fijado'],
+  },
   // Fase 8: bandeja de ideas
   { nombre: 'ideas', columnas: ['texto', 'archivada'] },
   { nombre: 'cumpleanos', columnas: ['nombre', 'dia', 'mes', 'anio', 'notas'] },

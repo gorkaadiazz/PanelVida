@@ -1177,6 +1177,54 @@ export type Database = {
           },
         ]
       }
+      puente: {
+        Row: {
+          archivo_bytes: number | null
+          archivo_nombre: string | null
+          archivo_ruta: string | null
+          archivo_tipo: string | null
+          contenido: string
+          created_at: string
+          dispositivo: string
+          fijado: boolean
+          id: string
+          sync_at: string
+          tipo: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          archivo_bytes?: number | null
+          archivo_nombre?: string | null
+          archivo_ruta?: string | null
+          archivo_tipo?: string | null
+          contenido?: string
+          created_at?: string
+          dispositivo?: string
+          fijado?: boolean
+          id?: string
+          sync_at?: string
+          tipo: string
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          archivo_bytes?: number | null
+          archivo_nombre?: string | null
+          archivo_ruta?: string | null
+          archivo_tipo?: string | null
+          contenido?: string
+          created_at?: string
+          dispositivo?: string
+          fijado?: boolean
+          id?: string
+          sync_at?: string
+          tipo?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       traspasos: {
         Row: {
           created_at: string
