@@ -16,7 +16,8 @@ export interface Vecino {
 }
 
 const ESTADOS_VALIDOS = new Set(['REACHABLE', 'STALE', 'DELAY', 'PROBE', 'PERMANENT', 'NOARP'])
-const IPV4 = /^(25[0-5]|2[0-4]\d|1?\d?\d)(\.(25[0-5]|2[0-4]\d|1?\d?\d)){3}$/
+// Sin ceros delante («01»): hay programas que los leen en octal
+const IPV4 = /^(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}$/
 
 export function esIPv4(ip: unknown): ip is string {
   return typeof ip === 'string' && IPV4.test(ip)
@@ -80,7 +81,7 @@ export function leerDireccion(salida: string): { ip: string; prefijo: number } |
     if (!Array.isArray(info)) continue
     for (const a of info) {
       const { family, local, prefixlen } = (a ?? {}) as Record<string, unknown>
-      if (family === 'inet' && esIPv4(local) && typeof prefixlen === 'number' && prefixlen >= 8 && prefixlen <= 32) return { ip: local, prefijo: prefixlen }
+      if (family === 'inet' && esIPv4(local) && Number.isInteger(prefixlen) && (prefixlen as number) >= 8 && (prefixlen as number) <= 32) return { ip: local, prefijo: prefixlen as number }
     }
   }
   return null
@@ -106,6 +107,28 @@ export function ipsAProbar(ip: string, prefijo: number): string[] {
 export function enCasa(vecinos: readonly Vecino[], ipRouter: string, macRouter: string | null): boolean {
   if (!macRouter) return false
   return vecinos.some((v) => v.ip === ipRouter && v.mac === macRouter)
+}
+
+/**
+ * Estado del router en la tabla de vecinos (`ip -j neigh show <ip> dev X`):
+ * 'casa' solo si acaba de contestar (REACHABLE o PERMANENT) con la MAC de
+ * casa; 'esperar' si la entrada es vieja o se está comprobando (STALE,
+ * DELAY, PROBE: puede ser la de casa de antes de cambiar de red); 'fuera' si no.
+ */
+export function routerDeCasa(salida: string, ipRouter: string, macRouter: string | null): 'casa' | 'esperar' | 'fuera' {
+  if (!macRouter) return 'fuera'
+  const datos = json(salida)
+  if (!Array.isArray(datos)) return 'fuera'
+  for (const v of datos) {
+    const { dst, lladdr, state } = (v ?? {}) as Record<string, unknown>
+    if (dst !== ipRouter) continue
+    const estados = Array.isArray(state) ? state.map(String) : []
+    if (normalizarMacVecino(lladdr) !== macRouter) return 'fuera'
+    if (estados.includes('REACHABLE') || estados.includes('PERMANENT')) return 'casa'
+    if (estados.some((e) => e === 'STALE' || e === 'DELAY' || e === 'PROBE')) return 'esperar'
+    return 'fuera'
+  }
+  return 'fuera'
 }
 
 /** Lee el oui.csv del IEEE («MA-L,286FB9,"Nokia…",…») → prefijo (6 hex) → fabricante. */

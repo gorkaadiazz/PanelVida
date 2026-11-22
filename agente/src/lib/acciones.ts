@@ -67,7 +67,9 @@ export function traducir(accion: unknown, valor: unknown, apps: readonly App[], 
     return { programa: 'loginctl', args: ['lock-session', sesion] }
   }
   if (valor !== null && valor !== undefined) return null
-  return FIJAS[accion]
+  // Una copia: quien la reciba no puede cambiar la lista fija
+  const fija = FIJAS[accion]
+  return { programa: fija.programa, args: [...fija.args] }
 }
 
 /** Lee la salida de `wpctl get-volume @DEFAULT_AUDIO_SINK@`: «Volume: 0.45 [MUTED]». */

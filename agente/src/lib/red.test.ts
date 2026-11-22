@@ -99,3 +99,21 @@ describe('fabricante (oui.csv del IEEE)', () => {
     expect(fabricante('a6:2b:b0:11:22:33', tabla)).toBeNull()
   })
 })
+
+describe('routerDeCasa: solo si acaba de contestar con la MAC de casa', () => {
+  const salida = (state: string[], mac = 'a4:2b:b0:11:22:33') => JSON.stringify([{ dst: '192.168.1.1', lladdr: mac, state }])
+  it('REACHABLE o PERMANENT con la MAC de casa', async () => {
+    const { routerDeCasa } = await import('./red.ts')
+    expect(routerDeCasa(salida(['REACHABLE']), '192.168.1.1', 'a4:2b:b0:11:22:33')).toBe('casa')
+    expect(routerDeCasa(salida(['PERMANENT']), '192.168.1.1', 'a4:2b:b0:11:22:33')).toBe('casa')
+  })
+  it('una entrada vieja hace esperar; otra MAC o nada, fuera', async () => {
+    const { routerDeCasa } = await import('./red.ts')
+    expect(routerDeCasa(salida(['STALE']), '192.168.1.1', 'a4:2b:b0:11:22:33')).toBe('esperar')
+    expect(routerDeCasa(salida(['DELAY']), '192.168.1.1', 'a4:2b:b0:11:22:33')).toBe('esperar')
+    expect(routerDeCasa(salida(['REACHABLE'], 'a4:2b:b0:11:22:34'), '192.168.1.1', 'a4:2b:b0:11:22:33')).toBe('fuera')
+    expect(routerDeCasa(salida(['FAILED']), '192.168.1.1', 'a4:2b:b0:11:22:33')).toBe('fuera')
+    expect(routerDeCasa('[]', '192.168.1.1', 'a4:2b:b0:11:22:33')).toBe('fuera')
+    expect(routerDeCasa(salida(['REACHABLE']), '192.168.1.1', null)).toBe('fuera')
+  })
+})

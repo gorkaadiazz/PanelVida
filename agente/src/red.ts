@@ -7,7 +7,7 @@ import { readFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
-import { enCasa, fabricante, ipsAProbar, leerDireccion, leerOui, leerRutaPorDefecto, leerVecinos, normalizarMacVecino, type Vecino } from './lib/red.ts'
+import { fabricante, ipsAProbar, leerDireccion, leerOui, leerRutaPorDefecto, leerVecinos, normalizarMacVecino, routerDeCasa, type Vecino } from './lib/red.ts'
 
 const ejecutar = promisify(execFile)
 const ESPERA_ARP_MS = 2500
@@ -67,10 +67,16 @@ export async function escanear(macRouter: string | null): Promise<Escaneo | null
   const direccion = leerDireccion(await ip(['-j', '-4', 'addr', 'show', 'dev', ruta.dev]))
   if (!direccion) return null
 
-  // ¿Estás en casa? Primero solo el router (así fuera de casa no se barre ninguna red ajena)
-  await tocarTodas([ruta.ip])
-  await new Promise((ok) => setTimeout(ok, 500))
-  if (!enCasa(leerVecinos(await ip(['-j', 'neigh', 'show', 'dev', ruta.dev])), ruta.ip, macRouter)) return null
+  // ¿Estás en casa? Primero solo el router (así fuera de casa no se barre
+  // ninguna red ajena), y solo si ACABA de contestar con la MAC de casa: una
+  // entrada vieja (STALE) podría ser la de casa antes de cambiar de red.
+  let casa: 'casa' | 'esperar' | 'fuera' = 'esperar'
+  for (let intento = 0; intento < 3 && casa === 'esperar'; intento++) {
+    await tocarTodas([ruta.ip])
+    await new Promise((ok) => setTimeout(ok, 700))
+    casa = routerDeCasa(await ip(['-j', 'neigh', 'show', ruta.ip, 'dev', ruta.dev]), ruta.ip, macRouter)
+  }
+  if (casa !== 'casa') return null
 
   await tocarTodas(ipsAProbar(direccion.ip, direccion.prefijo))
   await new Promise((ok) => setTimeout(ok, ESPERA_ARP_MS))

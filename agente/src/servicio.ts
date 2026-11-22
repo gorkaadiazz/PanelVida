@@ -23,7 +23,7 @@ export async function iniciarServicio(): Promise<void> {
     console.error('Este PC no está vinculado. Ejecuta: mipanel-agente vincular CODIGO')
     process.exit(0) // sin error: systemd no lo reintenta en bucle
   }
-  let config
+  let config: Awaited<ReturnType<typeof cargarConfig>>
   try {
     config = await cargarConfig()
   } catch (e) {
