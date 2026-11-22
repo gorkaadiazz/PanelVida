@@ -109,7 +109,9 @@ async function vincular(admin: Admin, url: string, cuerpo: Record<string, unknow
     if (errorUsuario || !creado?.user) throw errorUsuario ?? new Error('Sin usuario')
     agenteId = creado.user.id
   } finally {
-    await admin.from('emails_permitidos').delete().eq('email', email)
+    const { error: errorQuitar } = await admin.from('emails_permitidos').delete().eq('email', email)
+    // Si falla, lo quita la limpieza de cada hora (agentes_huerfanos)
+    if (errorQuitar) console.error('agentes: no se pudo quitar el email permitido', errorQuitar)
   }
 
   const { error: errorFila } = await admin.from('agentes').insert({ id: agenteId, user_id: dueno, nombre })

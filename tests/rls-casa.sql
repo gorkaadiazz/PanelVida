@@ -1028,5 +1028,68 @@ update public.codigos_vinculacion set caduca_en = now() + interval '5 minutes' w
 select pg_temp.como('service');
 select pg_temp.comprobar(public.usar_codigo_vinculacion((select codigo from cv2)) is null, 'no hay tope de intentos');
 
+-- @caso: agente: tampoco es cuenta de la web de exámenes, ni de Storage, ni de Gemini
+reset role;
+insert into public.emails_permitidos (email) values ('agente-1@agente.invalid');
+insert into auth.users (id, email, raw_app_meta_data) values ('99999999-0000-4000-8000-000000000009', 'agente-1@agente.invalid', '{"provider": "email", "tipo": "agente"}');
+delete from public.emails_permitidos where email = 'agente-1@agente.invalid';
+insert into public.agentes (id, user_id, nombre) values ('99999999-0000-4000-8000-000000000009', 'aaaaaaaa-0000-4000-8000-00000000000a', 'PC casa');
+select pg_temp.como('99999999-0000-4000-8000-000000000009');
+select pg_temp.debe_fallar($q$insert into public.modulos (nombre, abreviatura) values ('x', 'X')$q$, array['42501'], 'el agente crea módulos (web de exámenes)');
+select pg_temp.debe_fallar($q$insert into public.perfiles (nombre) values ('x')$q$, array['42501'], 'el agente crea un perfil');
+select pg_temp.debe_fallar($q$insert into public.borrados (user_id, tabla, fila_id) values (auth.uid(), 'x', gen_random_uuid())$q$, array['42501'], 'el agente escribe en borrados');
+select pg_temp.debe_fallar($q$insert into storage.objects (bucket_id, name) values ('temarios', '99999999-0000-4000-8000-000000000009/x/a.pdf')$q$, array['42501'], 'el agente sube a temarios');
+select pg_temp.comprobar(public.inicializar_cuenta() = false, 'inicializar_cuenta crea algo al agente');
+select pg_temp.como('service');
+select pg_temp.comprobar(public.sumar_uso_ia('99999999-0000-4000-8000-000000000009', 100) is null, 'el agente puede gastar Gemini');
+select pg_temp.comprobar(public.sumar_uso_ia('aaaaaaaa-0000-4000-8000-00000000000a', 100) = 1, 'una cuenta normal no puede usar Gemini');
+-- Toda tabla de public con RLS cierra el paso a los agentes (salvo agentes y puente, que tienen las suyas)
+reset role;
+select pg_temp.comprobar(not exists (
+  select 1 from pg_class c join pg_namespace n on n.oid = c.relnamespace
+  where n.nspname = 'public' and c.relkind = 'r' and c.relrowsecurity and c.relname not in ('agentes', 'puente')
+    and not exists (select 1 from pg_policies p where p.schemaname = 'public' and p.tablename = c.relname and p.permissive = 'RESTRICTIVE'
+                    and p.policyname in ('solo_cuentas_normales', 'sin_agentes'))),
+  'una tabla de public no cierra el paso a los agentes: ' || coalesce((
+    select string_agg(c.relname, ', ') from pg_class c join pg_namespace n on n.oid = c.relnamespace
+    where n.nspname = 'public' and c.relkind = 'r' and c.relrowsecurity and c.relname not in ('agentes', 'puente')
+      and not exists (select 1 from pg_policies p where p.schemaname = 'public' and p.tablename = c.relname and p.permissive = 'RESTRICTIVE'
+                      and p.policyname in ('solo_cuentas_normales', 'sin_agentes'))), ''));
+
+-- @caso: agente: con el usuario ya borrado, su token (que vale hasta una hora) sigue siendo de agente
+reset role;
+-- Sin fila en agentes ni en auth.users: solo queda el token, con app_metadata firmado por el servidor
+select set_config('role', 'authenticated', true);
+select set_config('request.jwt.claims', '{"sub": "77777777-0000-4000-8000-000000000007", "role": "authenticated", "app_metadata": {"tipo": "agente"}}', true);
+select pg_temp.comprobar(public.tipo_cuenta() = 'agente', 'un token de agente borrado pasa a cuenta normal');
+select pg_temp.debe_fallar($q$insert into storage.objects (bucket_id, name) values ('temarios', '77777777-0000-4000-8000-000000000007/x/a.pdf')$q$, array['42501'], 'el token huérfano sube a temarios');
+select pg_temp.debe_fallar($q$insert into public.tareas (texto) values ('x')$q$, array['42501', '23503'], 'el token huérfano crea tareas');
+
+-- @caso: solo se crean cuentas de Google (o agentes): email y contraseña no, ni siquiera con un email permitido
+reset role;
+insert into public.emails_permitidos (email) values ('companero-nuevo@rls.test');
+select pg_temp.debe_fallar($q$insert into auth.users (id, email, raw_app_meta_data) values (gen_random_uuid(), 'companero-nuevo@rls.test', '{"provider": "email", "providers": ["email"]}')$q$,
+  array['42501'], 'alta con email y contraseña de un email permitido');
+-- un email de agente sin la marca de agente tampoco
+insert into public.emails_permitidos (email) values ('falso@agente.invalid');
+select pg_temp.debe_fallar($q$insert into auth.users (id, email, raw_app_meta_data) values (gen_random_uuid(), 'falso@agente.invalid', '{"provider": "email"}')$q$,
+  array['42501'], 'alta de un falso agente');
+-- Google sí
+insert into auth.users (id, email, raw_app_meta_data) values (gen_random_uuid(), 'companero-nuevo@rls.test', '{"provider": "google", "providers": ["google"]}');
+
+-- @caso: limpieza de vincular a medias: emails de agente olvidados y usuarios agente sin fila (solo la service role)
+reset role;
+insert into public.emails_permitidos (email, created_at) values ('agente-viejo@agente.invalid', now() - interval '1 hour'), ('agente-nuevo@agente.invalid', now());
+insert into public.emails_permitidos (email) values ('agente-2@agente.invalid');
+insert into auth.users (id, email, raw_app_meta_data, created_at) values ('66666666-0000-4000-8000-000000000006', 'agente-2@agente.invalid', '{"provider": "email", "tipo": "agente"}', now() - interval '1 hour');
+delete from public.emails_permitidos where email = 'agente-2@agente.invalid';
+select pg_temp.como('aaaaaaaa-0000-4000-8000-00000000000a');
+select pg_temp.debe_fallar($q$select public.agentes_huerfanos()$q$, array['42501'], 'un usuario usa la limpieza de agentes');
+select pg_temp.como('service');
+select pg_temp.comprobar((select array_agg(h) from public.agentes_huerfanos() h) = array['66666666-0000-4000-8000-000000000006'::uuid], 'no encuentra el agente huérfano');
+reset role;
+select pg_temp.comprobar(not exists (select 1 from public.emails_permitidos where email = 'agente-viejo@agente.invalid')
+  and exists (select 1 from public.emails_permitidos where email = 'agente-nuevo@agente.invalid'), 'no limpia bien los emails de agente');
+
 -- @fin
 rollback;

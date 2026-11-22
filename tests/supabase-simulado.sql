@@ -12,13 +12,18 @@ alter default privileges in schema public grant execute on functions to anon, au
 
 create schema auth;
 grant usage on schema auth to anon, authenticated, service_role;
-create table auth.users (id uuid primary key, email text, raw_user_meta_data jsonb, raw_app_meta_data jsonb);
+create table auth.users (id uuid primary key, email text, raw_user_meta_data jsonb, raw_app_meta_data jsonb, created_at timestamptz default now());
 -- Identidades de cada usuario (Google): el nombre que el usuario no puede cambiar
 create table auth.identities (id uuid primary key default gen_random_uuid(), user_id uuid references auth.users (id) on delete cascade, provider text, identity_data jsonb, created_at timestamptz default now());
 -- Igual que en Supabase: el id del usuario sale del JWT de la petición
 create function auth.uid() returns uuid language sql stable as $$
   select nullif(coalesce(current_setting('request.jwt.claim.sub', true),
     (nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'sub')), '')::uuid
+$$;
+
+-- Igual que en Supabase: los claims del JWT de la petición
+create function auth.jwt() returns jsonb language sql stable as $$
+  select coalesce(nullif(current_setting('request.jwt.claims', true), ''), '{}')::jsonb
 $$;
 
 create schema storage;

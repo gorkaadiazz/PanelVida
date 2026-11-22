@@ -65,9 +65,13 @@ set search_path = ''
 as $$
   select case
     when auth.uid() is null then null
-    -- Un agente lo es aunque ya esté desvinculado (sin fila en agentes): lo dice
-    -- su app_metadata, que solo puede escribir el servidor (la Edge Function).
-    -- Así un agente desvinculado no pasa a ser una cuenta normal.
+    -- Un agente lo es SIEMPRE, aunque ya esté desvinculado o su usuario borrado:
+    --   · lo dice su propio token (app_metadata la firma el servidor y no se
+    --     puede falsificar; sigue en el JWT aunque se borre el usuario, durante
+    --     la hora que el token aún vale);
+    --   · o su fila en agentes, o su app_metadata en auth.users.
+    -- Así un agente desvinculado nunca pasa a ser una cuenta normal.
+    when coalesce(auth.jwt() -> 'app_metadata' ->> 'tipo', '') = 'agente' then 'agente'
     when exists (select 1 from public.agentes a where a.id = auth.uid()) then 'agente'
     when exists (select 1 from auth.users u where u.id = auth.uid() and u.raw_app_meta_data ->> 'tipo' = 'agente') then 'agente'
     when exists (
@@ -207,8 +211,10 @@ revoke execute on function public.crear_codigo_vinculacion() from public, anon;
 grant execute on function public.crear_codigo_vinculacion() to authenticated;
 
 -- Para la Edge Function (service role): gasta el código y dice de quién es.
--- Devuelve el user_id del dueño, o null si el código no vale. Como mucho 30
--- intentos fallidos cada 10 minutos en total (es un endpoint sin sesión).
+-- Devuelve el user_id del dueño, o null si el código no vale. Como mucho 1000
+-- intentos fallidos cada 10 minutos en total (es un endpoint sin sesión): con
+-- 40 bits y 3 códigos activos por persona, probar códigos no sirve de nada, y
+-- un tope bajo dejaría a cualquiera bloquear el vincular de todos.
 create or replace function public.usar_codigo_vinculacion(codigo text)
 returns uuid
 language plpgsql
@@ -221,7 +227,7 @@ declare
   v_cod public.codigos_vinculacion%rowtype;
 begin
   perform pg_advisory_xact_lock(hashtext('vinculacion-intentos'));
-  if (select count(*) from public.vinculacion_intentos where cuando > now() - interval '10 minutes') >= 30 then
+  if (select count(*) from public.vinculacion_intentos where cuando > now() - interval '10 minutes') >= 1000 then
     return null;
   end if;
   select * into v_cod from public.codigos_vinculacion c
@@ -269,6 +275,11 @@ $$;
 revoke execute on function public.agente_latido(text[], text) from public, anon;
 grant execute on function public.agente_latido(text[], text) to authenticated;
 
+-- Lo que manda un agente queda marcado: los demás PC lo avisan pero NO lo
+-- copian al portapapeles (un PC comprometido no puede meter un comando en el
+-- portapapeles de otro). Solo lo pone esta función; la app no lo sube.
+alter table public.puente add column origen_agente uuid;
+
 -- `mipanel-enviar`: manda texto o un enlace al Puente de su dueño, con el
 -- nombre del PC como dispositivo. Los checks de la tabla validan el resto.
 create or replace function public.agente_enviar_puente(contenido text)
@@ -289,10 +300,10 @@ begin
   if v_texto = '' then
     raise exception 'No hay nada que mandar' using errcode = 'check_violation';
   end if;
-  insert into public.puente (id, user_id, tipo, contenido, dispositivo)
+  insert into public.puente (id, user_id, tipo, contenido, dispositivo, origen_agente)
   select v_id, v_dueno,
          case when v_texto ~* '^https?://[^\s]+$' then 'enlace' else 'texto' end,
-         v_texto, left(a.nombre, 40)
+         v_texto, left(a.nombre, 40), a.id
   from public.agentes a where a.id = auth.uid();
   return v_id;
 end;
@@ -311,3 +322,192 @@ begin
   end if;
 end;
 $$;
+
+-- -----------------------------------------------------------------------------
+-- El agente no es una cuenta de nada más (hallazgo de seguridad)
+--
+-- Con las credenciales de un agente se puede iniciar sesión como cualquier
+-- usuario: sin esto podría guardar filas suyas en las tablas de la web de
+-- exámenes, subir archivos a Storage o gastar Gemini. Se cierra con una
+-- política restrictiva en TODAS las tablas de public que aún no impiden el
+-- paso a los agentes, y en storage.objects. Para las cuentas normales y la
+-- familia no cambia nada (para ellas la condición siempre se cumple).
+-- -----------------------------------------------------------------------------
+
+do $$
+declare
+  t text;
+begin
+  for t in
+    select c.relname from pg_class c join pg_namespace n on n.oid = c.relnamespace
+    where n.nspname = 'public' and c.relkind = 'r' and c.relrowsecurity
+      and c.relname not in ('agentes', 'puente')   -- el agente lee su fila y el Puente de su dueño
+      and not exists (
+        select 1 from pg_policies p
+        where p.schemaname = 'public' and p.tablename = c.relname and p.permissive = 'RESTRICTIVE'
+          and p.policyname in ('solo_cuentas_normales', 'sin_agentes'))
+  loop
+    execute format(
+      'create policy "sin_agentes" on public.%I as restrictive for all to authenticated
+         using ((select public.tipo_cuenta()) <> ''agente'')
+         with check ((select public.tipo_cuenta()) <> ''agente'')', t);
+  end loop;
+end;
+$$;
+
+-- El agente no lee ni escribe en la fila de su dueño (agentes) más que con sus funciones
+create policy "sin_agentes_escribir" on public.agentes as restrictive for update to authenticated
+  using ((select public.tipo_cuenta()) <> 'agente');
+create policy "sin_agentes_borrar" on public.agentes as restrictive for delete to authenticated
+  using ((select public.tipo_cuenta()) <> 'agente');
+
+-- Storage: ningún bucket (ni temarios ni puente)
+create policy "sin_agentes" on storage.objects as restrictive for all to authenticated
+  using ((select public.tipo_cuenta()) <> 'agente')
+  with check ((select public.tipo_cuenta()) <> 'agente');
+
+-- Gemini (web de exámenes): la Edge Function cuenta cada llamada con
+-- sumar_uso_ia(); a un agente le dice siempre «límite alcanzado». Mismo
+-- cuerpo que 20261110000500 más esa comprobación.
+create or replace function public.sumar_uso_ia(p_user uuid, p_limite integer)
+returns integer
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_llamadas integer;
+begin
+  if p_limite < 1 then
+    return null;
+  end if;
+  if exists (select 1 from public.agentes a where a.id = p_user)
+     or exists (select 1 from auth.users u where u.id = p_user and u.raw_app_meta_data ->> 'tipo' = 'agente') then
+    return null;
+  end if;
+  insert into public.uso_ia (user_id, fecha, llamadas)
+  values (p_user, current_date, 1)
+  on conflict (user_id, fecha) do update
+    set llamadas = public.uso_ia.llamadas + 1, updated_at = now()
+    where public.uso_ia.llamadas < p_limite
+  returning llamadas into v_llamadas;
+  return v_llamadas;
+end;
+$$;
+revoke all on function public.sumar_uso_ia(uuid, integer) from public, anon, authenticated;
+grant execute on function public.sumar_uso_ia(uuid, integer) to service_role;
+
+-- -----------------------------------------------------------------------------
+-- Solo Google (y los agentes) pueden crear cuentas
+--
+-- El agente entra con email y contraseña, así que el proveedor «Email» de
+-- Supabase Auth tiene que estar activado. Sin esto, cualquiera podría darse
+-- de alta con email y contraseña usando el email de un compañero o familiar
+-- que aún no haya entrado, y al entrar él con Google su cuenta quedaría
+-- enlazada a esa contraseña (robo de cuenta «por adelantado»).
+-- -----------------------------------------------------------------------------
+
+create or replace function public.solo_google_o_agentes()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if coalesce(new.raw_app_meta_data ->> 'provider', '') = 'email'
+     and not (lower(coalesce(new.email, '')) like '%@agente.invalid'
+              and coalesce(new.raw_app_meta_data ->> 'tipo', '') = 'agente') then
+    raise exception 'Solo se puede entrar con Google' using errcode = '42501';
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.solo_google_o_agentes() from public, anon, authenticated;
+create trigger solo_google_o_agentes before insert on auth.users
+  for each row execute function public.solo_google_o_agentes();
+
+-- -----------------------------------------------------------------------------
+-- Limpieza (la llama cada hora limpiar-puente): restos de un vincular a medias
+-- -----------------------------------------------------------------------------
+
+-- Emails de agente que se quedaron permitidos (la función se cortó antes de quitarlos)
+-- y usuarios agente sin fila en agentes (desvinculados a medias). Devuelve sus ids.
+create or replace function public.agentes_huerfanos()
+returns setof uuid
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+begin
+  delete from public.emails_permitidos
+  where email like '%@agente.invalid' and created_at < now() - interval '5 minutes';
+  return query
+    select u.id from auth.users u
+    where u.raw_app_meta_data ->> 'tipo' = 'agente'
+      and u.created_at < now() - interval '10 minutes'
+      and not exists (select 1 from public.agentes a where a.id = u.id)
+    limit 100;
+end;
+$$;
+revoke execute on function public.agentes_huerfanos() from public, anon, authenticated;
+grant execute on function public.agentes_huerfanos() to service_role;
+
+-- unirse_hogar (20261122000300) es security definer: las políticas
+-- restrictivas no le afectan, así que un agente podría gastar una invitación
+-- y entrar en un hogar. Mismo cuerpo más esa comprobación.
+create or replace function public.unirse_hogar(codigo text)
+returns text
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+declare
+  v_uid uuid := auth.uid();
+  v_normal text := public.normalizar_codigo(codigo);
+  v_inv public.hogar_invitaciones%rowtype;
+begin
+  if v_uid is null then
+    raise exception 'Hace falta iniciar sesión' using errcode = '42501';
+  end if;
+  -- Es security definer (las políticas no le afectan): se comprueba aquí
+  if public.tipo_cuenta() = 'agente' then
+    raise exception 'Un agente no entra en hogares' using errcode = '42501';
+  end if;
+  if exists (select 1 from public.hogar_miembros m where m.user_id = v_uid) then
+    return 'ya_en_hogar';
+  end if;
+  -- Un usuario a la vez (si no, varios intentos en paralelo se saltarían el tope)
+  perform pg_advisory_xact_lock(hashtext('hogar-intentos:' || v_uid::text));
+  if (select count(*) from public.hogar_intentos t where t.user_id = v_uid and t.cuando > now() - interval '1 hour') >= 10 then
+    return 'demasiados_intentos';
+  end if;
+
+  select * into v_inv from public.hogar_invitaciones x
+  where length(v_normal) = 10 and x.codigo_hash = sha256(convert_to(v_normal, 'UTF8'))
+  for update;
+
+  if not found then
+    insert into public.hogar_intentos (user_id) values (v_uid);
+    return 'invalido';
+  end if;
+  if v_inv.usado_en is not null then
+    insert into public.hogar_intentos (user_id) values (v_uid);
+    return 'usado';
+  end if;
+  if v_inv.caduca_en <= now() then
+    insert into public.hogar_intentos (user_id) values (v_uid);
+    return 'caducado';
+  end if;
+
+  update public.hogar_invitaciones set usado_en = now(), usado_por = v_uid where id = v_inv.id;
+  insert into public.hogar_miembros (hogar_id, user_id, nombre)
+  values (v_inv.hogar_id, v_uid, coalesce(public.nombre_de_usuario(v_uid), 'Alguien'));
+  -- Lo viejo sobra
+  delete from public.hogar_intentos t where t.cuando < now() - interval '1 day';
+  return 'ok';
+end;
+$$;
+revoke execute on function public.unirse_hogar(text) from public, anon;
+grant execute on function public.unirse_hogar(text) to authenticated;

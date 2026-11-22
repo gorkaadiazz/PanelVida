@@ -96,7 +96,19 @@ Deno.serve(async (req) => {
       if (rutas.length < TANDA) break
     }
 
-    return responder(200, { filas, archivos })
+    // 3. Restos de un vincular o desvincular a medias (agente del PC): emails
+    //    de agente olvidados en emails_permitidos (los borra la propia función)
+    //    y usuarios agente que ya no tienen fila en `agentes`.
+    let agentes = 0
+    const { data: huerfanos, error: errorAgentes } = await admin.rpc('agentes_huerfanos')
+    if (errorAgentes) console.warn('limpiar-puente: agentes', errorAgentes)
+    for (const id of ((huerfanos ?? []) as unknown[]).filter((x): x is string => typeof x === 'string')) {
+      const { error: e } = await admin.auth.admin.deleteUser(id)
+      if (e) console.warn('limpiar-puente: no se pudo borrar un agente huérfano', e)
+      else agentes += 1
+    }
+
+    return responder(200, { filas, archivos, agentes })
   } catch (error) {
     // El detalle solo en el registro de la función, nunca en la respuesta
     console.error('limpiar-puente', error)
