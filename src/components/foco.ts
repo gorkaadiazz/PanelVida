@@ -15,6 +15,8 @@ export function prepararFoco(fila: HTMLElement | null): () => void {
     fila.closest('section')?.querySelector<HTMLElement>('h2') ??
     null
   return () => {
+    // Si la sección entera ha desaparecido (se borró lo último), al h1 de la pantalla
     if (destino?.isConnected) destino.focus()
+    else document.querySelector<HTMLElement>('main h1')?.focus()
   }
 }

@@ -15,6 +15,7 @@ import {
   IconoIdea,
   IconoInicio,
   IconoPlan,
+  IconoPuente,
   IconoMas,
   IconoNegocio,
   IconoTareas,
@@ -37,13 +38,14 @@ const IDEAS: Destino = { ruta: '/ideas', texto: 'Ideas', icono: <IconoIdea /> }
 const CUMPLEANOS: Destino = { ruta: '/cumpleanos', texto: 'Cumpleaños', icono: <IconoCumple /> }
 const PLANES: Destino = { ruta: '/planes', texto: 'Planes', icono: <IconoPlan /> }
 const DESEOS: Destino = { ruta: '/deseos', texto: 'Lista de deseos', icono: <IconoDeseo /> }
+const PUENTE: Destino = { ruta: '/casa/puente', texto: 'Puente', icono: <IconoPuente /> }
 const DINERO: Destino = { ruta: '/dinero', texto: 'Dinero', icono: <IconoDinero /> }
 const NEGOCIO: Destino = { ruta: '/negocio', texto: 'Negocio', icono: <IconoNegocio /> }
 const CUENTA: Destino = { ruta: '/cuenta', texto: 'Cuenta', icono: <IconoCuenta /> }
 const MAS: Destino = { ruta: '/mas', texto: 'Más', icono: <IconoMas /> }
 
 const PRINCIPALES = [INICIO, HABITOS, TAREAS, ESTUDIOS]
-const EN_MAS = new Set([MAS.ruta, IDEAS.ruta, CUMPLEANOS.ruta, PLANES.ruta, DESEOS.ruta, DINERO.ruta, NEGOCIO.ruta, CUENTA.ruta])
+const EN_MAS = new Set([MAS.ruta, IDEAS.ruta, CUMPLEANOS.ruta, PLANES.ruta, DESEOS.ruta, PUENTE.ruta, DINERO.ruta, NEGOCIO.ruta, CUENTA.ruta])
 
 export function Layout() {
   const { pathname } = useLocation()
@@ -70,12 +72,19 @@ export function Layout() {
         {PRINCIPALES.map((d) => (
           <EnlaceLateral key={d.ruta} destino={d} />
         ))}
-        {/* Dos bloques para no leer una lista de seis: vida personal y dinero */}
+        {/* Bloques para no leer una lista larga: vida personal, casa y dinero */}
         <div className="sidebar__group">
           <EnlaceLateral destino={IDEAS} />
           <EnlaceLateral destino={CUMPLEANOS} />
           <EnlaceLateral destino={PLANES} />
           <EnlaceLateral destino={DESEOS} />
+        </div>
+        {/* Con título visible, como en «Más» */}
+        <div className="sidebar__group" role="group" aria-labelledby="lateral-casa">
+          <span id="lateral-casa" className="sidebar__titulo">
+            Casa
+          </span>
+          <EnlaceLateral destino={PUENTE} />
         </div>
         <div className="sidebar__group">
           <EnlaceLateral destino={DINERO} />

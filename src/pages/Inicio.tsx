@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react'
+import { useState, type CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
 import { nombreDeUsuario, useSesion } from '../auth/useSesion'
 import { AvisoError } from '../components/AvisoError'
@@ -6,7 +6,7 @@ import { EtiquetaFecha } from '../components/EtiquetaFecha'
 import { Pagina } from '../components/Pagina'
 import { prepararFoco } from '../components/foco'
 import { Racha } from '../components/Racha'
-import { IconoDinero, IconoEstudios, IconoCumple, IconoExterno, IconoFlecha, IconoHabitos, IconoIdea, IconoNegocio, IconoPlan, IconoTareas } from '../components/iconos'
+import { IconoDinero, IconoEstudios, IconoCumple, IconoExterno, IconoFlecha, IconoHabitos, IconoIdea, IconoNegocio, IconoPlan, IconoPuente, IconoTareas } from '../components/iconos'
 import { useAccion } from '../components/useAccion'
 import { useHoy } from '../components/useHoy'
 import { diferenciaDias, formatearFecha, type FechaDia } from '../lib/fechas'
@@ -20,8 +20,9 @@ import { ideasSinProcesar } from '../lib/ideas'
 import { esTipoPlan, NOMBRE_TIPO_PLAN, proximoPlan } from '../lib/planes'
 import { DIAS_EN_INICIO, proximosDias, textoCuentaAtras as cuentaAtrasCumple, textoDiaMes } from '../lib/cumpleanos'
 import { recuentoTareas } from '../lib/tareas'
+import { cuandoSeEnvio, ordenarPuente, resumenElemento } from '../lib/puente'
 import { alternarDia } from '../repos/habitos'
-import { useClientes, useCumpleanos, useExamenes, useFijos, useHabitos, useIdeas, useMarcas, useMovimientos, usePerfil, usePlanes, useRevisiones, useTareas } from '../repos/hooks'
+import { useClientes, useCumpleanos, useExamenes, useFijos, useHabitos, useIdeas, useMarcas, useMovimientos, usePerfil, usePlanes, usePuente, useRevisiones, useTareas } from '../repos/hooks'
 import { leerDatosRevision, nombrePeriodo, textoCambio, type TipoRevision } from '../lib/revision'
 import { ahorroTotal, cuandoLlego, lineaMeta, ritmoAhorro } from '../lib/prevision'
 import { leerVentana } from '../components/ventanaPrevision'
@@ -67,6 +68,7 @@ export function Inicio() {
           <TarjetaNegocio />
           <TarjetaSemana hoy={dia} />
           <TarjetaIdeas />
+          <TarjetaCasa />
         </div>
       </div>
     </Pagina>
@@ -620,6 +622,46 @@ function TarjetaPlan({ hoy }: { hoy: FechaDia }) {
       <div className="card__foot">
         <Link to="/planes" className="btn btn--ghost">
           {lista.length === 0 && !cargando ? 'Apuntar un plan' : 'Ver planes'}
+          <IconoFlecha />
+        </Link>
+      </div>
+    </section>
+  )
+}
+
+/** Casa: lo último que ha llegado al Puente (el estado del PC llega con el agente). */
+function TarjetaCasa() {
+  const puente = usePuente()
+  const { primeraDescargaHecha } = useEstadoSync()
+  const lista = puente.datos ?? []
+  const cargando = puente.cargando || (lista.length === 0 && !primeraDescargaHecha)
+  const { fijados, recientes } = ordenarPuente(lista)
+  const ultimo = [...recientes, ...fijados].sort((a, b) => b.created_at.localeCompare(a.created_at))[0]
+  const [ahora] = useState(() => Date.now())
+
+  return (
+    <section className="card" aria-labelledby="inicio-casa">
+      <div className="card__head">
+        <h2 id="inicio-casa" className="card__titulo">
+          <IconoPuente />
+          Puente
+        </h2>
+      </div>
+      {cargando ? (
+        <Esqueleto />
+      ) : ultimo ? (
+        <p className="break">
+          <span className="truncate" style={{ display: 'block' }}>{resumenElemento(ultimo)}</span>
+          <span className="t-small muted">
+            {ultimo.dispositivo || 'Otro dispositivo'} · <span className="num">{cuandoSeEnvio(ultimo.created_at, ahora)}</span>
+          </span>
+        </p>
+      ) : (
+        <p className="muted">Nada en el Puente. Manda texto, enlaces o archivos entre el móvil y el PC.</p>
+      )}
+      <div className="card__foot">
+        <Link to="/casa/puente" className="btn btn--ghost">
+          Abrir el Puente
           <IconoFlecha />
         </Link>
       </div>

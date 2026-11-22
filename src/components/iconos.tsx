@@ -277,3 +277,72 @@ export function IconoDeseo(props: PropsIcono) {
     </Icono>
   )
 }
+
+// --- Fase 9: Casa ---
+
+export function IconoCasa(props: PropsIcono) {
+  return (
+    <Icono {...props}>
+      <path d="M3.5 11 12 4l8.5 7" />
+      <path d="M5.5 9.5V20h13V9.5" />
+      <path d="M10 20v-5h4v5" />
+    </Icono>
+  )
+}
+
+/** Puente: dos pantallas con flechas de ida y vuelta. */
+export function IconoPuente(props: PropsIcono) {
+  return (
+    <Icono {...props}>
+      <rect x="2.5" y="5" width="7" height="12" rx="1.5" />
+      <rect x="14.5" y="4" width="7" height="10" rx="1" />
+      <path d="M11 9.5h2.5M12.5 8l1.5 1.5-1.5 1.5" />
+      <path d="M13 13.5h-2.5M11.5 12 10 13.5l1.5 1.5" />
+      <path d="M16.5 18h3" />
+    </Icono>
+  )
+}
+
+export function IconoCopiar(props: PropsIcono) {
+  return (
+    <Icono {...props}>
+      <rect x="8.5" y="8.5" width="11" height="11" rx="2" />
+      <path d="M15.5 8.5V6a1.5 1.5 0 0 0-1.5-1.5H6A1.5 1.5 0 0 0 4.5 6v8A1.5 1.5 0 0 0 6 15.5h2.5" />
+    </Icono>
+  )
+}
+
+export function IconoDescargar(props: PropsIcono) {
+  return (
+    <Icono {...props}>
+      <path d="M12 4v11M7.5 10.5 12 15l4.5-4.5" />
+      <path d="M5 19.5h14" />
+    </Icono>
+  )
+}
+
+export function IconoFijar(props: PropsIcono) {
+  return (
+    <Icono {...props}>
+      <path d="M9 4h6l-1 5 3.5 3.5H6.5L10 9z" />
+      <path d="M12 12.5V20" />
+    </Icono>
+  )
+}
+
+/** Hecho: confirmación breve (p. ej. «copiado»). */
+export function IconoHecho(props: PropsIcono) {
+  return (
+    <Icono {...props}>
+      <path d="m5 12.5 4.5 4.5L19 7.5" />
+    </Icono>
+  )
+}
+
+export function IconoAdjuntar(props: PropsIcono) {
+  return (
+    <Icono {...props}>
+      <path d="m19 11.5-7.2 7.2a4.5 4.5 0 0 1-6.4-6.4l7.5-7.5a3 3 0 0 1 4.2 4.2l-7.4 7.4a1.5 1.5 0 0 1-2.1-2.1l6.8-6.8" />
+    </Icono>
+  )
+}
