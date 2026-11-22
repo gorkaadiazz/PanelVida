@@ -1070,10 +1070,7 @@ reset role;
 insert into public.emails_permitidos (email) values ('companero-nuevo@rls.test');
 select pg_temp.debe_fallar($q$insert into auth.users (id, email, raw_app_meta_data) values (gen_random_uuid(), 'companero-nuevo@rls.test', '{"provider": "email", "providers": ["email"]}')$q$,
   array['42501'], 'alta con email y contraseña de un email permitido');
--- un email de agente sin la marca de agente tampoco
-insert into public.emails_permitidos (email) values ('falso@agente.invalid');
-select pg_temp.debe_fallar($q$insert into auth.users (id, email, raw_app_meta_data) values (gen_random_uuid(), 'falso@agente.invalid', '{"provider": "email"}')$q$,
-  array['42501'], 'alta de un falso agente');
+-- un email de agente sin la marca se deja crear (GoTrue la pone en otro paso), pero es de agente: ver tests/rls-agente.sql
 -- Google sí
 insert into auth.users (id, email, raw_app_meta_data) values (gen_random_uuid(), 'companero-nuevo@rls.test', '{"provider": "google", "providers": ["google"]}');
 

@@ -73,7 +73,8 @@ as $$
     -- Así un agente desvinculado nunca pasa a ser una cuenta normal.
     when coalesce(auth.jwt() -> 'app_metadata' ->> 'tipo', '') = 'agente' then 'agente'
     when exists (select 1 from public.agentes a where a.id = auth.uid()) then 'agente'
-    when exists (select 1 from auth.users u where u.id = auth.uid() and u.raw_app_meta_data ->> 'tipo' = 'agente') then 'agente'
+    when exists (select 1 from auth.users u where u.id = auth.uid()
+                 and (u.raw_app_meta_data ->> 'tipo' = 'agente' or lower(u.email) like '%@agente.invalid')) then 'agente'
     when exists (
       select 1 from auth.users u
       join public.cuentas_solo_lista c on c.email = lower(u.email)
@@ -407,6 +408,12 @@ grant execute on function public.sumar_uso_ia(uuid, integer) to service_role;
 -- enlazada a esa contraseña (robo de cuenta «por adelantado»).
 -- -----------------------------------------------------------------------------
 
+-- Supabase Auth (GoTrue) no siempre guarda el app_metadata en el mismo
+-- INSERT: a veces crea la fila y después la actualiza con el proveedor y lo
+-- demás. Por eso se comprueba al insertar Y al cambiar raw_app_meta_data, y
+-- solo se mira el dominio del email (los agentes usan @agente.invalid; ese
+-- email además tiene que estar en emails_permitidos, y solo lo está unos
+-- milisegundos mientras la Edge Function crea el usuario).
 create or replace function public.solo_google_o_agentes()
 returns trigger
 language plpgsql
@@ -414,16 +421,16 @@ security definer
 set search_path = ''
 as $$
 begin
-  if coalesce(new.raw_app_meta_data ->> 'provider', '') = 'email'
-     and not (lower(coalesce(new.email, '')) like '%@agente.invalid'
-              and coalesce(new.raw_app_meta_data ->> 'tipo', '') = 'agente') then
+  if (coalesce(new.raw_app_meta_data ->> 'provider', '') = 'email'
+      or coalesce(new.raw_app_meta_data -> 'providers', '[]'::jsonb) ? 'email')
+     and lower(coalesce(new.email, '')) not like '%@agente.invalid' then
     raise exception 'Solo se puede entrar con Google' using errcode = '42501';
   end if;
   return new;
 end;
 $$;
 revoke execute on function public.solo_google_o_agentes() from public, anon, authenticated;
-create trigger solo_google_o_agentes before insert on auth.users
+create trigger solo_google_o_agentes before insert or update of raw_app_meta_data on auth.users
   for each row execute function public.solo_google_o_agentes();
 
 -- -----------------------------------------------------------------------------

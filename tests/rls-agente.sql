@@ -243,7 +243,19 @@ select pg_temp.debe_fallar($q$select public.crear_codigo_vinculacion()$q$, array
 reset role;
 insert into public.emails_permitidos (email) values ('nuevo@rls.test'), ('falso@agente.invalid');
 select pg_temp.debe_fallar($q$insert into auth.users (id, email, raw_app_meta_data) values (gen_random_uuid(), 'nuevo@rls.test', '{"provider": "email"}')$q$, array['42501'], 'alta con email y contraseña');
-select pg_temp.debe_fallar($q$insert into auth.users (id, email, raw_app_meta_data) values (gen_random_uuid(), 'falso@agente.invalid', '{"provider": "email"}')$q$, array['42501'], 'alta como agente sin app_metadata de agente');
+-- Un email de agente sin la marca pasa el trigger (el alta la decide GoTrue en
+-- varios pasos), pero esa cuenta es de agente igual: no puede hacer nada
+insert into auth.users (id, email, raw_app_meta_data) values ('55555555-0000-4000-8000-000000000005', 'falso@agente.invalid', '{"provider": "email"}');
+select pg_temp.como('55555555-0000-4000-8000-000000000005');
+select pg_temp.comprobar(public.tipo_cuenta() = 'agente', 'una cuenta @agente.invalid sin marca es cuenta normal');
+select pg_temp.debe_fallar($q$insert into public.tareas (texto) values ('x')$q$, array['42501'], 'la cuenta @agente.invalid crea tareas');
+reset role;
+-- GoTrue puede crear la fila sin proveedor y ponerlo después: también se para al actualizar
+insert into public.emails_permitidos (email) values ('tarde@rls.test');
+insert into auth.users (id, email, raw_app_meta_data) values ('44444444-0000-4000-8000-000000000004', 'tarde@rls.test', '{}');
+select pg_temp.debe_fallar($q$update auth.users set raw_app_meta_data = '{"provider": "email", "providers": ["email"]}' where id = '44444444-0000-4000-8000-000000000004'$q$,
+  array['42501'], 'alta con email y contraseña en dos pasos');
+
 select pg_temp.debe_fallar($q$insert into auth.users (id, email, raw_app_meta_data) values (gen_random_uuid(), 'nuevo@rls.test', '{"provider": "email", "tipo": "agente"}')$q$, array['42501'], 'alta de agente con un email que no es de agente');
 insert into auth.users (id, email, raw_app_meta_data) values (gen_random_uuid(), 'nuevo@rls.test', '{"provider": "google"}');
 
