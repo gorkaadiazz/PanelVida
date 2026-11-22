@@ -1,6 +1,6 @@
 # Mi Panel: estado del proyecto
 
-Actualizado el 22/11/2026: fase 9 (Casa), secciones 1 (Puente) y 2 (Lista de la compra) hechas. Pasos para activarlas en `docs/CASA.md`.
+Actualizado el 22/11/2026: fase 9 (Casa), secciones 1 (Puente), 2 (Lista de la compra) y 3 (agente del PC) hechas. Pasos para activarlas en `docs/CASA.md`.
 
 ## Resumen
 
@@ -13,7 +13,7 @@ Actualizado el 22/11/2026: fase 9 (Casa), secciones 1 (Puente) y 2 (Lista de la 
 | 5 | Dinero y Negocio web | **Aprobada** por seguridad y tester (revisada por diseño). Falta probarla en navegador real |
 | 6 | Examen IA y borrar cuenta | **No se hace**: el examen IA está en la web de exámenes; «Borrar mi cuenta» se ha quitado (borraría también los datos de esa web) |
 | 7 | Despliegue | Hecho: publicada en Netlify (14/11/2026) |
-| 9 | Casa: Puente, Lista de la compra, agente del PC, Mando y Red | **En curso**: secciones 1 (Puente) y 2 (Lista de la compra) aprobadas; siguen agente, Mando y Red |
+| 9 | Casa: Puente, Lista de la compra, agente del PC, Mando y Red | **En curso**: secciones 1, 2 y 3 (Puente, Lista de la compra, agente del PC) aprobadas; siguen Mando y Red |
 
 Comprobaciones ahora mismo: `npm test -- --run` 473/473, `npm run test:sql` 41/41, `npm run lint`, `npm run typecheck` y `npm run build` sin errores.
 
@@ -131,6 +131,13 @@ Comprobaciones ahora mismo: `npm test -- --run` 473/473, `npm run test:sql` 41/4
 - **Familia («solo lista»):** emails en `cuentas_solo_lista` (además de `emails_permitidos`). Política RESTRICTIVE `solo_cuentas_normales` en las 14 tablas de Mi Panel; la app les abre solo la lista.
 - **Sincronización:** `compra_casa` es `compartida`: borrados por `borrados_hogar`, y el motor la vacía y la vuelve a bajar entera al cambiar de hogar. Realtime nunca escucha DELETE (no aplica RLS a los borrados).
 - Migraciones 20261122000200, 000300 y 000400. Seguridad, tester y diseño APROBADO (seguridad encontró la fuga de miembros por Realtime, el nombre falseable con user_metadata, el `updated_at` del año 9999 y un trigger que impedía borrar cuentas; tester, emojis compuestos rotos y caducidad en días de Madrid).
+
+### Fase 9, sección 3: agente del PC (22/11/2026)
+- Carpeta `agente/`: Node 24+ con TypeScript sin compilar, una sola dependencia (supabase-js). Servicio de usuario de systemd (topes de 200 MB y 20 % de CPU). `instalar.sh`, `desinstalar.sh`, guía en `docs/AGENTE.md`.
+- Usuario de Supabase aparte para cada PC (Edge Function `agentes`), credenciales en `~/.config/mipanel/credenciales.json` (600). Latido cada minuto; avisos y portapapeles del Puente; `mipanel-enviar`.
+- App: **Mando del PC** (vincular con código de 10 min, encendido/apagado, renombrar, desvincular) y PC en la tarjeta Casa de Inicio.
+- Seguridad (dos rechazos): el agente se cierra en TODAS las tablas, Storage y Gemini; `tipo_cuenta()` mira el token; solo Google o agentes crean cuentas (trigger en `auth.users`); lo que manda otro PC no se copia. Tester: un agente podía entrar en un hogar (unirse_hogar), comando de vincular seguro en bash con `!`.
+- Migración 20261122000500. **Pendiente al aplicarla:** vincular un PC de prueba en el Supabase real (comprobar que el trigger `solo_google_o_agentes` deja crear el usuario del agente).
 
 ### Fases siguientes
 - **Fase 7, despliegue:** en Netlify (origen propio), no en GitHub Pages. Pasos en `docs/DESPLEGAR.md`.

@@ -209,3 +209,52 @@ hay detrás. Las migraciones se aplican **antes** de subir la web nueva.
 - **Sugerencias:** «Quitar los comprados» borra los artículos, así que el
   historial vive aparte, en `compra_frecuentes`, que rellena el servidor al
   marcar algo como comprado.
+
+---
+
+## 3. Agente del PC
+
+### Qué hace
+- Un programa pequeño en tu PC de casa (servicio de usuario de systemd).
+  Guía de instalación paso a paso: [AGENTE.md](AGENTE.md).
+- Avisa con una notificación de lo que llega al Puente y copia al
+  portapapeles el texto y los enlaces (lo que mande otro PC solo lo avisa).
+- `mipanel-enviar` manda al Puente lo que tengas copiado (con un atajo de KDE).
+- Cada minuto avisa de que está encendido: en **Mando del PC** y en Inicio
+  sale «Encendido» o «Apagado (visto hace X)».
+- Vincular desde la app con un código de un solo uso (10 minutos) y
+  desvincular al momento.
+
+### Pasos
+1. **Migración** `supabase/migrations/20261122000500_agente.sql`.
+2. **Supabase → Authentication → Sign In / Providers → Email**: actívalo con
+   **Confirm email** activado (el agente entra con email y contraseña; nadie
+   más puede darse de alta así).
+3. **Edge Functions:**
+   ```
+   npx supabase functions deploy agentes --no-verify-jwt
+   npx supabase functions deploy limpiar-puente --no-verify-jwt
+   ```
+4. **Subir la web** (con el resto de la fase).
+5. **Instalar el agente** en el PC: `bash agente/instalar.sh` y vincularlo
+   (ver [AGENTE.md](AGENTE.md)).
+
+### Cómo probarlo
+1. Mando del PC → Vincular un PC → copia el comando y pégalo en Konsole.
+2. En menos de un minuto el PC sale «Encendido».
+3. Manda un texto al Puente desde el móvil: el PC lo notifica y al pegar
+   (Ctrl+V) sale el texto.
+4. Copia algo en el PC y ejecuta `mipanel-enviar`: aparece en el Puente del móvil.
+5. Apaga el servicio (`systemctl --user stop mipanel-agente`): en 2-3 minutos
+   sale «Apagado (visto hace …)».
+6. Desvincula desde la app: el agente avisa de que se ha desvinculado y se para.
+
+### Decisiones (para clase)
+Están explicadas al final de [AGENTE.md](AGENTE.md): usuario aparte con
+mínimo privilegio, corte inmediato al desvincular, nunca ejecutar texto de la
+base de datos, credenciales 600 y servicio de usuario sin root. Lo que más
+merece la pena contar: **seguridad encontró que la cuenta del agente, aunque
+no podía ver nada tuyo, seguía siendo una cuenta para todo lo demás** (la web
+de exámenes, Storage, Gemini), y **que un token sigue valiendo una hora
+aunque se borre el usuario**. Mínimo privilegio no es solo «no ve mis datos»:
+es «no puede hacer nada que no necesite».
