@@ -37,6 +37,22 @@ sudo pacman -S --needed wl-clipboard
 
 `notify-send` (notificaciones) ya viene con KDE (`libnotify`).
 
+## 1 bis. En Supabase (una sola vez)
+
+El agente entra con su propia cuenta de **email y contraseña** (no con
+Google), así que ese método tiene que estar activado:
+
+1. Panel de Supabase → **Authentication → Sign In / Providers → Email**:
+   actívalo y deja **Confirm email** activado.
+2. No hace falta nada más: un trigger de la base de datos
+   (`solo_google_o_agentes`) impide que nadie se dé de alta con email y
+   contraseña salvo los agentes que crea la Edge Function. Tus compañeros y tu
+   familia siguen entrando solo con Google.
+3. Publica la Edge Function del agente:
+   ```
+   npx supabase functions deploy agentes --no-verify-jwt
+   ```
+
 ## 2. Instalar
 
 Desde la carpeta del proyecto:
@@ -121,8 +137,24 @@ journalctl --user -u mipanel-agente -f      # el registro en directo (Ctrl+C par
   un programa fijo y una lista de argumentos (sin shell), y el texto del
   Puente va por la entrada estándar. Aunque alguien mandara
   `$(rm -rf ~)` al Puente, solo se copiaría ese texto al portapapeles.
-- **Las notificaciones escapan el HTML** (`<`, `>`, `&`): KDE interpreta algo
-  de HTML en las notificaciones y un texto podría colar un enlace.
+- **Las notificaciones escapan el HTML del cuerpo** (`<`, `>`, `&`): KDE
+  interpreta algo de HTML ahí y un texto podría colar un enlace. El título es
+  texto plano y va tal cual.
+- **Lo que manda otro PC no se copia solo.** Si un PC estuviera comprometido,
+  podría mandar `curl … | sh` al Puente para que lo pegaras en una terminal de
+  otro PC. Lo que llega de otro agente solo se avisa.
+- **El agente no es una cuenta de nada más.** Con sus credenciales se puede
+  iniciar sesión como cualquier usuario, así que seguridad pidió cerrarle
+  también las tablas de la web de exámenes, Storage y Gemini (una política
+  restrictiva en todas las tablas y en `storage.objects`). Y como un token
+  (JWT) sigue valiendo hasta una hora aunque se borre el usuario,
+  `tipo_cuenta()` mira primero lo que dice el propio token.
+- **Solo Google (y los agentes) pueden crear cuentas.** Activar email y
+  contraseña para el agente abriría la puerta a darse de alta con el email de
+  un compañero que aún no ha entrado y quedarse con su cuenta cuando entre con
+  Google. El trigger `solo_google_o_agentes` lo impide.
+- **Topes en systemd:** como mucho 200 MB de RAM y el 20 % de un núcleo
+  (normalmente usa unos 80 MB y casi nada de CPU).
 - **Credenciales con permisos 600** dentro de una carpeta 700, creadas ya con
   esos permisos (no se escriben primero y se cambian después).
 - **Node 24+ ejecuta TypeScript sin compilar** (quita los tipos al cargar),
