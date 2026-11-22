@@ -9,7 +9,7 @@
 import { salir } from '../lib/auth'
 import { limpiarDatosLocales } from '../lib/limpieza'
 import { supabase } from '../lib/supabase'
-import { alCambioLocal, avisarTodo, ponerEstado, reiniciarEstado } from './avisos'
+import { alCambioLocal, avisarCambio, avisarTodo, ponerEstado, reiniciarEstado } from './avisos'
 import { abrirBase, usarBase, type BaseLocal } from './bd'
 import { contarPendientes } from './cola'
 import { crearMotor, type Motor } from './motor'
@@ -95,7 +95,11 @@ function arrancarMotor(sesion: SesionSync, base: BaseLocal) {
   // Tiempo real (Puente…): cada aviso solo lanza una sincronización enseguida.
   let dejarDeEscucharRemoto = () => {}
   try {
-    dejarDeEscucharRemoto = escucharCambios(supabase, sesion.usuarioId, TABLAS_EN_TIEMPO_REAL, () => programar(ESPERA_TIEMPO_REAL_MS))
+    dejarDeEscucharRemoto = escucharCambios(supabase, sesion.usuarioId, TABLAS_EN_TIEMPO_REAL, (escucha) => {
+      // Si ha cambiado algo del hogar, la pantalla vuelve a preguntar por él
+      if (escucha?.hogar) avisarCambio(['hogar_sincronizado'], 'remoto')
+      programar(ESPERA_TIEMPO_REAL_MS)
+    })
   } catch (error) {
     console.warn('Sin tiempo real', error)
   }

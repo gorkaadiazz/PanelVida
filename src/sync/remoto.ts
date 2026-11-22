@@ -117,48 +117,54 @@ export function crearRemotoSupabase(cliente: unknown): Remoto {
   }
 }
 
+/** Qué se escucha de una tabla en tiempo real. */
+export interface EscuchaTiempoReal {
+  tabla: string
+  eventos: readonly ('INSERT' | 'UPDATE')[]
+  /** Filtrar por user_id (solo lo propio). Las del hogar no: son de varios (Realtime ya aplica el RLS). */
+  porUsuario: boolean
+  /** Además de sincronizar, el hogar puede haber cambiado (repos/useHogar.ts vuelve a preguntar). */
+  hogar?: boolean
+}
+
 /**
- * Tablas de las que se escuchan los cambios en tiempo real (Supabase Realtime).
- * porUsuario: se filtra por user_id (las propias); las del hogar no, porque
- * las filas son de varios (el RLS de Realtime ya filtra por miembro).
+ * Lo que se escucha en tiempo real (Supabase Realtime). NUNCA DELETE:
+ * Realtime no aplica el RLS a los borrados y mandaría a todos la clave de
+ * las filas borradas de cualquiera. Los borrados se conocen por los INSERT
+ * en `borrados` (los propios, filtrados por user_id) y en `borrados_hogar`
+ * (RLS por miembro), y los cambios de hogar por `hogar_avisos`.
  */
-export const TABLAS_EN_TIEMPO_REAL: readonly { tabla: string; porUsuario: boolean }[] = [
-  { tabla: 'puente', porUsuario: true },
-  { tabla: 'compra_casa', porUsuario: false },
-  { tabla: 'borrados_hogar', porUsuario: false },
-  { tabla: 'hogar_miembros', porUsuario: false },
+export const TABLAS_EN_TIEMPO_REAL: readonly EscuchaTiempoReal[] = [
+  { tabla: 'puente', eventos: ['INSERT', 'UPDATE'], porUsuario: true },
+  { tabla: 'borrados', eventos: ['INSERT'], porUsuario: true },
+  { tabla: 'compra_casa', eventos: ['INSERT', 'UPDATE'], porUsuario: false },
+  { tabla: 'borrados_hogar', eventos: ['INSERT'], porUsuario: false },
+  { tabla: 'hogar_avisos', eventos: ['INSERT'], porUsuario: true, hogar: true },
 ]
 
 /**
  * Escucha en tiempo real los cambios de esas tablas y llama a `alCambiar`
  * (sin datos: quien escucha simplemente sincroniza, así todo sigue pasando
- * por el motor y la copia local). Realtime aplica las políticas RLS: cada uno
- * solo recibe avisos de sus filas. Devuelve la función para dejar de escuchar.
+ * por el motor y la copia local). Realtime aplica las políticas RLS a INSERT
+ * y UPDATE. Devuelve la función para dejar de escuchar.
  */
 export function escucharCambios(
   cliente: unknown,
   usuarioId: string,
-  tablas: readonly { tabla: string; porUsuario: boolean }[],
-  alCambiar: () => void,
+  tablas: readonly EscuchaTiempoReal[],
+  alCambiar: (escucha: EscuchaTiempoReal) => void,
 ): () => void {
   const api = cliente as SupabaseClient
   let canal = api.channel(`cambios-${crypto.randomUUID()}`)
-  for (const { tabla, porUsuario } of tablas) {
-    if (!porUsuario) {
-      canal = canal.on('postgres_changes', { event: '*', schema: 'public', table: tabla }, () => alCambiar())
-      continue
+  for (const escucha of tablas) {
+    for (const event of escucha.eventos) {
+      const filtro = escucha.porUsuario ? { filter: `user_id=eq.${usuarioId}` } : {}
+      canal = canal.on('postgres_changes', { event, schema: 'public', table: escucha.tabla, ...filtro }, () => alCambiar(escucha))
     }
-    // El filtro por usuario ahorra avisos ajenos. Ojo: Realtime NO aplica RLS
-    // a los DELETE (llegan los de todos, solo con el id). No importa porque
-    // aquí no se usa lo que llega: solo se sincroniza, y eso sí pasa por RLS.
-    canal = canal.on('postgres_changes', { event: '*', schema: 'public', table: tabla, filter: `user_id=eq.${usuarioId}` }, () => alCambiar())
-    // Con filtro, Realtime no entrega los DELETE: se escuchan aparte, sin
-    // filtro. Solo dicen «algo se ha borrado» y se sincroniza.
-    canal = canal.on('postgres_changes', { event: 'DELETE', schema: 'public', table: tabla }, () => alCambiar())
   }
   canal.subscribe((estado) => {
     // Al (re)conectar puede haberse perdido algún aviso: se sincroniza igualmente.
-    if (estado === 'SUBSCRIBED') alCambiar()
+    if (estado === 'SUBSCRIBED') alCambiar({ tabla: '', eventos: [], porUsuario: false, hogar: true })
   })
   return () => {
     void api.removeChannel(canal)

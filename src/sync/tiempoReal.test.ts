@@ -9,7 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 const { servidorActual, escucha } = vi.hoisted(() => ({
   servidorActual: { valor: null as unknown },
   escucha: {
-    tablas: null as readonly string[] | null,
+    tablas: null as readonly unknown[] | null,
     aviso: null as null | (() => void),
     parar: null as unknown as ReturnType<typeof import('vitest').vi.fn>,
     llamadas: 0,
@@ -24,7 +24,7 @@ vi.mock('./remoto', async (original) => {
   return {
     TABLAS_EN_TIEMPO_REAL: real.TABLAS_EN_TIEMPO_REAL,
     crearRemotoSupabase: () => servidorActual.valor,
-    escucharCambios: (_cliente: unknown, usuarioId: string, tablas: readonly string[], alCambiar: () => void) => {
+    escucharCambios: (_cliente: unknown, usuarioId: string, tablas: readonly unknown[], alCambiar: (e?: unknown) => void) => {
       escucha.llamadas += 1
       escucha.usuario = usuarioId
       escucha.tablas = tablas
@@ -71,7 +71,7 @@ afterEach(async () => {
 
 describe('la sesión escucha el tiempo real', () => {
   it('se escucha la tabla puente y un aviso hace que baje lo nuevo sin recargar', async () => {
-    expect(TABLAS_EN_TIEMPO_REAL).toContainEqual({ tabla: 'puente', porUsuario: true })
+    expect(TABLAS_EN_TIEMPO_REAL.some((e) => e.tabla === 'puente')).toBe(true)
     iniciarSync('usuario-1')
     await hasta(() => estadoSync().fase === 'sincronizado', 'primera sincronización')
     expect(escucha.llamadas).toBe(1)
@@ -124,27 +124,32 @@ describe('escucharCambios (cliente de mentira)', () => {
     return { cliente, canal, ons, estado: (e: string) => alSuscribir?.(e) }
   }
 
-  it('escucha todos los eventos de cada tabla en public y avisa sin pasar datos', () => {
+  it('escucha solo INSERT y UPDATE (nunca DELETE), filtra por usuario lo propio y avisa con la escucha', () => {
     const f = clienteFalso()
     const alCambiar = vi.fn()
-    escucharReal(f.cliente, 'u1', [{ tabla: 'puente', porUsuario: true }, { tabla: 'otra', porUsuario: true }], alCambiar)
+    const puente = { tabla: 'puente', eventos: ['INSERT', 'UPDATE'] as const, porUsuario: true }
+    const casa = { tabla: 'compra_casa', eventos: ['INSERT'] as const, porUsuario: false }
+    escucharReal(f.cliente, 'u1', [puente, casa], alCambiar)
     expect(f.ons.map((o) => [o.evento, o.filtro])).toEqual([
-      ['postgres_changes', { event: '*', schema: 'public', table: 'puente', filter: 'user_id=eq.u1' }],
-      // Con filtro Realtime no entrega los DELETE: van aparte, sin filtro
-      ['postgres_changes', { event: 'DELETE', schema: 'public', table: 'puente' }],
-      ['postgres_changes', { event: '*', schema: 'public', table: 'otra', filter: 'user_id=eq.u1' }],
-      ['postgres_changes', { event: 'DELETE', schema: 'public', table: 'otra' }],
+      ['postgres_changes', { event: 'INSERT', schema: 'public', table: 'puente', filter: 'user_id=eq.u1' }],
+      ['postgres_changes', { event: 'UPDATE', schema: 'public', table: 'puente', filter: 'user_id=eq.u1' }],
+      ['postgres_changes', { event: 'INSERT', schema: 'public', table: 'compra_casa' }],
     ])
-    f.ons[0].cb()
-    f.ons[1].cb()
-    expect(alCambiar).toHaveBeenCalledTimes(2)
-    expect(alCambiar).toHaveBeenCalledWith()
+    f.ons[2].cb()
+    expect(alCambiar).toHaveBeenCalledTimes(1)
+    expect(alCambiar).toHaveBeenCalledWith(casa)
+  })
+
+  it('la app no escucha ningún DELETE (Realtime no les aplica RLS)', () => {
+    expect(TABLAS_EN_TIEMPO_REAL.every((e) => e.eventos.every((ev) => ev === 'INSERT' || ev === 'UPDATE'))).toBe(true)
+    // las tablas propias se filtran por usuario
+    for (const t of ['puente', 'borrados', 'hogar_avisos']) expect(TABLAS_EN_TIEMPO_REAL.find((e) => e.tabla === t)?.porUsuario).toBe(true)
   })
 
   it('al conectarse (o reconectarse) sincroniza; un error de canal no', () => {
     const f = clienteFalso()
     const alCambiar = vi.fn()
-    escucharReal(f.cliente, 'u1', [{ tabla: 'puente', porUsuario: true }], alCambiar)
+    escucharReal(f.cliente, 'u1', [{ tabla: 'puente', eventos: ['INSERT'], porUsuario: true }], alCambiar)
     f.estado('CHANNEL_ERROR')
     f.estado('TIMED_OUT')
     expect(alCambiar).not.toHaveBeenCalled()
@@ -154,8 +159,8 @@ describe('escucharCambios (cliente de mentira)', () => {
 
   it('cada escucha usa un canal con nombre distinto y se puede quitar', () => {
     const f = clienteFalso()
-    const parar = escucharReal(f.cliente, 'u1', [{ tabla: 'puente', porUsuario: true }], () => {})
-    escucharReal(f.cliente, 'u1', [{ tabla: 'puente', porUsuario: true }], () => {})
+    const parar = escucharReal(f.cliente, 'u1', [{ tabla: 'puente', eventos: ['INSERT'], porUsuario: true }], () => {})
+    escucharReal(f.cliente, 'u1', [{ tabla: 'puente', eventos: ['INSERT'], porUsuario: true }], () => {})
     const [n1, n2] = f.cliente.channel.mock.calls.map((c) => (c as unknown[])[0])
     expect(n1).not.toBe(n2)
     parar()
