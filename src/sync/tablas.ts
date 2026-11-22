@@ -77,6 +77,10 @@ export const TABLAS = [
     nombre: 'puente',
     columnas: ['tipo', 'contenido', 'archivo_ruta', 'archivo_nombre', 'archivo_tipo', 'archivo_bytes', 'dispositivo', 'fijado'],
   },
+  // Fase 9: Lista de la compra privada («Mi lista»). La usan también las cuentas «solo lista».
+  { nombre: 'compra_mia', columnas: ['nombre', 'cantidad', 'seccion', 'notas', 'comprado', 'comprado_en'] },
+  // Lo que más se compra (lo cuenta un trigger del servidor al marcar comprado): solo se lee, para las sugerencias
+  { nombre: 'compra_frecuentes', columnas: ['nombre', 'seccion', 'veces', 'ultima'], soloLectura: true },
   // Fase 8: bandeja de ideas
   { nombre: 'ideas', columnas: ['texto', 'archivada'] },
   { nombre: 'cumpleanos', columnas: ['nombre', 'dia', 'mes', 'anio', 'notas'] },

@@ -1,11 +1,13 @@
 import { lazy, useState } from 'react'
-import { Route, Routes } from 'react-router-dom'
+import { Navigate, Route, Routes } from 'react-router-dom'
 import { Login } from './auth/Login'
 import { useSesion } from './auth/useSesion'
 import { AvisoActualizacion } from './components/AvisoActualizacion'
 import { AvisoConexion } from './components/AvisoConexion'
 import { AvisoSync } from './components/AvisoSync'
 import { Layout } from './components/Layout'
+import { LayoutFamilia } from './components/LayoutFamilia'
+import { useTipoCuenta } from './auth/useTipoCuenta'
 import { Inicio } from './pages/Inicio'
 
 // Inicio va en el paquete principal (es lo primero que se ve). El resto de
@@ -25,6 +27,8 @@ const Planes = pagina(() => import('./pages/Planes'), 'Planes')
 const Deseos = pagina(() => import('./pages/Deseos'), 'Deseos')
 const Ideas = pagina(() => import('./pages/Ideas'), 'Ideas')
 const Puente = pagina(() => import('./pages/Puente'), 'Puente')
+const Compra = pagina(() => import('./pages/Compra'), 'Compra')
+const CuentaFamilia = pagina(() => import('./pages/Cuenta'), 'CuentaFamilia')
 const NoEncontrada = pagina(() => import('./pages/NoEncontrada'), 'NoEncontrada')
 
 export default function App({ errorInicial }: { errorInicial: string | null }) {
@@ -42,6 +46,7 @@ export default function App({ errorInicial }: { errorInicial: string | null }) {
 
 function Contenido({ errorInicial }: { errorInicial: string | null }) {
   const { cargando, sesion } = useSesion()
+  const tipo = useTipoCuenta(sesion?.user.id ?? null)
   // El error de vuelta de Google solo vale para este intento de login: en
   // cuanto hay sesión se descarta, para que no reaparezca al cerrar sesión.
   const [errorPendiente, setErrorPendiente] = useState(errorInicial)
@@ -59,6 +64,28 @@ function Contenido({ errorInicial }: { errorInicial: string | null }) {
 
   if (!sesion) return <Login errorInicial={errorPendiente} />
 
+  // Primera vez en este navegador: se espera a saber el tipo de cuenta
+  if (!tipo) {
+    return (
+      <p role="status" className="visually-hidden">
+        Cargando…
+      </p>
+    )
+  }
+
+  // La familia («solo lista»): la Lista de la compra se abre directamente
+  if (tipo === 'solo_lista') {
+    return (
+      <Routes>
+        <Route element={<LayoutFamilia />}>
+          <Route path="compra" element={<Compra />} />
+          <Route path="cuenta" element={<CuentaFamilia />} />
+          <Route path="*" element={<Navigate to="/compra" replace />} />
+        </Route>
+      </Routes>
+    )
+  }
+
   return (
     <Routes>
       <Route element={<Layout />}>
@@ -74,6 +101,7 @@ function Contenido({ errorInicial }: { errorInicial: string | null }) {
         <Route path="planes" element={<Planes />} />
         <Route path="deseos" element={<Deseos />} />
         <Route path="casa/puente" element={<Puente />} />
+        <Route path="compra" element={<Compra />} />
         <Route path="cuenta" element={<Cuenta />} />
         <Route path="*" element={<NoEncontrada />} />
       </Route>

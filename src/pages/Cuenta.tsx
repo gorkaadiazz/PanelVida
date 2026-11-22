@@ -8,6 +8,15 @@ import { useEstadoSync } from '../sync/hooks'
 import { cerrarSesion as cerrarSesionYBorrarCopia } from '../sync/sesion'
 
 export function Cuenta() {
+  return <PaginaCuenta soloLista={false} />
+}
+
+/** Cuenta de la familia («solo lista»): sin recordatorios, que son tablas que no puede usar. */
+export function CuentaFamilia() {
+  return <PaginaCuenta soloLista />
+}
+
+function PaginaCuenta({ soloLista }: { soloLista: boolean }) {
   const { usuario } = useSesion()
   const { pendientes } = useEstadoSync()
   const [saliendo, setSaliendo] = useState(false)
@@ -49,7 +58,7 @@ export function Cuenta() {
           </dl>
         </section>
 
-        <Recordatorios />
+        {!soloLista && <Recordatorios />}
 
         {/* Región siempre montada: así el aviso se anuncia al aparecer */}
         <div role="alert">

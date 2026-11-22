@@ -27,6 +27,87 @@ export type Database = {
   }
   public: {
     Tables: {
+      compra_frecuentes: {
+        Row: {
+          clave: string
+          created_at: string
+          id: string
+          nombre: string
+          seccion: string | null
+          sync_at: string
+          ultima: string
+          updated_at: string
+          user_id: string
+          veces: number
+        }
+        Insert: {
+          clave: string
+          created_at?: string
+          id?: string
+          nombre: string
+          seccion?: string | null
+          sync_at?: string
+          ultima?: string
+          updated_at?: string
+          user_id?: string
+          veces?: number
+        }
+        Update: {
+          clave?: string
+          created_at?: string
+          id?: string
+          nombre?: string
+          seccion?: string | null
+          sync_at?: string
+          ultima?: string
+          updated_at?: string
+          user_id?: string
+          veces?: number
+        }
+        Relationships: []
+      }
+      compra_mia: {
+        Row: {
+          cantidad: string | null
+          comprado: boolean
+          comprado_en: string | null
+          created_at: string
+          id: string
+          nombre: string
+          notas: string
+          seccion: string | null
+          sync_at: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cantidad?: string | null
+          comprado?: boolean
+          comprado_en?: string | null
+          created_at?: string
+          id?: string
+          nombre: string
+          notas?: string
+          seccion?: string | null
+          sync_at?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          cantidad?: string | null
+          comprado?: boolean
+          comprado_en?: string | null
+          created_at?: string
+          id?: string
+          nombre?: string
+          notas?: string
+          seccion?: string | null
+          sync_at?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       archivos: {
         Row: {
           created_at: string
@@ -1293,6 +1374,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      tipo_cuenta: {
+        Args: never
+        Returns: string | null
+      }
       fecha_en_mes: {
         Args: { dia: number; mes: string }
         Returns: string

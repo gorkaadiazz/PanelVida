@@ -1,7 +1,7 @@
 import type { CSSProperties, ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { Pagina } from '../components/Pagina'
-import { IconoCuenta, IconoCumple, IconoDeseo, IconoDinero, IconoFlecha, IconoIdea, IconoNegocio, IconoPlan, IconoPuente } from '../components/iconos'
+import { IconoCuenta, IconoCumple, IconoDeseo, IconoDinero, IconoFlecha, IconoIdea, IconoNegocio, IconoCarrito, IconoPlan, IconoPuente } from '../components/iconos'
 
 interface Enlace {
   ruta: string
@@ -19,7 +19,13 @@ const GRUPOS: { titulo?: string; enlaces: Enlace[] }[] = [
       { ruta: '/deseos', texto: 'Lista de deseos', icono: <IconoDeseo /> },
     ],
   },
-  { titulo: 'Casa', enlaces: [{ ruta: '/casa/puente', texto: 'Puente', icono: <IconoPuente /> }] },
+  {
+    titulo: 'Casa',
+    enlaces: [
+      { ruta: '/compra', texto: 'Lista de la compra', icono: <IconoCarrito /> },
+      { ruta: '/casa/puente', texto: 'Puente', icono: <IconoPuente /> },
+    ],
+  },
   {
     enlaces: [
       { ruta: '/dinero', texto: 'Dinero', icono: <IconoDinero /> },

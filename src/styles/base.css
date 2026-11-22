@@ -2160,3 +2160,52 @@ form.puente-dispositivo { display: flex; flex-direction: column; gap: var(--sp-3
   font-weight: var(--fw-semibold);
   letter-spacing: 0.02em;
 }
+
+/* =========================================================
+   Fase 9 · Lista de la compra
+   ========================================================= */
+.compra-apuntar__fila { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-3); }
+@media (min-width: 30rem) {
+  .compra-apuntar__fila { grid-template-columns: minmax(0, 1fr) 8rem; }
+}
+.compra-sugerencias { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+.compra-sugerencias__item { min-height: var(--tap); padding: 0 var(--sp-3); font-size: var(--fs-sm); cursor: pointer; }
+.compra-sugerencias__item:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+.compra-seccion { display: flex; flex-direction: column; gap: var(--sp-1); }
+.compra-articulo .list__main { display: flex; flex-direction: column; gap: 2px; }
+.compra-articulo__nombre { font-weight: var(--fw-medium); }
+/* Comprado: tachado y más tenue (el estado también lo dicen la casilla y su etiqueta) */
+.compra-articulo--comprado .compra-articulo__nombre { text-decoration: line-through; color: var(--text-2); font-weight: var(--fw-regular); }
+
+/* Cuenta «solo lista» (familia): barra mínima arriba */
+.familia-barra {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: calc(var(--safe-top) + var(--sp-2)) var(--gutter) var(--sp-2);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.familia-barra__marca { display: inline-flex; align-items: center; gap: var(--sp-2); font-weight: var(--fw-semibold); }
+.familia-barra__nav { display: flex; gap: var(--sp-1); }
+.familia-barra__item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: var(--tap);
+  padding: 0 var(--sp-3);
+  border-radius: var(--r-md);
+  color: var(--text-2);
+  text-decoration: none;
+}
+.familia-barra__item svg { width: 22px; height: 22px; }
+.familia-barra__item[aria-current="page"] { background: var(--accent-soft); color: var(--accent-ink); }
+.familia-barra__item:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.app--familia { display: block; }
+.app-main--familia { padding-bottom: var(--sp-8); }
+.familia-sync { margin-bottom: var(--sp-2); }

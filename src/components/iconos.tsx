@@ -346,3 +346,13 @@ export function IconoAdjuntar(props: PropsIcono) {
     </Icono>
   )
 }
+
+export function IconoCarrito(props: PropsIcono) {
+  return (
+    <Icono {...props}>
+      <path d="M3 4.5h2.2l2.2 10.2a1.5 1.5 0 0 0 1.5 1.2h8.4a1.5 1.5 0 0 0 1.5-1.1L20.5 8H6.3" />
+      <circle cx="9.5" cy="19.5" r="1.3" />
+      <circle cx="17" cy="19.5" r="1.3" />
+    </Icono>
+  )
+}

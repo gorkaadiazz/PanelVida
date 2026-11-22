@@ -13,6 +13,9 @@ import { listarIdeas, type Idea } from './ideas'
 import { listarMovimientos, type Movimiento } from './movimientos'
 import { obtenerPerfil, type Perfil } from './perfil'
 import { listarPuente, type ElementoPuente } from './puente'
+import { listarMiLista, type ArticuloMio } from './compra'
+import { listar } from './base'
+import type { Frecuente } from '../lib/compra'
 import { listarPlanes, type Plan } from './planes'
 import { listarRevisiones, type Revision } from './revisiones'
 import { listarHabitos, listarMarcas, type Habito, type Marca } from './habitos'
@@ -94,4 +97,14 @@ export function useRevisiones(): Consulta<Revision[]> {
 /** Todo lo del Puente (sin ordenar: lib/puente lo ordena). */
 export function usePuente(): Consulta<ElementoPuente[]> {
   return useConsulta(['puente'], listarPuente)
+}
+
+/** Mi lista de la compra (privada). */
+export function useMiLista(): Consulta<ArticuloMio[]> {
+  return useConsulta(['compra_mia'], listarMiLista)
+}
+
+/** Lo que más se compra (para las sugerencias). */
+export function useFrecuentes(): Consulta<Frecuente[]> {
+  return useConsulta(['compra_frecuentes'], () => listar('compra_frecuentes'))
 }
