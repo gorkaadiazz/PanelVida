@@ -1,6 +1,6 @@
 # Mi Panel: estado del proyecto
 
-Actualizado el 13/11/2026, tras el commit `77d5896`. Fase 3 aprobada por seguridad y tester; falta probarla en navegador con el Supabase real.
+Actualizado el 22/11/2026: fase 9 (Casa), sección 1 (Puente) hecha. Pasos para activarla en `docs/CASA.md`.
 
 ## Resumen
 
@@ -13,6 +13,7 @@ Actualizado el 13/11/2026, tras el commit `77d5896`. Fase 3 aprobada por segurid
 | 5 | Dinero y Negocio web | **Aprobada** por seguridad y tester (revisada por diseño). Falta probarla en navegador real |
 | 6 | Examen IA y borrar cuenta | **No se hace**: el examen IA está en la web de exámenes; «Borrar mi cuenta» se ha quitado (borraría también los datos de esa web) |
 | 7 | Despliegue | Hecho: publicada en Netlify (14/11/2026) |
+| 9 | Casa: Puente, Lista de la compra, agente del PC, Mando y Red | **En curso**: sección 1 (Puente) aprobada; siguen Lista de la compra, agente, Mando y Red |
 
 Comprobaciones ahora mismo: `npm test -- --run` 473/473, `npm run test:sql` 41/41, `npm run lint`, `npm run typecheck` y `npm run build` sin errores.
 
@@ -114,6 +115,15 @@ Comprobaciones ahora mismo: `npm test -- --run` 473/473, `npm run test:sql` 41/4
 - Dinero: tarjeta «Tarjeta y efectivo» con lo gastado e ingresado de cada forma en el mes, y la etiqueta en cada fila.
 - Migración 20261115000100 (antes de desplegar). La app sin actualizar no manda `medio` y queda en tarjeta.
 - Sacar del cajero / ingresar en el banco: tabla `traspasos` (migración 20261115000200), aparte de `movimientos` porque no son ingreso ni gasto (el ahorro, las revisiones, la previsión y los deseos no cambian). La tarjeta enseña el saldo en tarjeta y en efectivo (suman el ahorro total) y los traspasos salen en la lista del mes, sin signo; solo se borran.
+
+### Fase 9: Casa (22/11/2026), sección 1: Puente móvil ⇄ PC
+- Texto, enlaces y archivos (25 MB) entre dispositivos, al momento (Supabase Realtime solo avisa; los datos van por la sincronización de siempre). Copiar, abrir, descargar (URL firmada de 60 s), fijar y borrar. Nombre editable por dispositivo (en este navegador).
+- Texto y enlaces sin conexión; archivos con conexión (primero la fila, después el archivo).
+- Lo no fijado caduca a los 7 días: cron cada hora → Edge Function `limpiar-puente` (borra la fila y después el archivo, barre archivos sin fila y filas de archivo con la subida cortada).
+- «Compartir → Mi Panel» en Android (Web Share Target + `public/share-sw.js`).
+- En «Más» y en la barra lateral, bloque **Casa**; tarjeta «Puente» en Inicio.
+- Seguridad (rechazó la primera versión): el tope de 300 MB cuenta los bytes reales de Storage, como mucho 3 archivos por subir, cada fila recibe un solo archivo y el archivo solo se borra sin fila. Tester: arreglos de «ayer» en el cambio de hora, emojis partidos y fijar con 3 subidas pendientes.
+- Migración 20261122000100 (antes de subir la web). Pasos: `docs/CASA.md`.
 
 ### Fases siguientes
 - **Fase 7, despliegue:** en Netlify (origen propio), no en GitHub Pages. Pasos en `docs/DESPLEGAR.md`.

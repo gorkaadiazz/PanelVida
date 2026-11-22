@@ -36,6 +36,7 @@ tests/                   test de RLS en SQL
 - **Base de datos:** todas las tablas tienen `user_id default auth.uid()`, RLS activado y 4 políticas `(select auth.uid()) = user_id` para `authenticated`. Las tablas hijas usan FK compuesta `(id, user_id)`. Las tablas sincronizables llevan `updated_at`, `sync_at` y los triggers `antes_de_guardar` y `despues_de_borrar`.
 - **Acceso:** solo los emails de `emails_permitidos` pueden registrarse.
 - **PWA:** el service worker precachea solo la app (HTML/JS/CSS/iconos). **Nunca** cachea respuestas de la API. Al cerrar sesión se borra la copia local (IndexedDB).
+- **Casa (fase 9):** Realtime (`sync/remoto.ts` → `escucharCambios`) solo dispara `sincronizar()`, nunca escribe datos. Archivos del Puente: primero la fila y después el archivo; el tope se mide con los bytes reales de Storage, nunca con lo que declara la app. Guía de activación: `docs/CASA.md`.
 - **Diseño:** los colores, espacios y tipos salen de `src/styles/tokens.css`. Están documentados en `DESIGN.md`. Claro y oscuro según el sistema.
 
 ## Equipo (`.claude/agents/`)
