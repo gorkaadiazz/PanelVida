@@ -125,7 +125,7 @@ function ArticulosDeCasa({ hogar, yo, ejecutar }: { hogar: Hogar; yo: string; ej
         quitarComprados={quitarCompradosDeCasa}
         detalle={(a) => {
           const quien = a.comprado ? nombreDeMiembro(a.marcado_por, hogar.miembros, yo) : null
-          return quien ? `Lo marcó ${quien}` : null
+          return quien ? `Marcado por ${quien}` : null
         }}
         vacio={{
           titulo: 'La Lista de casa está vacía',

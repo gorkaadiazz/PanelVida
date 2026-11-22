@@ -208,6 +208,11 @@ function FilaArticulo<A extends Articulo>({ articulo: a, props }: { articulo: A;
     if (await props.ejecutar(accion)) mover()
   }
 
+  async function marcar() {
+    const mover = focoTrasMarcar(fila.current)
+    if (await props.ejecutar(() => props.marcar(a.id, !a.comprado))) mover()
+  }
+
   if (modo === 'editar') {
     return (
       <li className="list__item" ref={fila}>
@@ -232,7 +237,7 @@ function FilaArticulo<A extends Articulo>({ articulo: a, props }: { articulo: A;
   if (modo === 'borrar') {
     return (
       <li className="list__item" ref={fila}>
-        <div className="confirmar list__main">
+        <div className="confirmar list__main" role="group" aria-label={`Quitar ${a.nombre}`}>
           <span className="break">¿Quitar «{a.nombre}» de la lista?</span>
           <button type="button" className="btn btn--danger" onClick={() => void sacar(() => props.borrar(a.id))}>
             Quitar
@@ -261,7 +266,7 @@ function FilaArticulo<A extends Articulo>({ articulo: a, props }: { articulo: A;
         className="check"
         aria-pressed={a.comprado}
         aria-label={`Comprado: ${a.nombre}${a.cantidad ? ` (${a.cantidad})` : ''}`}
-        onClick={() => void props.ejecutar(() => props.marcar(a.id, !a.comprado))}
+        onClick={() => void marcar()}
       />
       <div className="list__main">
         <p className="break">
@@ -286,6 +291,26 @@ function FilaArticulo<A extends Articulo>({ articulo: a, props }: { articulo: A;
       </div>
     </li>
   )
+}
+
+/**
+ * Al marcar, la fila salta a «Comprados» (o vuelve a su sección) y su casilla
+ * desaparece: el foco pasa a la casilla vecina para seguir marcando. Solo si
+ * el foco estaba en la fila (en táctil sin foco no se mueve nada) y, si no
+ * queda vecina, al h1 sin desplazar la página.
+ */
+function focoTrasMarcar(fila: HTMLElement | null): () => void {
+  if (!fila || !fila.contains(document.activeElement)) return () => {}
+  const seccion = fila.closest('section')
+  const destino =
+    (fila.nextElementSibling ?? fila.previousElementSibling)?.querySelector<HTMLElement>('.check') ??
+    seccion?.nextElementSibling?.querySelector<HTMLElement>('.check') ??
+    seccion?.previousElementSibling?.querySelector<HTMLElement>('.check') ??
+    null
+  return () => {
+    if (destino?.isConnected) destino.focus()
+    else document.querySelector<HTMLElement>('main h1')?.focus({ preventScroll: true })
+  }
 }
 
 function EditarArticulo({ id, articulo, onGuardar, onCancelar }: { id: string; articulo: Articulo; onGuardar: (d: DatosFormulario) => Promise<void>; onCancelar: () => void }) {
@@ -353,8 +378,9 @@ function EditarArticulo({ id, articulo, onGuardar, onCancelar }: { id: string; a
 function Comprados<A extends Articulo>({ comprados, props, ejecutar }: { comprados: A[]; props: Props<A>; ejecutar: Ejecutar }) {
   const [confirmando, setConfirmando] = useState(false)
   const boton = useRef<HTMLButtonElement>(null)
+  const seccion = useRef<HTMLElement>(null)
   return (
-    <section aria-labelledby={`${props.id}-comprados`} className="compra-seccion compra-seccion--comprados">
+    <section ref={seccion} aria-labelledby={`${props.id}-comprados`} className="compra-seccion compra-seccion--comprados">
       <div className="row row--between">
         <h2 id={`${props.id}-comprados`} className="t-section" tabIndex={-1}>
           Comprados <span className="num muted">{comprados.length}</span>
@@ -373,12 +399,18 @@ function Comprados<A extends Articulo>({ comprados, props, ejecutar }: { comprad
           <button
             type="button"
             className="btn btn--danger"
-            onClick={() =>
+            onClick={() => {
+              // La sección desaparece: el foco va al título de la sección anterior (o al h1)
+              const anterior = seccion.current?.previousElementSibling?.querySelector<HTMLElement>('h2') ?? null
               void ejecutar(async () => {
                 await props.quitarComprados()
                 setConfirmando(false)
+              }).then((ok) => {
+                if (!ok) return
+                if (anterior?.isConnected) anterior.focus()
+                else document.querySelector<HTMLElement>('main h1')?.focus()
               })
-            }
+            }}
           >
             Quitar
           </button>

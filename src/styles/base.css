@@ -2169,14 +2169,51 @@ form.puente-dispositivo { display: flex; flex-direction: column; gap: var(--sp-3
   .compra-apuntar__fila { grid-template-columns: minmax(0, 1fr) 8rem; }
 }
 .compra-sugerencias { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
-.compra-sugerencias__item { min-height: var(--tap); padding: 0 var(--sp-3); font-size: var(--fs-sm); cursor: pointer; }
-.compra-sugerencias__item:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+/* Sugerencia: parece pulsable (borde de campo) y responde al toque */
+.compra-sugerencias__item {
+  min-height: var(--tap);
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--border-field);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--text);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease-out), transform var(--dur-press) var(--ease-out);
+}
+.compra-sugerencias__item:active { background: var(--accent-soft); transform: scale(0.97); }
+@media (hover: hover) and (pointer: fine) {
+  .compra-sugerencias__item:hover { background: var(--surface-sunken); }
+}
+/* «Añadir notas», «Quitar los comprados», «Expulsar», «Salir», «Copiar»: en el
+   súper, con una mano, 44 px aunque lleven .btn--sm */
+.compra-apuntar .btn--sm,
+.compra-seccion .btn--sm,
+.hogar-panel .btn--sm { min-height: var(--tap); }
 
 .compra-seccion { display: flex; flex-direction: column; gap: var(--sp-1); }
+.compra-seccion > .row--between { min-height: var(--tap); }
 .compra-articulo .list__main { display: flex; flex-direction: column; gap: 2px; }
 .compra-articulo__nombre { font-weight: var(--fw-medium); }
-/* Comprado: tachado y más tenue (el estado también lo dicen la casilla y su etiqueta) */
-.compra-articulo--comprado .compra-articulo__nombre { text-decoration: line-through; color: var(--text-2); font-weight: var(--fw-regular); }
+/* La cantidad (hasta 30 caracteres) parte de línea: .num no lo dejaba y se salía a 360 px */
+.compra-articulo__cantidad { white-space: normal; overflow-wrap: anywhere; }
+/* Comprado: tachado y más tenue, además de la casilla con tic y la sección
+   «Comprados»: no depende solo del color */
+.compra-articulo--comprado .compra-articulo__nombre {
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+  text-decoration-color: var(--text-2);
+  color: var(--text-2);
+  font-weight: var(--fw-regular);
+}
+/* Fila confirmando: el texto ocupa su línea y los botones debajo, sin apretarse a 360 px */
+.compra-seccion .confirmar > span,
+.hogar-panel .confirmar > span { flex: 1 1 100%; }
+@media (min-width: 540px) {
+  .compra-seccion .confirmar > span,
+  .hogar-panel .confirmar > span { flex: 1 1 12rem; }
+}
 
 /* Cuenta «solo lista» (familia): barra mínima arriba */
 .familia-barra {
@@ -2186,13 +2223,19 @@ form.puente-dispositivo { display: flex; flex-direction: column; gap: var(--sp-3
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--sp-3);
-  padding: calc(var(--safe-top) + var(--sp-2)) var(--gutter) var(--sp-2);
+  flex-wrap: wrap;   /* con el texto del sistema agrandado, la navegación baja de línea en vez de salirse */
+  gap: var(--sp-1) var(--sp-3);
+  padding:
+    calc(var(--safe-top) + var(--sp-2))
+    calc(var(--gutter) + var(--safe-right))
+    var(--sp-2)
+    calc(var(--gutter) + var(--safe-left));
   background: var(--surface);
   border-bottom: 1px solid var(--border);
 }
-.familia-barra__marca { display: inline-flex; align-items: center; gap: var(--sp-2); font-weight: var(--fw-semibold); }
-.familia-barra__nav { display: flex; gap: var(--sp-1); }
+.familia-barra__marca { display: inline-flex; align-items: center; gap: var(--sp-2); font-weight: var(--fw-semibold); min-width: 0; }
+.familia-barra__marca img { border-radius: 6px; }
+.familia-barra__nav { display: flex; gap: var(--sp-1); margin-inline-start: auto; }
 .familia-barra__item {
   display: inline-flex;
   align-items: center;
@@ -2201,23 +2244,76 @@ form.puente-dispositivo { display: flex; flex-direction: column; gap: var(--sp-3
   padding: 0 var(--sp-3);
   border-radius: var(--r-md);
   color: var(--text-2);
+  font-weight: var(--fw-medium);
   text-decoration: none;
+  transition: background-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
 }
 .familia-barra__item svg { width: 22px; height: 22px; }
-.familia-barra__item[aria-current="page"] { background: var(--accent-soft); color: var(--accent-ink); }
+.familia-barra__item[aria-current="page"] { background: var(--accent-soft); color: var(--accent-ink); font-weight: var(--fw-semibold); }
+.familia-barra__item:active { background: var(--accent-soft); }
 .familia-barra__item:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+@media (hover: hover) and (pointer: fine) {
+  .familia-barra__item:hover:not([aria-current="page"]) { color: var(--text); background: var(--surface-sunken); }
+}
+@media (forced-colors: active) {
+  .familia-barra__item[aria-current="page"] { forced-color-adjust: none; background: Highlight; color: HighlightText; }
+}
 .app--familia { display: block; }
-.app-main--familia { padding-bottom: var(--sp-8); }
+/* La barra de arriba ya deja sitio a la muesca; abajo no hay barra ni botón «+» */
+.app-main--familia { padding-top: var(--sp-5); padding-bottom: calc(var(--safe-bottom) + var(--sp-8)); }
+.app--familia ~ .avisos { bottom: calc(var(--safe-bottom) + var(--sp-4)); }
+@media (min-width: 900px) {
+  .app-main--familia { padding-top: var(--sp-8); }
+}
 .familia-sync { margin-bottom: var(--sp-2); }
 
-/* Hogar (Lista de casa) */
-.pestanas--dos { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+/* Hogar (Lista de casa). Dos pestañas: en PC no se estiran */
 @media (min-width: 540px) {
   .pestanas--dos { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 24rem; }
 }
-.hogar-codigo { font-variant-numeric: tabular-nums; letter-spacing: 0.08em; text-transform: uppercase; }
-.hogar-panel summary { cursor: pointer; min-height: var(--tap); display: flex; align-items: center; }
-.hogar-panel__titulo { display: inline-flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
+/* Código de invitación: monoespaciada para no confundir letras y cifras */
+.hogar-codigo {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums slashed-zero;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.hogar-panel > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: var(--tap);
+  margin: calc(-1 * var(--sp-2));   /* el objetivo llena la cabecera de la tarjeta sin agrandarla */
+  padding: var(--sp-2);
+  border-radius: var(--r-md);
+  cursor: pointer;
+  list-style: none;
+}
+.hogar-panel > summary::-webkit-details-marker { display: none; }
+.hogar-panel > summary::after {   /* flecha que gira al abrir: sin ella no se ve que se despliega */
+  content: "";
+  flex: none;
+  width: 10px;
+  height: 10px;
+  margin-inline: auto var(--sp-2);
+  border-right: 2px solid var(--text-2);
+  border-bottom: 2px solid var(--text-2);
+  transform: rotate(45deg);
+  transition: transform var(--dur-base) var(--ease-out);
+}
+.hogar-panel[open] > summary::after { transform: rotate(-135deg); }
+.hogar-panel > summary:active { background: var(--surface-sunken); }
+@media (prefers-reduced-motion: reduce) {
+  .hogar-panel > summary::after { transition: none; }
+}
+.hogar-panel__titulo { display: inline-flex; align-items: center; gap: var(--sp-1) var(--sp-2); flex-wrap: wrap; min-width: 0; }
+.hogar-panel__titulo .t-section { overflow-wrap: anywhere; min-width: 0; }
 .hogar-panel__titulo svg { width: 22px; height: 22px; color: var(--text-2); }
 .hogar-invitacion { display: flex; flex-direction: column; gap: var(--sp-2); padding: var(--sp-3); border-radius: var(--r-md); background: var(--surface-sunken); }
-.hogar-invitacion__codigo { font-size: var(--fs-xl); font-weight: var(--fw-semibold); letter-spacing: 0.1em; }
+.hogar-invitacion__codigo {
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.1em;
+  -webkit-user-select: all;   /* un toque largo selecciona el código entero para copiarlo a mano */
+  user-select: all;
+}

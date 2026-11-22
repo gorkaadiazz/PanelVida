@@ -55,8 +55,12 @@ export function SinHogar({ puedeCrear, ejecutar }: { puedeCrear: boolean; ejecut
               placeholder="ABCDE-FGHJK"
               autoComplete="off"
               autoCapitalize="characters"
+              autoCorrect="off"
               spellCheck={false}
               inputMode="text"
+              enterKeyHint="go"
+              maxLength={11}
+              aria-invalid={mensaje ? true : undefined}
               aria-describedby={mensaje ? `${id}-mensaje` : undefined}
               onChange={(e) => setCodigo(formatearCodigo(e.target.value))}
             />
@@ -104,6 +108,7 @@ export function PanelHogar({ hogar, yo, ejecutar }: { hogar: Hogar; yo: string; 
   const soyDueno = hogar.duenoId === yo
   const enLinea = useEnLinea()
   const [confirmarSalida, setConfirmarSalida] = useState(false)
+  const botonSalir = useRef<HTMLButtonElement>(null)
   const miembros = ordenarMiembros(hogar.miembros, hogar.duenoId)
 
   return (
@@ -139,16 +144,29 @@ export function PanelHogar({ hogar, yo, ejecutar }: { hogar: Hogar; yo: string; 
               <button
                 type="button"
                 className="btn btn--danger"
-                onClick={() => void ejecutar(() => (soyDueno ? borrarHogar(hogar.id) : salirDelHogar(hogar.id)))}
+                onClick={() =>
+                  // El panel desaparece (pasa a «Entrar en un hogar»): el foco, al h1
+                  void ejecutar(() => (soyDueno ? borrarHogar(hogar.id) : salirDelHogar(hogar.id))).then((ok) => {
+                    if (ok) requestAnimationFrame(() => document.querySelector<HTMLElement>('main h1')?.focus())
+                  })
+                }
               >
                 {soyDueno ? 'Borrar' : 'Salir'}
               </button>
-              <button type="button" className="btn btn--ghost" autoFocus onClick={() => setConfirmarSalida(false)}>
+              <button
+                type="button"
+                className="btn btn--ghost"
+                autoFocus
+                onClick={() => {
+                  setConfirmarSalida(false)
+                  requestAnimationFrame(() => botonSalir.current?.focus())
+                }}
+              >
                 Cancelar
               </button>
             </div>
           ) : (
-            <button type="button" className="btn btn--ghost btn--sm text-danger" disabled={!enLinea} onClick={() => setConfirmarSalida(true)}>
+            <button type="button" ref={botonSalir} className="btn btn--ghost btn--sm btn--danger-text" disabled={!enLinea} onClick={() => setConfirmarSalida(true)}>
               {soyDueno ? 'Borrar el hogar' : 'Salir del hogar'}
             </button>
           )}
@@ -172,16 +190,40 @@ function FilaMiembro({
   ejecutar: Ejecutar
 }) {
   const [confirmando, setConfirmando] = useState(false)
+  const fila = useRef<HTMLLIElement>(null)
+  const boton = useRef<HTMLButtonElement>(null)
   const etiqueta = m.user_id === hogar.duenoId ? 'Creó el hogar' : null
   if (confirmando) {
     return (
-      <li className="list__item">
-        <div className="confirmar list__main">
+      <li className="list__item" ref={fila}>
+        <div className="confirmar list__main" role="group" aria-label={`Expulsar a ${m.nombre}`}>
           <span className="break">¿Expulsar a {m.nombre}? Dejará de ver la Lista de casa ahora mismo.</span>
-          <button type="button" className="btn btn--danger" onClick={() => void ejecutar(() => expulsar(hogar.id, m.user_id))}>
+          <button
+            type="button"
+            className="btn btn--danger"
+            onClick={() => {
+              // La fila desaparece: el foco, al botón de la fila vecina o al resumen del hogar
+              const vecina = fila.current?.nextElementSibling ?? fila.current?.previousElementSibling
+              const destino =
+                vecina?.querySelector<HTMLElement>('button:not(:disabled)') ??
+                fila.current?.closest('details')?.querySelector<HTMLElement>('summary') ??
+                null
+              void ejecutar(() => expulsar(hogar.id, m.user_id)).then((ok) => {
+                if (ok && destino?.isConnected) destino.focus()
+              })
+            }}
+          >
             Expulsar
           </button>
-          <button type="button" className="btn btn--ghost" autoFocus onClick={() => setConfirmando(false)}>
+          <button
+            type="button"
+            className="btn btn--ghost"
+            autoFocus
+            onClick={() => {
+              setConfirmando(false)
+              requestAnimationFrame(() => boton.current?.focus())
+            }}
+          >
             Cancelar
           </button>
         </div>
@@ -198,7 +240,7 @@ function FilaMiembro({
         {etiqueta && <p className="t-small muted">{etiqueta}</p>}
       </div>
       {puedeExpulsar && (
-        <button type="button" className="btn btn--ghost btn--sm" aria-label={`Expulsar a ${m.nombre}`} onClick={() => setConfirmando(true)}>
+        <button type="button" ref={boton} className="btn btn--ghost btn--sm btn--danger-text" aria-label={`Expulsar a ${m.nombre}`} onClick={() => setConfirmando(true)}>
           Expulsar
         </button>
       )}
@@ -213,6 +255,7 @@ function Invitar({ ejecutar }: { ejecutar: Ejecutar }) {
   const [copiado, setCopiado] = useState(false)
   const [ahora] = useState(() => Date.now())
   const codigoRef = useRef<HTMLParagraphElement>(null)
+  const crearRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
     if (!enLinea) return
@@ -221,7 +264,7 @@ function Invitar({ ejecutar }: { ejecutar: Ejecutar }) {
 
   return (
     <section className="stack" aria-label="Invitar" style={{ '--gap': 'var(--sp-3)' } as CSSProperties}>
-      <h3 className="t-label">Invitar</h3>
+      <h2 className="t-label">Invitar</h2>
       {nueva ? (
         <div className="hogar-invitacion">
           <p className="t-small muted">Dale este código a quien quieras invitar. Solo se ve ahora: apúntalo o cópialo.</p>
@@ -243,7 +286,14 @@ function Invitar({ ejecutar }: { ejecutar: Ejecutar }) {
             >
               <IconoCopiar /> {copiado ? 'Copiado' : 'Copiar'}
             </button>
-            <button type="button" className="btn btn--ghost btn--sm" onClick={() => setNueva(null)}>
+            <button
+              type="button"
+              className="btn btn--ghost btn--sm"
+              onClick={() => {
+                setNueva(null)
+                requestAnimationFrame(() => crearRef.current?.focus())
+              }}
+            >
               Hecho
             </button>
           </div>
@@ -254,6 +304,7 @@ function Invitar({ ejecutar }: { ejecutar: Ejecutar }) {
       ) : (
         <button
           type="button"
+          ref={crearRef}
           className="btn btn--secondary"
           disabled={!enLinea}
           onClick={() =>
@@ -276,13 +327,23 @@ function Invitar({ ejecutar }: { ejecutar: Ejecutar }) {
               <button
                 type="button"
                 className="icon-btn icon-btn--peligro"
-                aria-label="Anular este código"
-                onClick={() =>
+                aria-label={`Anular el código sin usar (${textoCaducaInvitacion(i.caduca_en, ahora).toLowerCase()})`}
+                onClick={(e) => {
+                  // La fila desaparece: el foco, al botón de la vecina o al primero de «Invitar»
+                  const fila = e.currentTarget.closest('li')
+                  const seccion = e.currentTarget.closest('section')
+                  const vecina = (fila?.nextElementSibling ?? fila?.previousElementSibling)?.querySelector<HTMLElement>('button') ?? null
                   void ejecutar(async () => {
                     await anularInvitacion(i.id)
                     setActivas((lista) => lista.filter((x) => x.id !== i.id))
+                  }).then((ok) => {
+                    if (!ok) return
+                    requestAnimationFrame(() => {
+                      if (vecina?.isConnected) vecina.focus()
+                      else seccion?.querySelector<HTMLElement>('button:not(:disabled)')?.focus()
+                    })
                   })
-                }
+                }}
               >
                 <IconoBorrar />
               </button>
