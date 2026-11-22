@@ -81,6 +81,7 @@ export async function enviarTexto(texto: string): Promise<ElementoPuente> {
       archivo_bytes: null,
       dispositivo,
       fijado: false,
+      origen_agente: null,
     }),
   )
 }
@@ -108,6 +109,7 @@ export async function enviarArchivo(archivo: File): Promise<ElementoPuente> {
         archivo_bytes: archivo.size,
         dispositivo: nombreDispositivo(),
         fijado: false,
+        origen_agente: null,
       },
       id,
     ),

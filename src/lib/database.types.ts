@@ -1452,6 +1452,7 @@ export type Database = {
           dispositivo: string
           fijado: boolean
           id: string
+          origen_agente: string | null
           sync_at: string
           tipo: string
           updated_at: string
@@ -1467,6 +1468,7 @@ export type Database = {
           dispositivo?: string
           fijado?: boolean
           id?: string
+          origen_agente?: string | null
           sync_at?: string
           tipo: string
           updated_at?: string
@@ -1482,6 +1484,7 @@ export type Database = {
           dispositivo?: string
           fijado?: boolean
           id?: string
+          origen_agente?: string | null
           sync_at?: string
           tipo?: string
           updated_at?: string

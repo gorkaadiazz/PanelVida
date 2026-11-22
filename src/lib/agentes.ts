@@ -29,9 +29,18 @@ export function estadoPC(ultimoLatido: string | null, ahora: number): EstadoPC {
   return { encendido: false, texto: `Apagado (visto ${textoHace(desde)})` }
 }
 
-/** El código de vincular como se escribe: «ABCD-EFGH». */
+/**
+ * El comando para pegar en el PC, con el código «ABCD-EFGH» y el nombre entre
+ * comillas dobles. Del nombre se quita lo que bash o fish interpretan entre
+ * comillas dobles ($ ` \ " y ! —historial de bash en una terminal—) y los
+ * caracteres de control o de formato (ESC, invertir el texto, anchura cero…).
+ */
 export function comandoVincular(codigo: string, nombre: string): string {
-  const limpio = nombre.replace(/["\\$`]/g, '').replace(/\s+/g, ' ').trim()
+  const limpio = nombre
+    .replace(/\s+/g, ' ')
+    .replace(/["\\$`!\p{Cc}\p{Cf}]/gu, '')
+    .replace(/ +/g, ' ')
+    .trim()
   return limpio ? `mipanel-agente vincular ${codigo} "${limpio}"` : `mipanel-agente vincular ${codigo}`
 }
 

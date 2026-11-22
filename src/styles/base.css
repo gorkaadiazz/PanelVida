@@ -2323,21 +2323,32 @@ form.puente-dispositivo { display: flex; flex-direction: column; gap: var(--sp-3
    ========================================================= */
 .pc .card__titulo { display: inline-flex; align-items: center; gap: var(--sp-2); min-width: 0; }
 .pc .card__titulo svg { width: 22px; height: 22px; flex: none; color: var(--text-2); }
-.pc__punto { width: 8px; height: 8px; border-radius: 50%; background: var(--text-2); flex: none; }
-.pc__punto--on { background: var(--ok); }
+.pc__cabecera { align-items: flex-start; }        /* con un nombre de dos líneas, la etiqueta queda arriba */
+.pc__cabecera .card__titulo { flex: 1 1 12rem; }  /* a 360 px, si no caben juntos, la etiqueta baja entera */
+/* «Apagado (visto hace 12 días)» no se corta con «…»: parte en dos líneas si hace falta */
+.pc__estado { white-space: normal; overflow: visible; margin-top: 2px; }
+/* Encendido = punto relleno; apagado = punto hueco: la forma también distingue, no solo el color */
+.pc__punto { width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid currentColor; background: transparent; flex: none; box-sizing: border-box; }
+.pc__punto--on { border-color: var(--ok); background: var(--ok); }
 .pc__acciones { flex-wrap: wrap; }
 .pc__acciones .btn--sm { min-height: var(--tap); }
 .pc__comando {
   margin: 0;
   padding: var(--sp-3);
   border-radius: var(--r-md);
+  border: 1px solid var(--border);
   background: var(--surface-sunken);
+  color: var(--text);
   font-family: var(--font-num);
   font-size: var(--fs-sm);
-  white-space: pre-wrap;
+  line-height: 1.5;
+  white-space: pre-wrap;   /* a 360 px el comando parte en líneas, nunca desborda */
   overflow-wrap: anywhere;
+  min-width: 0;
+  -webkit-user-select: all;   /* un toque largo lo selecciona entero */
   user-select: all;
 }
-.pc__comando:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.pc__comando code { font: inherit; }
 .inicio-pcs { display: flex; flex-direction: column; gap: var(--sp-1); margin-bottom: var(--sp-2); }
-.inicio-pcs .pc__punto { display: inline-block; vertical-align: middle; }
+.inicio-pcs li { overflow-wrap: anywhere; min-width: 0; }
+.inicio-pcs .pc__punto { display: inline-block; vertical-align: middle; margin-inline-end: 2px; color: var(--text-2); }

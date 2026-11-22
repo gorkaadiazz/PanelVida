@@ -640,7 +640,7 @@ function TarjetaCasa() {
   const cargando = puente.cargando || (lista.length === 0 && !primeraDescargaHecha)
   const { fijados, recientes } = ordenarPuente(lista)
   const ultimo = [...recientes, ...fijados].sort((a, b) => b.created_at.localeCompare(a.created_at))[0]
-  const [ahora] = useState(() => Date.now())
+  const ahora = useAhoraCada(15_000)
   const pcs = usePCsResumen()
 
   return (
@@ -680,6 +680,12 @@ function TarjetaCasa() {
           Abrir el Puente
           <IconoFlecha />
         </Link>
+        {pcs && pcs.length > 0 && (
+          <Link to="/casa/mando" className="btn btn--ghost">
+            Mando del PC
+            <IconoFlecha />
+          </Link>
+        )}
       </div>
     </section>
   )
@@ -701,4 +707,14 @@ function usePCsResumen(): PC[] | null {
     }
   }, [enLinea])
   return enLinea ? pcs : null
+}
+
+/** La hora de ahora, que se renueva cada `ms` (para «visto hace…»). */
+function useAhoraCada(ms: number): number {
+  const [ahora, setAhora] = useState(() => Date.now())
+  useEffect(() => {
+    const t = setInterval(() => setAhora(Date.now()), ms)
+    return () => clearInterval(t)
+  }, [ms])
+  return ahora
 }
