@@ -1,0 +1,9 @@
+{
+  "supabaseUrl": "https://pmcacougksqimitapiqr.supabase.co",
+  "apps": {
+    "Firefox": ["firefox"],
+    "Steam": ["steam"],
+    "Dolphin": ["dolphin"]
+  },
+  "macRouter": null
+}

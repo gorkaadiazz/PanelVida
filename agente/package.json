@@ -1,0 +1,12 @@
+{
+  "name": "mipanel-agente",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Agente del PC de Mi Panel: Puente, Mando del PC y vigilante de la red.",
+  "type": "module",
+  "engines": { "node": ">=23.6" },
+  "bin": { "mipanel-agente": "bin/mipanel-agente.ts" },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.119.0"
+  }
+}

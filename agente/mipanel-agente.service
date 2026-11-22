@@ -1,0 +1,22 @@
+# Servicio de usuario de systemd del agente de Mi Panel.
+# Lo instala instalar.sh en ~/.config/systemd/user/. Arranca al iniciar
+# sesión en el escritorio (necesita la sesión gráfica para las
+# notificaciones, el portapapeles y el volumen) y se para al cerrarla.
+[Unit]
+Description=Agente de Mi Panel (Puente, Mando del PC y red)
+After=graphical-session.target network-online.target
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/node %h/.local/share/mipanel-agente/bin/mipanel-agente.ts iniciar
+# Si falla (sin red, por ejemplo) se reintenta a los 30 s. Si lo han
+# desvinculado, sale sin error y no se reintenta.
+Restart=on-failure
+RestartSec=30
+# Lo que cree, solo para ti; y sin poder ganar privilegios (setuid…)
+UMask=0077
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=graphical-session.target

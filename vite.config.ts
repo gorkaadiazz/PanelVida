@@ -9,7 +9,7 @@ const enTests = process.env.VITEST === 'true'
 
 export default defineConfig({
   test: {
-    include: ['src/**/*.test.ts', 'tests/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'tests/**/*.test.ts', 'agente/src/**/*.test.ts'],
     environment: 'node',
   },
   build: {
