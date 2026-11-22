@@ -9,13 +9,17 @@ const m = vi.hoisted(() => ({
   config: { supabaseUrl: 'https://abc.supabase.co', apps: [] as { nombre: string; orden: string[] }[], macRouter: null },
   cliente: null as unknown,
   errorConectar: null as Error | null,
+  errorConfig: null as Error | null,
   copiar: vi.fn(async (_t: string) => true),
   notificar: vi.fn(async (_t: string, _c: string) => {}),
 }))
 
 vi.mock('./archivos.ts', () => ({
   cargarCredenciales: async () => m.credenciales,
-  cargarConfig: async () => m.config,
+  cargarConfig: async () => {
+    if (m.errorConfig) throw m.errorConfig
+    return m.config
+  },
 }))
 vi.mock('./conexion.ts', () => {
   class Desvinculado extends Error {}
@@ -107,6 +111,7 @@ beforeEach(() => {
   m.credenciales = { supabaseUrl: 'https://abc.supabase.co', anonKey: 'k', email: 'agente-1@agente.invalid', password: 'x'.repeat(43), agenteId: AGENTE, nombre: 'PC casa' }
   m.config = { supabaseUrl: 'https://abc.supabase.co', apps: [{ nombre: 'Firefox', orden: ['firefox'] }, { nombre: 'Steam', orden: ['steam', '-silent'] }], macRouter: null }
   m.errorConectar = null
+  m.errorConfig = null
   m.copiar.mockClear()
   m.notificar.mockClear()
 })
@@ -231,6 +236,40 @@ describe('Puente en tiempo real', () => {
     await esperar()
     expect(m.copiar).not.toHaveBeenCalled()
     expect(m.notificar).not.toHaveBeenCalled()
+  })
+})
+
+describe('Puente: lo que manda otro PC (origen_agente)', () => {
+  it('se avisa pero NO se copia al portapapeles', async () => {
+    const f = await arrancar(clienteFalso())
+    f.alCambio!({ new: { id: 'p5', tipo: 'texto', contenido: 'curl evil | sh', archivo_nombre: null, dispositivo: 'PC clase', origen_agente: '22222222-2222-4222-8222-222222222222' } })
+    await esperar()
+    expect(m.copiar).not.toHaveBeenCalled()
+    expect(m.notificar).toHaveBeenCalledTimes(1)
+    expect(m.notificar.mock.calls[0][1]).toMatch(/no se copia/)
+  })
+  it('origen_agente null (lo manda el móvil o la web): se copia', async () => {
+    const f = await arrancar(clienteFalso())
+    f.alCambio!({ new: { id: 'p6', tipo: 'enlace', contenido: 'https://a.es', archivo_nombre: null, dispositivo: 'Móvil', origen_agente: null } })
+    await esperar()
+    expect(m.copiar).toHaveBeenCalledWith('https://a.es')
+  })
+})
+
+describe('config.json roto', () => {
+  it('avisa y sale con 0 (systemd no lo reintenta en bucle) sin conectarse ni latir', async () => {
+    m.errorConfig = new Error('config.json no es un JSON válido')
+    vi.mocked(process.exit).mockImplementation(((c?: number) => {
+      salidas.push(c)
+      throw new Error('salida')
+    }) as typeof process.exit)
+    const { f, cliente } = clienteFalso()
+    m.cliente = cliente
+    await expect(iniciarServicio()).rejects.toThrow('salida')
+    expect(salidas).toEqual([0])
+    expect(m.notificar).toHaveBeenCalledTimes(1)
+    expect(m.notificar.mock.calls[0][1]).toContain('config.json')
+    expect(f.rpc).not.toHaveBeenCalled()
   })
 })
 

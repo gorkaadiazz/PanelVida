@@ -141,3 +141,23 @@ describe('prepararEnvio', () => {
     expect(prepararEnvio('\n\t  ')).toBeNull()
   })
 })
+
+describe('lo nuevo: C1, invisibles de formato, título en texto plano y origen_agente', () => {
+  it('recortar quita C1 (U+0080–U+009F) e invisibles \\p{Cf} (U+202E, anchura cero, BOM)', () => {
+    expect(recortar('a\u0085b\u009bc‮d​e﻿f⁦g', 100)).toBe('abcdefg')
+  })
+  it('el título no se escapa pero sí se limpia de controles e invisibles', () => {
+    const r = reaccionar(el({ dispositivo: 'Móvil & <b>‮etc\u0007' }), 'PC')
+    expect(r.aviso?.titulo).toBe('Puente · Móvil & <b>etc')
+  })
+  it('origen_agente: de otro PC no se copia (ni siquiera un enlace), del móvil sí', () => {
+    expect(reaccionar(el({ tipo: 'enlace', contenido: 'https://a.es', origen_agente: '22222222-2222-4222-8222-222222222222' }), 'PC').copiar).toBeNull()
+    expect(reaccionar(el({ origen_agente: '' }), 'PC').copiar).toBe('hola')
+    expect(reaccionar(el({ origen_agente: null }), 'PC').copiar).toBe('hola')
+  })
+  it('de otro PC y demasiado largo: avisa sin la nota de copiado', () => {
+    const r = reaccionar(el({ contenido: 'x'.repeat(MAX_COPIAR + 1), origen_agente: '22222222-2222-4222-8222-222222222222' }), 'PC')
+    expect(r.copiar).toBeNull()
+    expect(r.aviso?.cuerpo).not.toContain('copiado al portapapeles')
+  })
+})

@@ -187,3 +187,12 @@ describe('normalizarMac y permisosSeguros', () => {
     expect(permisosSeguros(0o100000)).toBe(true)
   })
 })
+
+describe('agenteId estricto', () => {
+  it('36 guiones o un uuid sin el formato 8-4-4-4-12 ya no valen', () => {
+    const base = { supabaseUrl: 'https://abc.supabase.co', anonKey: 'k', email: 'agente-1@agente.invalid', password: 'x'.repeat(43), nombre: 'PC' }
+    expect(leerCredenciales({ ...base, agenteId: '-'.repeat(36) })).toBeNull()
+    expect(leerCredenciales({ ...base, agenteId: '1111111111111-4111-8111-1111111111111' })).toBeNull()
+    expect(leerCredenciales({ ...base, agenteId: '11111111-1111-4111-8111-111111111111' })).not.toBeNull()
+  })
+})
