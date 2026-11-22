@@ -27,6 +27,84 @@ export type Database = {
   }
   public: {
     Tables: {
+      red_conexiones: {
+        Row: {
+          desde: string
+          dispositivo_id: string
+          hasta: string
+          id: number
+          user_id: string
+        }
+        Insert: {
+          desde: string
+          dispositivo_id: string
+          hasta: string
+          id?: number
+          user_id: string
+        }
+        Update: {
+          desde?: string
+          dispositivo_id?: string
+          hasta?: string
+          id?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      red_dispositivos: {
+        Row: {
+          aleatoria: boolean
+          avisado: boolean
+          conectado: boolean
+          conocido: boolean
+          created_at: string
+          fabricante: string | null
+          id: string
+          ip: string | null
+          mac: string
+          nombre: string | null
+          primera_vez: string
+          ultima_vez: string
+          unido_a: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          aleatoria?: boolean
+          avisado?: boolean
+          conectado?: boolean
+          conocido?: boolean
+          created_at?: string
+          fabricante?: string | null
+          id?: string
+          ip?: string | null
+          mac: string
+          nombre?: string | null
+          primera_vez?: string
+          ultima_vez?: string
+          unido_a?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          aleatoria?: boolean
+          avisado?: boolean
+          conectado?: boolean
+          conocido?: boolean
+          created_at?: string
+          fabricante?: string | null
+          id?: string
+          ip?: string | null
+          mac?: string
+          nombre?: string | null
+          primera_vez?: string
+          ultima_vez?: string
+          unido_a?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       comandos: {
         Row: {
           accion: string

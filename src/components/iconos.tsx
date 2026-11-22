@@ -365,3 +365,15 @@ export function IconoPC(props: PropsIcono) {
     </Icono>
   )
 }
+
+/** Red de casa: router con ondas. */
+export function IconoRed(props: PropsIcono) {
+  return (
+    <Icono {...props}>
+      <rect x="3.5" y="14" width="17" height="6" rx="1.5" />
+      <path d="M7 17h.01M10.5 17h.01" />
+      <path d="M8.5 10.5a5 5 0 0 1 7 0M6 8a8.5 8.5 0 0 1 12 0" />
+      <path d="M12 14v-1" />
+    </Icono>
+  )
+}

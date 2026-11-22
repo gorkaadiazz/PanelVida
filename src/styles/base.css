@@ -2360,3 +2360,21 @@ form.puente-dispositivo { display: flex; flex-direction: column; gap: var(--sp-3
 .mando__volumen { width: 100%; min-height: var(--tap); accent-color: var(--accent); }
 .mando__orden { min-height: 44px; }
 .mando__estado { white-space: normal; overflow: visible; text-align: right; }
+
+/* =========================================================
+   Fase 9 · Red de casa
+   ========================================================= */
+.red__titulo-aviso { display: inline-flex; align-items: center; gap: var(--sp-2); color: var(--warn-ink); }
+.red__titulo-aviso svg { width: 20px; height: 20px; }
+.red-aparato { align-items: flex-start; }
+/* Desconocido: borde a la izquierda además de la etiqueta de texto */
+.red-aparato--desconocido { border-left: 3px solid var(--warn); padding-left: var(--sp-3); }
+.red-aparato__nombre { font-weight: var(--fw-semibold); }
+.red-aparato__tag { margin-left: var(--sp-2); vertical-align: middle; white-space: normal; }
+.red-aparato__acciones { flex-wrap: wrap; gap: var(--sp-2); }
+.red-aparato__acciones .btn--sm { min-height: var(--tap); }
+.red-aparato__form { flex-wrap: wrap; gap: var(--sp-2); }
+.red-aparato__form .input { flex: 1 1 12rem; min-width: 0; }
+.red-historial__lista { display: flex; flex-direction: column; gap: 2px; margin: var(--sp-1) 0 0; padding: 0; list-style: none; }
+.inicio-red { display: flex; align-items: center; gap: var(--sp-2); color: var(--warn-ink); }
+.inicio-red svg { width: 18px; height: 18px; flex: none; }

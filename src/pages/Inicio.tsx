@@ -6,11 +6,13 @@ import { EtiquetaFecha } from '../components/EtiquetaFecha'
 import { Pagina } from '../components/Pagina'
 import { prepararFoco } from '../components/foco'
 import { Racha } from '../components/Racha'
-import { IconoDinero, IconoEstudios, IconoCumple, IconoExterno, IconoFlecha, IconoHabitos, IconoIdea, IconoNegocio, IconoPlan, IconoPuente, IconoTareas } from '../components/iconos'
+import { IconoAviso, IconoDinero, IconoEstudios, IconoCumple, IconoExterno, IconoFlecha, IconoHabitos, IconoIdea, IconoNegocio, IconoPlan, IconoPuente, IconoTareas } from '../components/iconos'
 import { useAccion } from '../components/useAccion'
 import { useEnLinea } from '../components/useEnLinea'
 import { estadoPC } from '../lib/agentes'
 import { listarPCs, type PC } from '../repos/agentes'
+import { listarAparatos } from '../repos/red'
+import { desconocidosConectados } from '../lib/red'
 import { useHoy } from '../components/useHoy'
 import { diferenciaDias, formatearFecha, type FechaDia } from '../lib/fechas'
 import { formatearEuros, mesDe, progresoMeta, resumenMes, resumir } from '../lib/dinero'
@@ -642,6 +644,7 @@ function TarjetaCasa() {
   const ultimo = [...recientes, ...fijados].sort((a, b) => b.created_at.localeCompare(a.created_at))[0]
   const ahora = useAhoraCada(15_000)
   const pcs = usePCsResumen()
+  const desconocidos = useDesconocidosEnRed()
 
   return (
     <section className="card" aria-labelledby="inicio-casa">
@@ -651,6 +654,14 @@ function TarjetaCasa() {
           Casa
         </h2>
       </div>
+      {desconocidos > 0 && (
+        <p className="inicio-red">
+          <IconoAviso />
+          <Link to="/casa/red">
+            {desconocidos === 1 ? 'Hay 1 aparato desconocido en tu red' : `Hay ${desconocidos} aparatos desconocidos en tu red`}
+          </Link>
+        </p>
+      )}
       {pcs && pcs.length > 0 && (
         <ul className="inicio-pcs" role="list" aria-label="Tus PC">
           {pcs.map((pc) => {
@@ -717,4 +728,22 @@ function useAhoraCada(ms: number): number {
     return () => clearInterval(t)
   }, [ms])
   return ahora
+}
+
+/** Cuántos aparatos desconocidos hay conectados en tu red ahora (solo con conexión). */
+function useDesconocidosEnRed(): number {
+  const enLinea = useEnLinea()
+  const [n, setN] = useState(0)
+  useEffect(() => {
+    if (!enLinea) return
+    let vivo = true
+    listarAparatos().then(
+      (l) => vivo && setN(desconocidosConectados(l).length),
+      () => {},
+    )
+    return () => {
+      vivo = false
+    }
+  }, [enLinea])
+  return enLinea ? n : 0
 }

@@ -18,6 +18,7 @@ import {
   IconoPuente,
   IconoCarrito,
   IconoPC,
+  IconoRed,
   IconoMas,
   IconoNegocio,
   IconoTareas,
@@ -43,13 +44,14 @@ const DESEOS: Destino = { ruta: '/deseos', texto: 'Lista de deseos', icono: <Ico
 const COMPRA: Destino = { ruta: '/compra', texto: 'Lista de la compra', icono: <IconoCarrito /> }
 const PUENTE: Destino = { ruta: '/casa/puente', texto: 'Puente', icono: <IconoPuente /> }
 const MANDO: Destino = { ruta: '/casa/mando', texto: 'Mando del PC', icono: <IconoPC /> }
+const RED: Destino = { ruta: '/casa/red', texto: 'Red de casa', icono: <IconoRed /> }
 const DINERO: Destino = { ruta: '/dinero', texto: 'Dinero', icono: <IconoDinero /> }
 const NEGOCIO: Destino = { ruta: '/negocio', texto: 'Negocio', icono: <IconoNegocio /> }
 const CUENTA: Destino = { ruta: '/cuenta', texto: 'Cuenta', icono: <IconoCuenta /> }
 const MAS: Destino = { ruta: '/mas', texto: 'Más', icono: <IconoMas /> }
 
 const PRINCIPALES = [INICIO, HABITOS, TAREAS, ESTUDIOS]
-const EN_MAS = new Set([MAS.ruta, IDEAS.ruta, CUMPLEANOS.ruta, PLANES.ruta, DESEOS.ruta, COMPRA.ruta, PUENTE.ruta, MANDO.ruta, DINERO.ruta, NEGOCIO.ruta, CUENTA.ruta])
+const EN_MAS = new Set([MAS.ruta, IDEAS.ruta, CUMPLEANOS.ruta, PLANES.ruta, DESEOS.ruta, COMPRA.ruta, PUENTE.ruta, MANDO.ruta, RED.ruta, DINERO.ruta, NEGOCIO.ruta, CUENTA.ruta])
 
 export function Layout() {
   const { pathname } = useLocation()
@@ -91,6 +93,7 @@ export function Layout() {
           <EnlaceLateral destino={COMPRA} />
           <EnlaceLateral destino={PUENTE} />
           <EnlaceLateral destino={MANDO} />
+          <EnlaceLateral destino={RED} />
         </div>
         <div className="sidebar__group">
           <EnlaceLateral destino={DINERO} />
