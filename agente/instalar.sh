@@ -29,11 +29,16 @@ chmod 755 "$DESTINO/bin/mipanel-agente.ts"
 (cd "$DESTINO" && npm ci --omit=dev --no-audit --no-fund --silent)
 
 echo "== Lista de fabricantes (IEEE) para el vigilante de la red"
-if curl -fsSL --max-time 60 https://standards-oui.ieee.org/oui/oui.csv -o "$DESTINO/oui.csv.tmp"; then
+# El servidor del IEEE es lento: hasta 10 minutos y 3 reintentos (si ya estaba, se conserva)
+if curl -fsSL --retry 3 --retry-delay 5 --max-time 600 https://standards-oui.ieee.org/oui/oui.csv -o "$DESTINO/oui.csv.tmp"; then
   mv "$DESTINO/oui.csv.tmp" "$DESTINO/oui.csv"
 else
   rm -f "$DESTINO/oui.csv.tmp"
-  echo "   No se ha podido descargar (sin ella, la red no enseña fabricantes). Puedes repetir la instalación más tarde."
+  if [ -f "$DESTINO/oui.csv" ]; then
+    echo "   No se ha podido actualizar: se sigue usando la que ya había."
+  else
+    echo "   No se ha podido descargar (sin ella, la red no enseña fabricantes). Puedes repetir la instalación más tarde."
+  fi
 fi
 
 echo "== Comandos en $BIN"
