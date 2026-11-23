@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "test": "vitest",
     "test:sql": "vitest run tests/sql.test.ts",
-    "typecheck": "tsc -b"
+    "typecheck": "tsc -b && tsc -p agente"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.119.0",

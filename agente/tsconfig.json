@@ -1,0 +1,20 @@
+{
+  // Comprobación de tipos del agente (no compila: Node ejecuta el TypeScript
+  // quitando los tipos). Lo lanza `npm run typecheck` desde la raíz.
+  "compilerOptions": {
+    "target": "es2023",
+    "lib": ["ES2023"],
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "types": ["node"],
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "erasableSyntaxOnly": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true
+  },
+  "include": ["bin", "src"]
+}
