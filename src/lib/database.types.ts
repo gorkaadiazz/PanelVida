@@ -63,6 +63,7 @@ export type Database = {
           ip: string | null
           mac: string
           nombre: string | null
+          nombre_red: string | null
           primera_vez: string
           ultima_vez: string
           unido_a: string | null
@@ -80,6 +81,7 @@ export type Database = {
           ip?: string | null
           mac: string
           nombre?: string | null
+          nombre_red?: string | null
           primera_vez?: string
           ultima_vez?: string
           unido_a?: string | null
@@ -97,6 +99,7 @@ export type Database = {
           ip?: string | null
           mac?: string
           nombre?: string | null
+          nombre_red?: string | null
           primera_vez?: string
           ultima_vez?: string
           unido_a?: string | null

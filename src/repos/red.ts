@@ -6,7 +6,7 @@ import { validarNombreAparato, type Aparato, type Intervalo } from '../lib/red'
 import { ErrorDeValidacion } from '../lib/validacion'
 import { supabase } from '../lib/supabase'
 
-const COLUMNAS = 'id, mac, nombre, fabricante, ip, aleatoria, conectado, conocido, unido_a, primera_vez, ultima_vez'
+const COLUMNAS = 'id, mac, nombre, nombre_red, fabricante, ip, aleatoria, conectado, conocido, unido_a, primera_vez, ultima_vez'
 
 function comprobarConexion() {
   if (typeof navigator !== 'undefined' && !navigator.onLine) throw new ErrorDeValidacion('Para ver la red hace falta conexión.')

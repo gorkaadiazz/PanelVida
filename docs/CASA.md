@@ -318,3 +318,14 @@ es «no puede hacer nada que no necesite».
 - **MAC aleatorias:** los móviles cambian de MAC por privacidad (el «bit
   local» del primer byte lo delata). Por eso un móvil conocido puede salir como
   nuevo y se puede unir con el conocido.
+
+### Nombre de cada aparato (23/11/2026)
+- El agente averigua cómo se presenta cada aparato: por **mDNS** (lo que
+  anuncian teles, Chromecast, impresoras, altavoces…: `avahi-browse`) y, si
+  no, por el **DNS del router**. En Red de casa sale como nombre («Amazon Fire
+  TV o Echo», «Canon TS700 series (Impresora)») hasta que le pongas el tuyo.
+- Lo que antes salía como «Mercusys», «Askey» o «Cloud Network Technology» es
+  el **fabricante del chip de red**, no la marca: Askey suele ser el router
+  de la operadora, Mercusys un repetidor wifi y Cloud Network Technology
+  (Foxconn) puede ser un portátil, una tele o una consola.
+- Migración 20261123000200.

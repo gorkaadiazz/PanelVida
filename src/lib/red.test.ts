@@ -68,3 +68,15 @@ describe('desconocidos y historial', () => {
     expect(minutosConectado([{ desde: '2026-11-22T10:00:00Z', hasta: '2026-11-22T10:30:00Z' }, { desde: '2026-11-22T12:00:00Z', hasta: '2026-11-22T12:15:00Z' }])).toBe(45)
   })
 })
+
+describe('nombre anunciado en la red', () => {
+  it('tu nombre manda; si es conocido, cómo se anuncia; si no, el fabricante', () => {
+    const base = { fabricante: 'Amazon Technologies Inc.', aleatoria: false, mac: 'a4:00:00:00:00:01' }
+    expect(nombreAparato({ ...base, nombre: 'Tele', nombre_red: 'Amazon Fire TV o Echo' })).toBe('Tele')
+    expect(nombreAparato({ ...base, nombre: null, nombre_red: 'Amazon Fire TV o Echo', conocido: true })).toBe('Amazon Fire TV o Echo')
+    expect(nombreAparato({ ...base, nombre: null, nombre_red: null, conocido: true })).toBe('Amazon Technologies Inc.')
+  })
+  it('un DESCONOCIDO no se presenta con su nombre anunciado (podría hacerse pasar por uno tuyo)', () => {
+    expect(nombreAparato({ nombre: null, nombre_red: 'iPhone de Ana', fabricante: null, aleatoria: true, mac: 'da:00:00:00:00:01', conocido: false })).toBe('Aparato con MAC privada')
+  })
+})

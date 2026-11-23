@@ -207,7 +207,9 @@ function FilaAparato({
           <span className={`tag ${grupo.conectado ? 'tag--ok' : ''} red-aparato__tag`}>{grupo.conectado ? 'Conectado' : 'No conectado'}</span>
         </h3>
         <p className="t-small muted break">
-          {a.fabricante && a.nombre ? `${a.fabricante} · ` : ''}
+          {/* Lo que no sale ya como nombre: cómo se anuncia y quién fabricó su chip de red */}
+          {a.nombre_red && a.nombre_red !== nombreAparato(a) ? `Se anuncia como «${a.nombre_red}» · ` : ''}
+          {a.fabricante && a.fabricante !== nombreAparato(a) ? `${a.fabricante} · ` : ''}
           {a.aleatoria ? 'MAC privada · ' : ''}
           {grupo.ip ? <span className="num">{grupo.ip} · </span> : null}
           <span className="num">{a.mac}</span>

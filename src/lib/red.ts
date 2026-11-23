@@ -4,6 +4,8 @@ export interface Aparato {
   id: string
   mac: string
   nombre: string | null
+  /** Cómo se anuncia en la red (lo averigua el agente): «Amazon Fire TV o Echo»… */
+  nombre_red?: string | null
   fabricante: string | null
   ip: string | null
   aleatoria: boolean
@@ -66,9 +68,14 @@ export function agrupar<A extends Aparato>(aparatos: readonly A[]): Grupo<A>[] {
   )
 }
 
-/** Cómo se llama en pantalla: tu nombre, el fabricante o «MAC privada». */
-export function nombreAparato(a: Pick<Aparato, 'nombre' | 'fabricante' | 'aleatoria' | 'mac'>): string {
-  return a.nombre ?? a.fabricante ?? (a.aleatoria ? 'Aparato con MAC privada' : `Aparato ${a.mac.slice(-8)}`)
+/**
+ * Cómo se llama en pantalla: tu nombre, cómo se anuncia (solo si ya es
+ * CONOCIDO), el fabricante o «MAC privada». Un desconocido no se presenta con
+ * su nombre anunciado: cualquiera puede anunciarse como «iPhone de Ana» para
+ * pasar por un aparato tuyo (ese nombre sale aparte, como «se anuncia como…»).
+ */
+export function nombreAparato(a: Pick<Aparato, 'nombre' | 'nombre_red' | 'fabricante' | 'aleatoria' | 'mac'> & { conocido?: boolean }): string {
+  return a.nombre ?? (a.conocido ? a.nombre_red : null) ?? a.fabricante ?? (a.aleatoria ? 'Aparato con MAC privada' : `Aparato ${a.mac.slice(-8)}`)
 }
 
 /** Desconocidos conectados ahora (para el aviso de Inicio). */

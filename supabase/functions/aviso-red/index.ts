@@ -18,11 +18,14 @@ const responder = (estado: number, datos: unknown) =>
   new Response(JSON.stringify(datos), { status: estado, headers: { 'content-type': 'application/json; charset=utf-8' } })
 
 /** «Un aparato nuevo: Samsung (192.168.1.34)» o «3 aparatos nuevos en tu red». */
-function texto(nuevos: { mac: string; ip: string | null; fabricante: string | null; aleatoria: boolean }[]) {
+function texto(nuevos: { mac: string; ip: string | null; fabricante: string | null; aleatoria: boolean; nombre_red: string | null }[]) {
   if (nuevos.length === 1) {
     const n = nuevos[0]
-    const quien = n.fabricante ?? (n.aleatoria ? 'un móvil o similar (MAC privada)' : n.mac)
-    return { titulo: 'Aparato nuevo en tu red', cuerpo: `${quien}${n.ip ? ` (${n.ip})` : ''}. Míralo en Mi Panel → Red.` }
+    // Lo que el aparato dice de sí mismo va como «se anuncia como»: no es su
+    // identidad (cualquiera puede anunciarse como «iPhone de Ana»)
+    const quien = n.fabricante ?? (n.aleatoria ? 'Un aparato con MAC privada' : `Un aparato (${n.mac})`)
+    const anuncio = n.nombre_red ? `, se anuncia como «${n.nombre_red}»` : ''
+    return { titulo: 'Aparato nuevo en tu red', cuerpo: `${quien}${anuncio}${n.ip ? ` (${n.ip})` : ''}. Míralo en Mi Panel → Red.` }
   }
   return { titulo: 'Aparatos nuevos en tu red', cuerpo: `${nuevos.length} aparatos que no se habían visto nunca. Míralos en Mi Panel → Red.` }
 }
