@@ -3,10 +3,12 @@
 
 import { execFile } from 'node:child_process'
 import { createSocket } from 'node:dgram'
+import { Resolver } from 'node:dns/promises'
 import { readFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
+import { leerAvahi, nombreDeRed } from './lib/nombres.ts'
 import { fabricante, ipsAProbar, leerDireccion, leerOui, leerRutaPorDefecto, leerVecinos, normalizarMacVecino, routerDeCasa, type Vecino } from './lib/red.ts'
 
 const ejecutar = promisify(execFile)
@@ -56,7 +58,52 @@ export async function routerActual(): Promise<Router | null> {
 }
 
 export interface Escaneo {
-  dispositivos: { mac: string; ip: string; fabricante: string | null }[]
+  dispositivos: { mac: string; ip: string; fabricante: string | null; nombre_red: string | null }[]
+}
+
+/** Lo que anuncian los aparatos por mDNS (si Avahi está instalado). Vacío si no. */
+async function anunciosMdns(): Promise<string> {
+  try {
+    const { stdout } = await ejecutar('avahi-browse', ['--all', '--resolve', '--terminate', '--parsable', '--no-db-lookup'], {
+      timeout: 5000,
+      maxBuffer: 2 * 1024 * 1024,
+    })
+    return stdout
+  } catch (e) {
+    // Si se corta por tiempo, lo que llegó a escribir sirve igual
+    return String((e as { stdout?: unknown }).stdout ?? '')
+  }
+}
+
+/** El nombre que conoce el router (DNS inverso preguntándole a él), si lo da. */
+async function nombresDns(ips: readonly string[], router: string): Promise<Map<string, string>> {
+  const r = new Resolver({ timeout: 800, tries: 1 })
+  r.setServers([router])
+  const nombres = new Map<string, string>()
+  for (let i = 0; i < ips.length; i += 16) {
+    await Promise.all(
+      ips.slice(i, i + 16).map(async (ip) => {
+        try {
+          const [nombre] = await r.reverse(ip)
+          if (nombre) nombres.set(ip, nombre)
+        } catch {
+          // sin nombre
+        }
+      }),
+    )
+  }
+  return nombres
+}
+
+/** Nombre legible de cada IP (mDNS y, si no, DNS del router). */
+async function nombresEnRed(ips: readonly string[], router: string): Promise<Map<string, string>> {
+  const [mdns, dns] = await Promise.all([anunciosMdns().then(leerAvahi), nombresDns(ips, router)])
+  const nombres = new Map<string, string>()
+  for (const ip of ips) {
+    const n = nombreDeRed(mdns.get(ip), dns.get(ip) ?? null)
+    if (n) nombres.set(ip, n)
+  }
+  return nombres
 }
 
 /** Escanea si estás en casa (router = macRouter). null si no estás en casa o no se puede. */
@@ -92,5 +139,9 @@ export async function escanear(macRouter: string | null): Promise<Escaneo | null
   }
 
   const tabla = await tablaOui()
-  return { dispositivos: vecinos.slice(0, 512).map((v) => ({ mac: v.mac, ip: v.ip, fabricante: fabricante(v.mac, tabla) })) }
+  const lista = vecinos.slice(0, 512)
+  const nombres = await nombresEnRed(lista.map((v) => v.ip), ruta.ip)
+  return {
+    dispositivos: lista.map((v) => ({ mac: v.mac, ip: v.ip, fabricante: fabricante(v.mac, tabla), nombre_red: nombres.get(v.ip) ?? null })),
+  }
 }

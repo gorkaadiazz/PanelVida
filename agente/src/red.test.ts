@@ -33,6 +33,8 @@ vi.mock('node:child_process', async () => {
   }
   const execFile = (programa: string, args: string[], opciones: unknown, cb: (e: Error | null, r?: { stdout: string }) => void) => {
     f.opciones.push(opciones)
+    // avahi-browse (nombres por mDNS): en estos tests no anuncia nada
+    if (programa === 'avahi-browse') return queueMicrotask(() => cb(null, { stdout: '' }))
     if (programa !== 'ip') return cb(new Error(`programa inesperado ${programa}`))
     queueMicrotask(() => cb(null, { stdout: responder(args) }))
   }
@@ -40,6 +42,16 @@ vi.mock('node:child_process', async () => {
     new Promise((ok, mal) => execFile(programa, args, opciones, (e, r) => (e ? mal(e) : ok({ ...r, stderr: '' }))))
   return { execFile, exec: () => { throw new Error('nunca una shell') }, spawn: () => { throw new Error('no se lanza nada') } }
 })
+
+// DNS inverso del router: en estos tests no sabe ningún nombre (y no sale a la red)
+vi.mock('node:dns/promises', () => ({
+  Resolver: class {
+    setServers() {}
+    async reverse() {
+      throw Object.assign(new Error('sin nombre'), { code: 'ENOTFOUND' })
+    }
+  },
+}))
 
 vi.mock('node:dgram', () => ({
   createSocket: (tipo: string) => {
@@ -164,10 +176,10 @@ describe('escanear: solo en casa', () => {
     expect(barrido).not.toContain('192.168.1.104')
     expect(r).toEqual({
       dispositivos: [
-        { mac: ROUTER_MAC, ip: '192.168.1.1', fabricante: null },
-        { mac: 'f4:bd:9e:00:00:01', ip: '192.168.1.34', fabricante: 'Cisco Systems, Inc' },
-        { mac: 'da:a1:19:00:00:01', ip: '192.168.1.40', fabricante: null }, // aleatoria: sin fabricante
-        { mac: 'f4:4e:00:00:00:bb', ip: '192.168.1.104', fabricante: null }, // este PC
+        { mac: ROUTER_MAC, ip: '192.168.1.1', fabricante: null, nombre_red: null },
+        { mac: 'f4:bd:9e:00:00:01', ip: '192.168.1.34', fabricante: 'Cisco Systems, Inc', nombre_red: null },
+        { mac: 'da:a1:19:00:00:01', ip: '192.168.1.40', fabricante: null, nombre_red: null }, // aleatoria: sin fabricante
+        { mac: 'f4:4e:00:00:00:bb', ip: '192.168.1.104', fabricante: null, nombre_red: null }, // este PC
       ],
     })
     expect(f.cerrado).toBeGreaterThanOrEqual(2) // cada socket se cierra
