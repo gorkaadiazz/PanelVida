@@ -70,7 +70,7 @@ Deno.serve(async (req) => {
   })
 
   try {
-    if (cuerpo.accion === 'vincular') return await vincular(admin, url, cuerpo)
+    if (cuerpo.accion === 'vincular') return await vincular(admin, url, cuerpo, await hashIp(req))
     if (cuerpo.accion === 'desvincular') return await desvincular(admin, req, cuerpo)
     return responder(400, { mensaje: 'Acción desconocida.' })
   } catch (error) {
@@ -83,9 +83,22 @@ Deno.serve(async (req) => {
 // deno-lint-ignore no-explicit-any
 type Admin = any
 
-async function vincular(admin: Admin, url: string, cuerpo: Record<string, unknown>) {
+/**
+ * Hash de la IP de quien llama (para el tope de intentos por IP). Nunca se
+ * guarda la IP: sha256 de la IP con la clave del servicio como «sal», así el
+ * hash no sirve para averiguarla.
+ */
+async function hashIp(req: Request): Promise<string | null> {
+  const ip = (req.headers.get('cf-connecting-ip') ?? req.headers.get('x-forwarded-for')?.split(',')[0] ?? '').trim()
+  if (!ip || ip.length > 64) return null
+  const sal = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+  const bytes = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${sal}|${ip}`)))
+  return [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('')
+}
+
+async function vincular(admin: Admin, url: string, cuerpo: Record<string, unknown>, ipHash: string | null) {
   const codigo = typeof cuerpo.codigo === 'string' ? cuerpo.codigo.slice(0, 20) : ''
-  const { data: dueno, error } = await admin.rpc('usar_codigo_vinculacion', { codigo })
+  const { data: dueno, error } = await admin.rpc('usar_codigo_vinculacion', { codigo, ip_hash: ipHash })
   if (error) throw error
   if (!dueno) return responder(403, { mensaje: 'El código no vale: no existe, ya se usó o ha caducado (duran 10 minutos).' })
 

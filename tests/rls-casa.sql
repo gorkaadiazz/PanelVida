@@ -1581,5 +1581,23 @@ delete from auth.users where id = 'aaaaaaaa-0000-4000-8000-00000000000a';
 select pg_temp.comprobar(not exists (select 1 from public.red_dispositivos) and not exists (select 1 from public.red_conexiones), 'la red sobrevive a la cuenta');
 
 
+-- @caso: vincular: como mucho 20 intentos fallidos cada 10 minutos desde la misma IP (las demás siguen)
+reset role;
+select pg_temp.como('aaaaaaaa-0000-4000-8000-00000000000a');
+create temporary table cv as select * from public.crear_codigo_vinculacion();
+grant select on cv to service_role;
+select pg_temp.como('service');
+do $$ begin for i in 1..20 loop perform public.usar_codigo_vinculacion('ZZZZZZZ' || (i % 10), repeat('a', 64)); end loop; end $$;
+-- Desde esa IP, ni el código bueno sirve
+select pg_temp.comprobar(public.usar_codigo_vinculacion((select codigo from cv), repeat('a', 64)) is null, 'no hay tope por IP');
+-- Desde otra IP, sí
+select pg_temp.comprobar(public.usar_codigo_vinculacion((select codigo from cv), repeat('b', 64)) = 'aaaaaaaa-0000-4000-8000-00000000000a', 'el tope de una IP bloquea a las demás');
+-- Un hash con mala forma no cuenta como IP (y no rompe nada)
+select pg_temp.comprobar(public.usar_codigo_vinculacion('ZZZZZZZZ', 'no-es-hash') is null, 'falla con un hash raro');
+reset role;
+select pg_temp.comprobar((select count(*) from public.vinculacion_intentos where ip_hash = repeat('a', 64)) = 20, 'cuenta mal los intentos por IP');
+select pg_temp.como('aaaaaaaa-0000-4000-8000-00000000000a');
+select pg_temp.debe_fallar($q$select public.usar_codigo_vinculacion('ZZZZZZZZ', null)$q$, array['42501'], 'un usuario gasta códigos');
+
 -- @fin
 rollback;
