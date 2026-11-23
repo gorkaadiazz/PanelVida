@@ -81,8 +81,6 @@ function Contenido({ errorInicial }: { errorInicial: string | null }) {
       <Routes>
         <Route element={<LayoutFamilia />}>
           <Route path="compra" element={<Compra />} />
-        <Route path="casa/mando" element={<Mando />} />
-        <Route path="casa/red" element={<Red />} />
           <Route path="cuenta" element={<CuentaFamilia />} />
           <Route path="*" element={<Navigate to="/compra" replace />} />
         </Route>
@@ -105,6 +103,8 @@ function Contenido({ errorInicial }: { errorInicial: string | null }) {
         <Route path="planes" element={<Planes />} />
         <Route path="deseos" element={<Deseos />} />
         <Route path="casa/puente" element={<Puente />} />
+        <Route path="casa/mando" element={<Mando />} />
+        <Route path="casa/red" element={<Red />} />
         <Route path="compra" element={<Compra />} />
         <Route path="cuenta" element={<Cuenta />} />
         <Route path="*" element={<NoEncontrada />} />
