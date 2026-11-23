@@ -76,5 +76,11 @@ if ! command -v wl-copy >/dev/null; then
   echo "Recomendado: sudo pacman -S wl-clipboard   (portapapeles en Wayland; sin él se usa Klipper de KDE)"
 fi
 case ":$PATH:" in *":$BIN:"*) ;; *) echo "Añade $BIN a tu PATH para usar mipanel-agente y mipanel-enviar." ;; esac
-echo "Siguiente paso: en la app, Mando del PC → Vincular un PC, y aquí:"
-echo "   mipanel-agente vincular CODIGO \"PC casa\""
+if [ -f "$CONFIG/credenciales.json" ]; then
+  # Ya vinculado: es una actualización, basta con reiniciar el servicio
+  systemctl --user restart mipanel-agente.service
+  echo "Este PC ya estaba vinculado: agente actualizado y reiniciado."
+else
+  echo "Siguiente paso: en la app, Mando del PC → Vincular un PC, y aquí:"
+  echo "   mipanel-agente vincular CODIGO \"PC casa\""
+fi
