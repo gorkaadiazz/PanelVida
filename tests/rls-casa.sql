@@ -1599,5 +1599,33 @@ select pg_temp.comprobar((select count(*) from public.vinculacion_intentos where
 select pg_temp.como('aaaaaaaa-0000-4000-8000-00000000000a');
 select pg_temp.debe_fallar($q$select public.usar_codigo_vinculacion('ZZZZZZZZ', null)$q$, array['42501'], 'un usuario gasta códigos');
 
+-- @caso: red: el nombre con que se anuncia cada aparato se guarda aparte del tuyo y no se borra si no llega
+reset role;
+insert into public.emails_permitidos (email) values ('agente-1@agente.invalid');
+insert into auth.users (id, email, raw_app_meta_data) values ('99999999-0000-4000-8000-000000000009', 'agente-1@agente.invalid', '{"tipo": "agente"}');
+insert into public.agentes (id, user_id, nombre) values ('99999999-0000-4000-8000-000000000009', 'aaaaaaaa-0000-4000-8000-00000000000a', 'PC casa');
+select pg_temp.como('99999999-0000-4000-8000-000000000009');
+select public.agente_red(jsonb_build_array(
+  jsonb_build_object('mac', 'a4:00:00:00:00:01', 'nombre_red', E'Tele salón\u0007\u202E (Chromecast)'),
+  jsonb_build_object('mac', 'a4:00:00:00:00:02', 'nombre_red', repeat('x', 100)),
+  jsonb_build_object('mac', 'a4:00:00:00:00:03', 'nombre_red', '   ')));
+reset role;
+select pg_temp.comprobar((select nombre_red from public.red_dispositivos where mac = 'a4:00:00:00:00:01') = 'Tele salón (Chromecast)', 'no limpia el nombre anunciado');
+select pg_temp.comprobar((select length(nombre_red) from public.red_dispositivos where mac = 'a4:00:00:00:00:02') = 60, 'no recorta a 60');
+select pg_temp.comprobar((select nombre_red is null from public.red_dispositivos where mac = 'a4:00:00:00:00:03'), 'guarda un nombre vacío');
+-- El dueño le pone su nombre; otro escaneo sin nombre_red no borra el anunciado ni el suyo
+select pg_temp.como('aaaaaaaa-0000-4000-8000-00000000000a');
+update public.red_dispositivos set nombre = 'Tele' where mac = 'a4:00:00:00:00:01';
+select pg_temp.debe_fallar($q$update public.red_dispositivos set nombre_red = 'trampa'$q$, array['42501'], 'el dueño cambia el nombre anunciado');
+reset role;
+update public.agentes set ultimo_escaneo = null;
+select pg_temp.como('99999999-0000-4000-8000-000000000009');
+select public.agente_red('[{"mac": "a4:00:00:00:00:01"}]');
+reset role;
+select pg_temp.comprobar((select nombre = 'Tele' and nombre_red = 'Tele salón (Chromecast)' from public.red_dispositivos where mac = 'a4:00:00:00:00:01'), 'un escaneo borra los nombres');
+-- El aviso lleva el nombre anunciado
+select pg_temp.como('service');
+select pg_temp.comprobar((select nombre_red from public.red_reservar_avisos('aaaaaaaa-0000-4000-8000-00000000000a') where mac = 'a4:00:00:00:00:01') = 'Tele salón (Chromecast)', 'el aviso no lleva el nombre');
+
 -- @fin
 rollback;
