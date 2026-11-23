@@ -59,14 +59,28 @@ export async function historial(ids: readonly string[]): Promise<Intervalo[]> {
   return data ?? []
 }
 
-/** Avisa cuando el agente manda un escaneo o cambias algo (lo tuyo). */
+/** Varios avisos seguidos (un escaneo cambia muchos aparatos a la vez) se juntan en uno. */
+export const ESPERA_AVISOS_RED_MS = 1500
+
+/**
+ * Avisa cuando el agente manda un escaneo o cambias algo (lo tuyo). Un
+ * escaneo produce un evento por aparato: se agrupan y se avisa una sola vez
+ * cuando paran (así un escaneo, o un agente comprometido mandando muchos, no
+ * provoca cientos de lecturas de la lista).
+ */
 export function escucharRed(usuarioId: string, alCambiar: () => void): () => void {
+  let temporizador: ReturnType<typeof setTimeout> | undefined
+  const avisar = () => {
+    clearTimeout(temporizador)
+    temporizador = setTimeout(alCambiar, ESPERA_AVISOS_RED_MS)
+  }
   let canal: RealtimeChannel | null = supabase
     .channel(`red-${crypto.randomUUID()}`)
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'red_dispositivos', filter: `user_id=eq.${usuarioId}` }, () => alCambiar())
-    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'red_dispositivos', filter: `user_id=eq.${usuarioId}` }, () => alCambiar())
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'red_dispositivos', filter: `user_id=eq.${usuarioId}` }, avisar)
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'red_dispositivos', filter: `user_id=eq.${usuarioId}` }, avisar)
     .subscribe()
   return () => {
+    clearTimeout(temporizador)
     if (canal) void supabase.removeChannel(canal)
     canal = null
   }
